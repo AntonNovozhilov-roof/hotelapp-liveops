@@ -1,5 +1,34 @@
 # Dev Log
 
+## Meta1 — 2026-10-29 — Voice input on guest page /r/204 (ANT-10)
+
+Docs checked first (as asked): Meta official docs https://dev.meta.ai/docs/speech-to-text and https://dev.meta.ai/docs/api-reference/voice/transcribe + schemas page. Exact format: POST https://api.meta.ai/v1/asr/transcribe, multipart/form-data with "request" (JSON: model muse-voice-transcribe-1.0, audioEncoding WAV, mode PUSH_TO_TALK) and "audio" (WAV file). Audio must be RIFF/WAVE mono 16-bit PCM at 16 or 24 kHz. Response: {sessionId, transcript, audioDurationMs, turns}. Important: the official response schema has NO detected-language field, so the app reads a language field if Meta ever sends one, and otherwise guesses the language from the transcript text (marked as a guess in the API response with languageSource).
+
+What I built (simple words): On /r/204 there is now a Mic button next to Send. Press Mic, speak, press Stop (auto-stop at 45 seconds, the page shows "Recording… 0:05 / 0:45"). The browser recording is converted in the browser to WAV 24 kHz (Meta accepts only WAV, Chrome records WebM), sent to the new server route, transcribed by Meta, shown as "We heard: ..." with the language, and then sent through the same task routing as typed text. If the microphone is blocked or transcription fails, a friendly message says to type instead.
+
+Files changed:
+- `src/app/r/[room]/GuestForm.tsx` — Mic/Stop button, recording timer (max 45s), browser WAV conversion, "We heard" + language display, sends transcript through the existing routing
+- `src/app/api/guest/transcribe/route.ts` — new route; checks WAV header, calls POST /v1/asr/transcribe with the key from .env.local (never printed), friendly errors
+- `src/lib/language.ts` — language from Meta if present, else a small guess from the transcript (script + common words)
+- `README.md` — how to try voice, plus the phone/HTTPS note
+
+How I checked it works:
+- Direct Meta API test with a spoken test file (macOS "say", Samantha voice, converted to WAV 24 kHz mono): HTTP 200, transcript "There is a leak in the bathroom. Please bring towels."
+- Our route with the same file: HTTP 200, transcript + language English. A non-WAV file returned 415 with a friendly message.
+- `npm run typecheck` ok, `npm run build` ok (new route /api/guest/transcribe).
+- Full browser test on /r/204 with a fake microphone (a test page trick: the spoken test file was played into the browser recorder because I cannot speak into the computer mic): pressed Mic, saw "Recording… 0:13 / 0:45", pressed Stop, page showed "We heard: There is a leak in the bathroom. Please bring towels.." and "Language: English", tasks grew from 3 to 5 (new leak + towels tasks, LIVE), transcribe and message APIs both 200, no app console errors.
+- Blocked microphone test (permission denied on purpose): friendly message "The microphone is blocked. Please allow microphone access in your browser, or type your request instead." appeared.
+- Responsive: phone 355px in browser — no sideways scroll (Mic and Send fit in one row). Desktop 1440px headless Chrome screenshot — Mic next to Send, page fine.
+
+NOT working / NOT checked yet:
+- I cannot speak into a real microphone in this session, so a real human-voice recording by a person is NOT checked. The user should test: open /r/204 in Chrome, press Mic, allow microphone, say "There is a leak in the bathroom. Please bring towels.", press Stop, check "We heard: ..." and new tasks.
+- Real phone test is NOT checked: Chrome on a phone blocks the microphone on plain http network addresses (needs HTTPS or localhost). Typing works. Setting up an HTTPS tunnel is a separate step if wanted.
+- Language is a guess from the text when Meta returns no language field (today it does not, per the official schema).
+- Test tasks from this test are still in the local .data file.
+
+AI model that helped: Muse via opencode (Meta1). Speech model tested: muse-voice-transcribe-1.0
+Linear: ANT-10, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — Staff screen /staff with saved tasks (ANT-9)
 
 What I built (simple words): Tasks from the guest page are now saved. Staff open /staff, choose their name, see only their team tasks, and move each task with Accept -> Start -> Done. The guest page shows the live status of its tasks and refreshes itself every 3 seconds.

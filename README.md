@@ -17,6 +17,11 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   with buttons: Accept -> Start -> Done.
 - The guest page shows the live status of its tasks
   (New / Accepted / In progress / Done) and refreshes every few seconds.
+- Voice input on the guest page: press **Mic**, speak (up to 45 seconds),
+  press **Stop**. The recording is turned into text by Meta's
+  `muse-voice-transcribe-1.0`, the page shows "We heard: ..." and the
+  language, and then the text is routed to tasks like typed text.
+  If the microphone is blocked, the page says so and typing still works.
 - Pages are responsive: one column on phones (from 375px), wider layouts
   with status columns on desktop (up to 1440px).
 
@@ -41,6 +46,20 @@ Try this text:
 Then go to the staff page, choose Ruslan (Maintenance), and press
 Accept -> Start -> Done on the leak task. Watch the guest page: its status
 updates by itself in a few seconds.
+
+## Try voice input
+
+1. Open http://localhost:3000/r/204 in Chrome.
+2. Press **Mic**. If Chrome asks, allow the microphone.
+3. Say: "There is a leak in the bathroom. Please bring towels."
+4. Press **Stop**. Wait a few seconds.
+5. You should see "We heard: ..." and "Language: ...", and new tasks below.
+
+Note for phones: Chrome on a phone only allows the microphone on secure
+(HTTPS) pages or localhost. Opening the Mac's network address
+(http://192.168...) on a phone will block the microphone. Typing works
+everywhere. For a real phone test you need an HTTPS address (for example a
+tunnel) — ask for help if you want that set up.
 
 ## Using the real AI (optional)
 

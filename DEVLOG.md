@@ -1,5 +1,27 @@
 # Dev Log
 
+## Meta1 — 2026-10-29 — Test real Meta AI on /r/204 (ANT-7)
+
+What I did (simple words): The user added a key to .env.local (key never printed). I restarted the app and tested the guest page with the real Meta AI, not MOCK.
+
+Files changed:
+- `DEVLOG.md` — this entry only. No code changes. `.env.local` is ignored by git and was not read or printed.
+
+How I checked it works:
+- Checked only that MODEL_API_KEY is present (non-empty) in .env.local. The value was never printed.
+- Restarted the app on http://localhost:3000 (production server).
+- `curl POST /api/guest/message` with "leak in the bathroom and bring towels", room 204, returned HTTP 200: mode LIVE, model muse-spark-1.3, task 1 maintenance / "Fix leak in the bathroom" / high / 0.95, task 2 housekeeping / "Bring towels" / low / 0.95
+- Browser: opened http://localhost:3000/r/204, typed the same text, pressed Send, saw "Tasks created (2)" with the LIVE AI badge (no MOCK), first task "Fix leak in the bathroom — Maintenance — Room 204 — Confidence: 95%". No browser console errors. Screenshot taken. The API request took about 4.5 seconds in the browser.
+
+NOT working / NOT checked yet:
+- Only this one test message was checked with the real AI. Other message types were not re-tested live.
+- Note: the real model gave the towels task priority "low" (the MOCK gave "medium"). Both are valid values, but priority tuning is a later step.
+- Tasks are not saved anywhere yet, and there is no staff page yet.
+- This DEVLOG entry was committed locally on 2026-10-29 (no .env.local, no keys in the commit). Not pushed to GitHub in that step.
+
+AI model that helped: Muse via opencode (Meta1). AI model tested in the app: muse-spark-1.3 (Meta Model API)
+Linear: ANT-7, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — Guest page /r/204 and AI routing API (ANT-6)
 
 What I built (simple words): A guest in room 204 can open a web page, write a request, and press Send. The server turns the text into tasks for the right hotel team and shows the tasks under the text box. One message can make 2 tasks.

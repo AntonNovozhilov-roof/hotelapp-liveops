@@ -1,5 +1,26 @@
 # Dev Log
 
+## Meta1 — 2026-10-29 — New-task badges on staff picker + plain Done label (ANT-13)
+
+What I changed (simple words): On /staff, each person box in "Who are you?" now has a small round red badge in the corner with the number of NEW tasks for that person's team. The number updates by itself every 3 seconds, and there is no badge when the number is 0. In the Done column, "Done ✓" is now plain text, not a button-looking box.
+
+Files changed:
+- `src/app/staff/StaffBoard.tsx` — board now loads all tasks in one fetch, counts NEW tasks per team for the badges, red round badge in the corner of each person box (hidden at 0), Done column shows plain "Done ✓" text with no button styling and no button element
+- `DEVLOG.md` — this entry
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok, app restarted.
+- Made test tasks through the real guest API: Ruslan (Maintenance) badge showed 2, Aigerim (Housekeeping) showed 1, Daniyar and Madina showed no badge.
+- Auto-update: with /staff open, sent "I need a taxi at 7 am" through the guest API — Daniyar's badge appeared with 1 without reloading the page.
+- Done label: chose Aigerim on /staff — her Done column task shows plain "Done ✓" text and there is no button inside the Done column (checked in the page).
+- Responsive: phone 355px in browser — badges visible, no sideways scroll. Desktop 1440px headless Chrome screenshot — red badges in the corners of Ruslan (2), Aigerim (1), Daniyar (1), none on Madina, 4 columns fine.
+
+NOT working / NOT checked yet:
+- Nothing new broken. Test tasks I created are still in the local .data file (staff can clear them with "Reset demo data").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-13, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — Guest page privacy: only this message confirmation + staff reset (ANT-12)
 
 What I changed (simple words): Guests no longer see the room's task history. After pressing Send, the guest sees a short confirmation only for the tasks made by that one message, with a simple live status. Refreshing the guest page starts clean. Staff still see everything, and staff can clear all demo tasks with a link at the bottom of /staff.

@@ -8,6 +8,7 @@ import {
   TASK_STATUSES,
   sortTasks,
   timeAgo,
+  type Department,
   type StoredTask,
   type TaskStatus,
 } from "@/lib/tasks";
@@ -32,6 +33,12 @@ const NEXT_ACTION: Partial<
 export default function StaffBoard() {
   const [staffName, setStaffName] = useState(STAFF[0].name);
   const [tasks, setTasks] = useState<StoredTask[]>([]);
+  const [newCounts, setNewCounts] = useState<Record<Department, number>>({
+    maintenance: 0,
+    housekeeping: 0,
+    front_desk: 0,
+    room_service: 0,
+  });
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, setNowTick] = useState(0);
@@ -47,13 +54,32 @@ export default function StaffBoard() {
 
   const loadTasks = useCallback(async () => {
     try {
-      const response = await fetch(
-        `/api/tasks?department=${encodeURIComponent(member.department)}`,
-        { cache: "no-store" },
-      );
+      // One fetch for everything: the board needs this team's tasks,
+      // and the "Who are you?" badges need NEW counts for every team.
+      const response = await fetch("/api/tasks", { cache: "no-store" });
       if (!response.ok) throw new Error("Could not load tasks");
       const data = (await response.json()) as { tasks: StoredTask[] };
-      setTasks(sortTasks(data.tasks));
+      setTasks(
+        sortTasks(
+          data.tasks.filter((task) => task.department === member.department),
+        ),
+      );
+      setNewCounts({
+        maintenance: data.tasks.filter(
+          (task) => task.department === "maintenance" && task.status === "new",
+        ).length,
+        housekeeping: data.tasks.filter(
+          (task) =>
+            task.department === "housekeeping" && task.status === "new",
+        ).length,
+        front_desk: data.tasks.filter(
+          (task) => task.department === "front_desk" && task.status === "new",
+        ).length,
+        room_service: data.tasks.filter(
+          (task) =>
+            task.department === "room_service" && task.status === "new",
+        ).length,
+      });
       setError(null);
     } catch {
       setError("Could not load tasks. The page will keep trying.");
@@ -87,6 +113,12 @@ export default function StaffBoard() {
         throw new Error(data.error || "Could not clear the tasks.");
       }
       setTasks([]);
+      setNewCounts({
+        maintenance: 0,
+        housekeeping: 0,
+        front_desk: 0,
+        room_service: 0,
+      });
     } catch (resetError) {
       setError(
         resetError instanceof Error
@@ -130,13 +162,19 @@ export default function StaffBoard() {
         <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-4">
           {STAFF.map((person) => {
             const isActive = person.name === staffName;
+            const newCount = newCounts[person.department];
             return (
               <button
                 key={person.name}
                 type="button"
                 onClick={() => chooseStaff(person.name)}
                 aria-pressed={isActive}
-                className={`rounded-xl border px-4 py-3 text-left font-semibold ${
+                aria-label={
+                  newCount > 0
+                    ? `${person.name}, ${DEPARTMENT_LABELS[person.department]}, ${newCount} new tasks`
+                    : `${person.name}, ${DEPARTMENT_LABELS[person.department]}`
+                }
+                className={`relative rounded-xl border px-4 py-3 text-left font-semibold ${
                   isActive
                     ? "border-teal-700 bg-teal-700 text-white"
                     : "border-slate-300 bg-white text-slate-800 hover:border-teal-600"
@@ -150,6 +188,11 @@ export default function StaffBoard() {
                 >
                   {DEPARTMENT_LABELS[person.department]}
                 </span>
+                {newCount > 0 && (
+                  <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white shadow">
+                    {newCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -220,8 +263,8 @@ export default function StaffBoard() {
                             {busyId === task.id ? "Saving..." : action.label}
                           </button>
                         ) : (
-                          <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-center font-semibold text-emerald-800">
-                            Done
+                          <p className="mt-3 text-sm font-semibold text-emerald-700">
+                            Done ✓
                           </p>
                         )}
                       </li>

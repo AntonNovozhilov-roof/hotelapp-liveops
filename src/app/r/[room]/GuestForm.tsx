@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEPARTMENT_LABELS,
-  STATUS_LABELS,
-  sortTasks,
   type MessageMode,
   type StoredTask,
   type TaskStatus,
@@ -13,17 +11,15 @@ import {
 const POLL_MS = 3000;
 const MAX_RECORD_SECONDS = 45;
 
-const PRIORITY_STYLES: Record<StoredTask["priority"], string> = {
-  high: "bg-red-100 text-red-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-slate-100 text-slate-700",
-};
-
-const STATUS_STYLES: Record<TaskStatus, string> = {
-  new: "bg-sky-100 text-sky-800",
-  accepted: "bg-violet-100 text-violet-800",
-  in_progress: "bg-amber-100 text-amber-900",
-  done: "bg-emerald-100 text-emerald-800",
+/** Simple words for the guest. Staff flow: New -> Accepted -> In progress -> Done. */
+const GUEST_STATUS: Record<
+  TaskStatus,
+  { label: string; style: string }
+> = {
+  new: { label: "Received", style: "bg-sky-100 text-sky-800" },
+  accepted: { label: "Received", style: "bg-sky-100 text-sky-800" },
+  in_progress: { label: "On the way", style: "bg-amber-100 text-amber-900" },
+  done: { label: "Done", style: "bg-emerald-100 text-emerald-800" },
 };
 
 interface Heard {
@@ -96,7 +92,9 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
 
 export default function GuestForm({ room }: { room: string }) {
   const [message, setMessage] = useState("");
-  const [tasks, setTasks] = useState<StoredTask[]>([]);
+  // Only the tasks created by the last message sent in THIS browser tab.
+  // Never the room history (privacy: could be a previous guest's requests).
+  const [sentTasks, setSentTasks] = useState<StoredTask[]>([]);
   const [lastMode, setLastMode] = useState<MessageMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -114,25 +112,36 @@ export default function GuestForm({ room }: { room: string }) {
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
 
-  const loadTasks = useCallback(async () => {
+  const sentIds = sentTasks.map((task) => task.id).join(",");
+
+  const refreshSentTasks = useCallback(async () => {
+    if (!sentIds) return;
     try {
-      const response = await fetch(`/api/tasks?room=${encodeURIComponent(room)}`, {
-        cache: "no-store",
-      });
+      // Ask only for this message's task IDs, never the whole room history.
+      const response = await fetch(
+        `/api/tasks?ids=${encodeURIComponent(sentIds)}`,
+        { cache: "no-store" },
+      );
       if (!response.ok) return;
       const data = (await response.json()) as { tasks: StoredTask[] };
-      setTasks(sortTasks(data.tasks).slice(0, 20));
+      const order = sentIds.split(",");
+      const byId = new Map(data.tasks.map((task) => [task.id, task]));
+      setSentTasks(
+        order
+          .map((id) => byId.get(id))
+          .filter((task): task is StoredTask => Boolean(task)),
+      );
     } catch {
-      // Keep showing the last known tasks if a refresh fails.
+      // Keep showing the last known status if a refresh fails.
     }
-  }, [room]);
+  }, [sentIds]);
 
-  // Live status: load on open, then refresh every few seconds.
+  // Live status for this message's tasks only, every few seconds.
   useEffect(() => {
-    void loadTasks();
-    const timer = setInterval(() => void loadTasks(), POLL_MS);
+    if (!sentIds) return;
+    const timer = setInterval(() => void refreshSentTasks(), POLL_MS);
     return () => clearInterval(timer);
-  }, [loadTasks]);
+  }, [refreshSentTasks, sentIds]);
 
   useEffect(() => {
     return () => {
@@ -151,14 +160,16 @@ export default function GuestForm({ room }: { room: string }) {
       const data = (await response.json()) as {
         mode?: MessageMode;
         error?: string;
+        tasks?: StoredTask[];
       };
       if (!response.ok) {
         throw new Error(data.error || "Something went wrong. Please try again.");
       }
       if (data.mode) setLastMode(data.mode);
-      await loadTasks();
+      // Confirmation shows only this message's tasks.
+      setSentTasks(data.tasks ?? []);
     },
-    [loadTasks, room],
+    [room],
   );
 
   async function handleSend(event: React.FormEvent) {
@@ -403,63 +414,52 @@ export default function GuestForm({ room }: { room: string }) {
         </div>
       )}
 
-      <section aria-live="polite" className="mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold">Your tasks ({tasks.length})</h2>
+      {sentTasks.length > 0 && (
+        <section aria-live="polite" className="mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Sent</h2>
+            {lastMode === "MOCK" && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
+                MOCK
+              </span>
+            )}
+            {lastMode === "LIVE" && (
+              <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
+                LIVE AI
+              </span>
+            )}
+          </div>
+
           {lastMode === "MOCK" && (
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
-              MOCK
-            </span>
+            <p className="mt-2 text-sm text-slate-600">
+              MOCK means: no AI key is set on the server, so these are fake
+              example tasks. Tasks are still saved and staff can work on
+              them.
+            </p>
           )}
-          {lastMode === "LIVE" && (
-            <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
-              LIVE AI
-            </span>
-          )}
-        </div>
 
-        {lastMode === "MOCK" && (
-          <p className="mt-2 text-sm text-slate-600">
-            MOCK means: no AI key is set on the server, so these are fake
-            example tasks. Tasks are still saved and staff can work on them.
-          </p>
-        )}
-
-        {tasks.length === 0 ? (
-          <p className="mt-4 rounded-2xl bg-white p-4 text-slate-600 shadow-sm">
-            No tasks yet. Write a request above and press Send.
-          </p>
-        ) : (
           <ul className="mt-4 space-y-3">
-            {tasks.map((task) => (
-              <li key={task.id} className="rounded-2xl bg-white p-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="font-semibold">{task.title}</p>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${PRIORITY_STYLES[task.priority]}`}
-                  >
-                    {task.priority}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                  <span>
-                    Team: {DEPARTMENT_LABELS[task.department]} · Room {room} ·
-                    Confidence: {Math.round(task.confidence * 100)}%
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_STYLES[task.status]}`}
-                  >
-                    {STATUS_LABELS[task.status]}
-                  </span>
-                </div>
+            {sentTasks.map((task) => (
+              <li
+                key={task.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white p-4 shadow-sm"
+              >
+                <p className="font-semibold">
+                  Sent to {DEPARTMENT_LABELS[task.department]}: {task.title}
+                </p>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${GUEST_STATUS[task.status].style}`}
+                >
+                  {GUEST_STATUS[task.status].label}
+                </span>
               </li>
             ))}
           </ul>
-        )}
-        <p className="mt-3 text-center text-xs text-slate-500">
-          Status updates automatically every few seconds.
-        </p>
-      </section>
+          <p className="mt-3 text-center text-xs text-slate-500">
+            Status updates automatically every few seconds.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

@@ -58,13 +58,24 @@ async function writeAll(tasks: StoredTask[]): Promise<void> {
 export async function listStoredTasks(filter?: {
   room?: string;
   department?: string;
+  ids?: string[];
 }): Promise<StoredTask[]> {
   const tasks = await readAll();
   return tasks.filter((task) => {
+    if (filter?.ids && !filter.ids.includes(task.id)) return false;
     if (filter?.room && task.room !== filter.room) return false;
     if (filter?.department && task.department !== filter.department)
       return false;
     return true;
+  });
+}
+
+/** Delete every saved task (staff "Reset demo data"). Returns how many were removed. */
+export async function clearStoredTasks(): Promise<number> {
+  return withLock(async () => {
+    const tasks = await readAll();
+    await writeAll([]);
+    return tasks.length;
   });
 }
 

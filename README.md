@@ -15,8 +15,13 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   Aigerim - Housekeeping, Daniyar - Front desk, Madina - Room service).
   You see only your team tasks, most urgent and newest first, and move them
   with buttons: Accept -> Start -> Done.
-- The guest page shows the live status of its tasks
-  (New / Accepted / In progress / Done) and refreshes every few seconds.
+- After Send, the guest page shows only the tasks created by that one
+  message, like "Sent to Maintenance: Fix leak", with a simple live status
+  (Received / On the way / Done) that refreshes every few seconds.
+  Guests never see older tasks from the room (privacy), and a page refresh
+  starts clean. All tasks stay visible on `/staff`.
+- `/staff` has a small "Reset demo data" link at the bottom that deletes
+  all saved tasks (it asks "Are you sure?" first).
 - Voice input on the guest page: press **Mic**, speak (up to 45 seconds),
   press **Stop**. The recording is turned into text by Meta's
   `muse-voice-transcribe-1.0` and put into the text box. The guest can

@@ -1,5 +1,34 @@
 # Dev Log
 
+## Meta1 — 2026-10-29 — Guest page privacy: only this message confirmation + staff reset (ANT-12)
+
+What I changed (simple words): Guests no longer see the room's task history. After pressing Send, the guest sees a short confirmation only for the tasks made by that one message, with a simple live status. Refreshing the guest page starts clean. Staff still see everything, and staff can clear all demo tasks with a link at the bottom of /staff.
+
+Status words for the guest: staff New and Accepted both show as "Received", staff In progress shows as "On the way", staff Done shows as "Done".
+
+Files changed:
+- `src/app/r/[room]/GuestForm.tsx` — removed the "Your tasks" history list; after Send it stores only this message's tasks (in this browser tab only, in memory) and polls only those task IDs every 3 seconds; confirmation lines like "Sent to Maintenance: Fix leak in the bathroom"
+- `src/app/api/tasks/route.ts` — GET can now filter by task IDs, and new DELETE clears all tasks
+- `src/lib/store.ts` — IDs filter + clear-all function
+- `src/app/staff/StaffBoard.tsx` — small "Reset demo data" link at the bottom; asks "Are you sure? This will delete ALL saved tasks for every room and team." before deleting
+- `README.md` — privacy behaviour and reset explained
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok, app restarted.
+- Privacy: the server had 15 saved room-204 tasks, but a fresh /r/204 page showed none of them (checked no "Your tasks", no old task titles in the page).
+- Sent "The air conditioner is broken" on /r/204: confirmation showed exactly 1 line "Sent to Maintenance: Fix air conditioner in room 204" with "Received".
+- On /staff as Ruslan pressed Accept then Start: the guest page (no reload) changed to "On the way". Pressed Done on staff: guest page changed to "Done".
+- Refreshed the guest page: no confirmation, no history — clean start.
+- Reset: clicked "Reset demo data" on /staff, the "Are you sure?" dialog appeared, accepted it: API returned 0 tasks, .data/tasks.json is [], and the staff board shows 0 in all 4 columns.
+- Responsive: phone 355px in browser — guest and staff with no sideways scroll. Desktop 1440px headless Chrome screenshots — staff columns and the reset link at the bottom look fine.
+
+NOT working / NOT checked yet:
+- The reset in my test deleted all the old local test tasks (that is what it is for). The demo now starts with an empty task list — send a new guest message to see tasks again.
+- Guest confirmations are per-tab in memory, by design: closing or refreshing the tab clears them.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-12, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — Voice transcript into text box, Send to create tasks (ANT-11)
 
 What I changed (simple words): After recording, the voice text now goes into the text box and waits. The guest reads it, can fix wrong words, and presses Send. Only then are tasks created — the same as typed text. Language is still detected automatically (no picker).

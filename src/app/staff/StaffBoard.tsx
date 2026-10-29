@@ -74,6 +74,28 @@ export default function StaffBoard() {
     window.localStorage.setItem(STORAGE_KEY, name);
   }
 
+  async function resetDemoData() {
+    const confirmed = window.confirm(
+      "Are you sure? This will delete ALL saved tasks for every room and team.",
+    );
+    if (!confirmed) return;
+    setError(null);
+    try {
+      const response = await fetch("/api/tasks", { method: "DELETE" });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Could not clear the tasks.");
+      }
+      setTasks([]);
+    } catch (resetError) {
+      setError(
+        resetError instanceof Error
+          ? resetError.message
+          : "Could not clear the tasks.",
+      );
+    }
+  }
+
   async function moveTask(task: StoredTask) {
     const action = NEXT_ACTION[task.status];
     if (!action || busyId) return;
@@ -211,6 +233,16 @@ export default function StaffBoard() {
           );
         })}
       </div>
+
+      <footer className="mt-10 text-center">
+        <button
+          type="button"
+          onClick={() => void resetDemoData()}
+          className="text-sm text-slate-500 underline underline-offset-4 hover:text-red-700"
+        >
+          Reset demo data
+        </button>
+      </footer>
     </div>
   );
 }

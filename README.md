@@ -19,8 +19,9 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   (New / Accepted / In progress / Done) and refreshes every few seconds.
 - Voice input on the guest page: press **Mic**, speak (up to 45 seconds),
   press **Stop**. The recording is turned into text by Meta's
-  `muse-voice-transcribe-1.0`, the page shows "We heard: ..." and the
-  language, and then the text is routed to tasks like typed text.
+  `muse-voice-transcribe-1.0` and put into the text box. The guest can
+  read and fix the text, then press **Send** — tasks are created only
+  then, like with typed text. The language is detected automatically.
   If the microphone is blocked, the page says so and typing still works.
 - Pages are responsive: one column on phones (from 375px), wider layouts
   with status columns on desktop (up to 1440px).
@@ -53,7 +54,10 @@ updates by itself in a few seconds.
 2. Press **Mic**. If Chrome asks, allow the microphone.
 3. Say: "There is a leak in the bathroom. Please bring towels."
 4. Press **Stop**. Wait a few seconds.
-5. You should see "We heard: ..." and "Language: ...", and new tasks below.
+5. The text appears in the text box with the hint
+   "Check the text and fix it if needed, then press Send."
+   Fix any wrong words if you want.
+6. Press **Send**. Only now are the tasks created below.
 
 Note for phones: Chrome on a phone only allows the microphone on secure
 (HTTPS) pages or localhost. Opening the Mac's network address

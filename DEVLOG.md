@@ -1,5 +1,26 @@
 # Dev Log
 
+## Meta1 — 2026-10-29 — Voice transcript into text box, Send to create tasks (ANT-11)
+
+What I changed (simple words): After recording, the voice text now goes into the text box and waits. The guest reads it, can fix wrong words, and presses Send. Only then are tasks created — the same as typed text. Language is still detected automatically (no picker).
+
+Files changed:
+- `src/app/r/[room]/GuestForm.tsx` — transcript now only fills the text box (no automatic send), hint "Check the text and fix it if needed, then press Send." appears above the text box until Send, hint disappears after Send
+- `README.md` — voice steps updated
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok, app restarted.
+- Browser test on /r/204 with the fake microphone (spoken test file played into the recorder, same as ANT-10): after Stop, the text box contained "There is a leak in the bathroom. Please bring towels.", the hint was shown, "Language: English" was shown, and the task count stayed at 12 — no tasks were created automatically (also checked the server task count stayed 12).
+- Then I edited the text in the box (changed it to "...bring extra towels.") and pressed Send: tasks went from 12 to 14, the hint disappeared, the text box cleared, no browser errors.
+- Responsive: phone 355px in browser — no sideways scroll. Desktop 1440px headless Chrome screenshot — page fine.
+
+NOT working / NOT checked yet:
+- A real person re-testing the new flow by voice is not checked by me (I used the fake-microphone file test again; the user already proved real voice works in English and Russian for ANT-10).
+- Old test tasks keep growing in the local .data file during tests.
+
+AI model that helped: Muse via opencode (Meta1). Speech model in the test: muse-voice-transcribe-1.0
+Linear: ANT-11, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — Voice input on guest page /r/204 (ANT-10)
 
 Docs checked first (as asked): Meta official docs https://dev.meta.ai/docs/speech-to-text and https://dev.meta.ai/docs/api-reference/voice/transcribe + schemas page. Exact format: POST https://api.meta.ai/v1/asr/transcribe, multipart/form-data with "request" (JSON: model muse-voice-transcribe-1.0, audioEncoding WAV, mode PUSH_TO_TALK) and "audio" (WAV file). Audio must be RIFF/WAVE mono 16-bit PCM at 16 or 24 kHz. Response: {sessionId, transcript, audioDurationMs, turns}. Important: the official response schema has NO detected-language field, so the app reads a language field if Meta ever sends one, and otherwise guesses the language from the transcript text (marked as a guess in the API response with languageSource).

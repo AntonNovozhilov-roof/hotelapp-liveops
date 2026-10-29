@@ -105,6 +105,8 @@ export default function GuestForm({ room }: { room: string }) {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [heard, setHeard] = useState<Heard | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // True after a voice transcript lands in the text box, until the guest sends it.
+  const [voiceReady, setVoiceReady] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -169,6 +171,7 @@ export default function GuestForm({ room }: { room: string }) {
     try {
       await sendText(text);
       setMessage("");
+      setVoiceReady(false);
     } catch (sendError) {
       setError(
         sendError instanceof Error
@@ -222,9 +225,9 @@ export default function GuestForm({ room }: { room: string }) {
         transcript: data.transcript,
         language: data.language || "Unknown",
       });
+      // Do NOT create tasks yet: the guest checks and can fix the text first.
       setMessage(data.transcript);
-      await sendText(data.transcript);
-      setMessage("");
+      setVoiceReady(true);
     } catch (transcribeError) {
       setVoiceError(
         transcribeError instanceof Error &&
@@ -246,6 +249,7 @@ export default function GuestForm({ room }: { room: string }) {
 
     setVoiceError(null);
     setHeard(null);
+    setVoiceReady(false);
 
     if (
       typeof navigator === "undefined" ||
@@ -319,6 +323,11 @@ export default function GuestForm({ room }: { room: string }) {
         <label htmlFor="guest-message" className="font-semibold">
           What do you need?
         </label>
+        {voiceReady && (
+          <p className="mt-3 rounded-xl bg-teal-50 px-4 py-3 font-semibold text-teal-900">
+            Check the text and fix it if needed, then press Send.
+          </p>
+        )}
         <textarea
           id="guest-message"
           value={message}

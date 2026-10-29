@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { mockTasks, validateTasks, type Task } from "@/lib/tasks";
+import { createStoredTasks } from "@/lib/store";
 
 const MODEL_BASE_URL = "https://api.meta.ai/v1";
 const MODEL_NAME = "muse-spark-1.3";
@@ -124,16 +125,19 @@ export async function POST(request: Request) {
 
   // No key yet: fake answer so the page still works.
   if (!process.env.MODEL_API_KEY) {
-    return NextResponse.json({
-      mode: "MOCK",
-      room,
-      tasks: mockTasks(message),
-    });
+    const saved = await createStoredTasks(room, mockTasks(message));
+    return NextResponse.json({ mode: "MOCK", room, tasks: saved });
   }
 
   try {
     const tasks = await tasksFromModel(message, room);
-    return NextResponse.json({ mode: "LIVE", room, model: MODEL_NAME, tasks });
+    const saved = await createStoredTasks(room, tasks);
+    return NextResponse.json({
+      mode: "LIVE",
+      room,
+      model: MODEL_NAME,
+      tasks: saved,
+    });
   } catch (error) {
     console.error(
       "Model call failed:",

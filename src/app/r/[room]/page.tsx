@@ -8,7 +8,7 @@ export default async function RoomPage({
   const { room } = await params;
 
   return (
-    <main className="mx-auto w-full max-w-xl px-5 py-8 sm:py-12">
+    <main className="mx-auto w-full max-w-xl px-4 py-8 sm:px-5 sm:py-12 lg:max-w-2xl">
       <header className="mb-6 text-center">
         <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">
           HotelApp LiveOps

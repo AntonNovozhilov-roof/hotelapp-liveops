@@ -10,6 +10,15 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   title, priority (`high` / `medium` / `low`), confidence (0 to 1).
   One message can create 2 tasks, e.g. "leak in the bathroom and bring towels".
 - With no API key, the app uses a fake MOCK answer and shows the word **MOCK**.
+- Every created task is saved in `.data/tasks.json` (local only, ignored by git).
+- `/staff` — staff screen. Choose who you are (Ruslan - Maintenance,
+  Aigerim - Housekeeping, Daniyar - Front desk, Madina - Room service).
+  You see only your team tasks, most urgent and newest first, and move them
+  with buttons: Accept -> Start -> Done.
+- The guest page shows the live status of its tasks
+  (New / Accepted / In progress / Done) and refreshes every few seconds.
+- Pages are responsive: one column on phones (from 375px), wider layouts
+  with status columns on desktop (up to 1440px).
 
 ## How to run it
 
@@ -22,11 +31,16 @@ npm run dev
 
 Then open in your browser:
 
-- http://localhost:3000/r/204
+- Guest (room 204): http://localhost:3000/r/204
+- Staff: http://localhost:3000/staff
 
 Try this text:
 
 > There is a leak in the bathroom and please bring towels
+
+Then go to the staff page, choose Ruslan (Maintenance), and press
+Accept -> Start -> Done on the leak task. Watch the guest page: its status
+updates by itself in a few seconds.
 
 ## Using the real AI (optional)
 

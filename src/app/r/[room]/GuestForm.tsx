@@ -1,32 +1,56 @@
 "use client";
 
-import { useState } from "react";
-import type { MessageMode, Task } from "@/lib/tasks";
+import { useCallback, useEffect, useState } from "react";
+import {
+  DEPARTMENT_LABELS,
+  STATUS_LABELS,
+  sortTasks,
+  type MessageMode,
+  type StoredTask,
+  type TaskStatus,
+} from "@/lib/tasks";
 
-interface ApiResult {
-  mode: MessageMode;
-  room: string;
-  tasks: Task[];
-}
+const POLL_MS = 3000;
 
-const DEPARTMENT_LABELS: Record<Task["department"], string> = {
-  maintenance: "Maintenance",
-  housekeeping: "Housekeeping",
-  front_desk: "Front desk",
-  room_service: "Room service",
-};
-
-const PRIORITY_STYLES: Record<Task["priority"], string> = {
+const PRIORITY_STYLES: Record<StoredTask["priority"], string> = {
   high: "bg-red-100 text-red-800",
   medium: "bg-amber-100 text-amber-800",
   low: "bg-slate-100 text-slate-700",
 };
 
+const STATUS_STYLES: Record<TaskStatus, string> = {
+  new: "bg-sky-100 text-sky-800",
+  accepted: "bg-violet-100 text-violet-800",
+  in_progress: "bg-amber-100 text-amber-900",
+  done: "bg-emerald-100 text-emerald-800",
+};
+
 export default function GuestForm({ room }: { room: string }) {
   const [message, setMessage] = useState("");
-  const [result, setResult] = useState<ApiResult | null>(null);
+  const [tasks, setTasks] = useState<StoredTask[]>([]);
+  const [lastMode, setLastMode] = useState<MessageMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+
+  const loadTasks = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/tasks?room=${encodeURIComponent(room)}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { tasks: StoredTask[] };
+      setTasks(sortTasks(data.tasks).slice(0, 20));
+    } catch {
+      // Keep showing the last known tasks if a refresh fails.
+    }
+  }, [room]);
+
+  // Live status: load on open, then refresh every few seconds.
+  useEffect(() => {
+    void loadTasks();
+    const timer = setInterval(() => void loadTasks(), POLL_MS);
+    return () => clearInterval(timer);
+  }, [loadTasks]);
 
   async function handleSend(event: React.FormEvent) {
     event.preventDefault();
@@ -35,7 +59,6 @@ export default function GuestForm({ room }: { room: string }) {
 
     setIsSending(true);
     setError(null);
-    setResult(null);
 
     try {
       const response = await fetch("/api/guest/message", {
@@ -43,11 +66,16 @@ export default function GuestForm({ room }: { room: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, room }),
       });
-      const data = (await response.json()) as ApiResult & { error?: string };
+      const data = (await response.json()) as {
+        mode?: MessageMode;
+        error?: string;
+      };
       if (!response.ok) {
         throw new Error(data.error || "Something went wrong. Please try again.");
       }
-      setResult(data);
+      if (data.mode) setLastMode(data.mode);
+      setMessage("");
+      await loadTasks();
     } catch (sendError) {
       setError(
         sendError instanceof Error
@@ -61,7 +89,7 @@ export default function GuestForm({ room }: { room: string }) {
 
   return (
     <div>
-      <form onSubmit={handleSend} className="rounded-3xl bg-white p-6 shadow-sm">
+      <form onSubmit={handleSend} className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
         <label htmlFor="guest-message" className="font-semibold">
           What do you need?
         </label>
@@ -95,36 +123,36 @@ export default function GuestForm({ room }: { room: string }) {
         </div>
       )}
 
-      {result && (
-        <section aria-live="polite" className="mt-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold">
-              Tasks created ({result.tasks.length})
-            </h2>
-            {result.mode === "MOCK" ? (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
-                MOCK
-              </span>
-            ) : (
-              <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
-                LIVE AI
-              </span>
-            )}
-          </div>
-
-          {result.mode === "MOCK" && (
-            <p className="mt-2 text-sm text-slate-600">
-              MOCK means: no AI key is set yet, so these are fake example tasks.
-              The real AI will be used when a key is added.
-            </p>
+      <section aria-live="polite" className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">Your tasks ({tasks.length})</h2>
+          {lastMode === "MOCK" && (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
+              MOCK
+            </span>
           )}
+          {lastMode === "LIVE" && (
+            <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
+              LIVE AI
+            </span>
+          )}
+        </div>
 
+        {lastMode === "MOCK" && (
+          <p className="mt-2 text-sm text-slate-600">
+            MOCK means: no AI key is set on the server, so these are fake
+            example tasks. Tasks are still saved and staff can work on them.
+          </p>
+        )}
+
+        {tasks.length === 0 ? (
+          <p className="mt-4 rounded-2xl bg-white p-4 text-slate-600 shadow-sm">
+            No tasks yet. Write a request above and press Send.
+          </p>
+        ) : (
           <ul className="mt-4 space-y-3">
-            {result.tasks.map((task, index) => (
-              <li
-                key={`${task.department}-${task.title}-${index}`}
-                className="rounded-2xl bg-white p-4 shadow-sm"
-              >
+            {tasks.map((task) => (
+              <li key={task.id} className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="font-semibold">{task.title}</p>
                   <span
@@ -133,15 +161,25 @@ export default function GuestForm({ room }: { room: string }) {
                     {task.priority}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-slate-600">
-                  Team: {DEPARTMENT_LABELS[task.department]} · Room {room} ·
-                  Confidence: {Math.round(task.confidence * 100)}%
-                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                  <span>
+                    Team: {DEPARTMENT_LABELS[task.department]} · Room {room} ·
+                    Confidence: {Math.round(task.confidence * 100)}%
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_STYLES[task.status]}`}
+                  >
+                    {STATUS_LABELS[task.status]}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+        <p className="mt-3 text-center text-xs text-slate-500">
+          Status updates automatically every few seconds.
+        </p>
+      </section>
     </div>
   );
 }

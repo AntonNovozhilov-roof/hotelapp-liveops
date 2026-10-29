@@ -12,12 +12,20 @@ export default function HomePage() {
           Demo start page. In the hotel, each room has a QR code that opens its
           own guest page.
         </p>
-        <Link
-          href="/r/204"
-          className="mt-6 inline-block rounded-xl bg-teal-700 px-6 py-3 font-semibold text-white hover:bg-teal-800"
-        >
-          Open Room 204 guest page
-        </Link>
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link
+            href="/r/204"
+            className="inline-block rounded-xl bg-teal-700 px-6 py-3 font-semibold text-white hover:bg-teal-800"
+          >
+            Open Room 204 guest page
+          </Link>
+          <Link
+            href="/staff"
+            className="inline-block rounded-xl border border-teal-700 px-6 py-3 font-semibold text-teal-800 hover:bg-teal-50"
+          >
+            Open staff screen
+          </Link>
+        </div>
       </div>
     </main>
   );

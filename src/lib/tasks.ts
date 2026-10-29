@@ -20,6 +20,75 @@ export interface Task {
 
 export type MessageMode = "MOCK" | "LIVE";
 
+export const TASK_STATUSES = ["new", "accepted", "in_progress", "done"] as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  new: "New",
+  accepted: "Accepted",
+  in_progress: "In progress",
+  done: "Done",
+};
+
+/** A task saved on the server (in .data/tasks.json for now). */
+export interface StoredTask extends Task {
+  id: string;
+  room: string;
+  status: TaskStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const DEPARTMENT_LABELS: Record<Department, string> = {
+  maintenance: "Maintenance",
+  housekeeping: "Housekeeping",
+  front_desk: "Front desk",
+  room_service: "Room service",
+};
+
+export interface StaffMember {
+  name: string;
+  department: Department;
+}
+
+export const STAFF: StaffMember[] = [
+  { name: "Ruslan", department: "maintenance" },
+  { name: "Aigerim", department: "housekeeping" },
+  { name: "Daniyar", department: "front_desk" },
+  { name: "Madina", department: "room_service" },
+];
+
+const PRIORITY_WEIGHT: Record<Priority, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+/** Most urgent first, then newest first. */
+export function sortTasks(tasks: StoredTask[]): StoredTask[] {
+  return [...tasks].sort((a, b) => {
+    const byPriority =
+      PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority];
+    if (byPriority !== 0) return byPriority;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
+
+/** "just now", "5 min ago", "2 h ago", "3 d ago" */
+export function timeAgo(isoDate: string, now = new Date()): string {
+  const seconds = Math.floor(
+    (now.getTime() - new Date(isoDate).getTime()) / 1000,
+  );
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} d ago`;
+}
+
 function isDepartment(value: unknown): value is Department {
   return (
     typeof value === "string" &&

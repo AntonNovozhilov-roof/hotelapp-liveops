@@ -1,5 +1,22 @@
 # Dev Log
 
+## Meta1 — 2026-10-29 — Responsive rule in AGENTS.md (ANT-8)
+
+What I changed (simple words): Added one rule to AGENTS.md under "Other rules": every page must work well on phone (from 375px wide) and desktop (up to 1440px), use a responsive layout (one column on phones, wider on desktop), and test every new page at both sizes before saying it is done.
+
+Files changed:
+- `AGENTS.md` — new rule under "Other rules"
+- `DEVLOG.md` — this entry
+
+How I checked it works:
+- Read AGENTS.md after the edit: the new rule is under "Other rules".
+- This rule is for future pages; no page code changed in this step, so no page test was done here.
+- Secret scan before commit: no keys. `.env.local` not staged (git-ignored).
+- Committed locally, not pushed.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-8, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — Test real Meta AI on /r/204 (ANT-7)
 
 What I did (simple words): The user added a key to .env.local (key never printed). I restarted the app and tested the guest page with the real Meta AI, not MOCK.

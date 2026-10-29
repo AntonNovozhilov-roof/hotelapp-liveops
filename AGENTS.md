@@ -35,3 +35,4 @@ Also add the same summary to `DEVLOG.md` in this repo (newest entry at the top, 
 - Never write API keys in code or logs. Keys go only in `.env.local`.
 - Use only fake (synthetic) hotel data. No real guest names, phones, passports or payments.
 - Do not push to GitHub unless I ask.
+- Every page must work well on both phone (from 375px wide) and desktop (up to 1440px). Use a responsive layout: one column on phones, wider layouts on desktop. Test every new page at both sizes before saying it's done.

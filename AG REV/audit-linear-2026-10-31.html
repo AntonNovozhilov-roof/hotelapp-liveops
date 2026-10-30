@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HotelApp LiveOps — Аудит Linear (ANT) | 31 октября 2026 | AG REV</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --card2:#0f172a; --border:#334155; --accent:#38bdf8; --accent2:#22d3ee; --green:#34d399; --amber:#fbbf24; --red:#f87171; --violet:#a78bfa; --muted:#94a3b8; --text:#e2e8f0; --text2:#cbd5e1; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  /* header */
+  .hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0e7490 100%);padding:48px 32px 40px;border-bottom:1px solid var(--border)}
+  .hero h1{font-size:28px;font-weight:800;letter-spacing:-.02em}
+  .hero h1 span{color:var(--accent)}
+  .hero p{color:#a5b4fc;margin-top:8px;font-size:14px}
+  .hero .meta{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 12px;font-size:12px;color:#cbd5e1}
+  .chip b{color:#fff}
+  .chip.green{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.35);color:var(--green)}
+  .chip.amber{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.3);color:var(--amber)}
+  /* layout */
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 60px}
+  /* TOC */
+  .toc{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin-bottom:24px}
+  .toc h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+  .toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:640px){.toc-grid{grid-template-columns:1fr}}
+  .toc a{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text2)}
+  .toc a:hover{border-color:var(--accent);color:#fff}
+  .toc a small{color:var(--muted);margin-left:auto;font-size:11px}
+  /* section */
+  .section-title{font-size:18px;font-weight:700;margin:32px 0 14px;display:flex;align-items:center;gap:10px}
+  .section-title .line{flex:1;height:1px;background:var(--border)}
+  .section-title .badge{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:4px 10px;color:var(--muted)}
+  /* KPIs */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  @media(max-width:700px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+  .kpi .num{font-size:26px;font-weight:800}.kpi .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  /* issue card */
+  .issue{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:18px}
+  .issue-head{padding:18px 20px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+  .issue-head h2{font-size:15px;font-weight:700;flex:1;min-width:220px}
+  .issue-head h2 code{font-size:12px;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);border-radius:6px;padding:2px 7px;color:var(--accent);font-weight:700}
+  .st{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .st-done{background:rgba(52,211,153,.15);color:var(--green);border:1px solid rgba(52,211,153,.3)}
+  .st-prog{background:rgba(251,191,36,.15);color:var(--amber);border:1px solid rgba(251,191,36,.3)}
+  .st-cancel{background:rgba(148,163,184,.15);color:var(--muted);border:1px solid var(--border)}
+  .prio{font-size:11px;color:var(--muted)}.prio b{color:var(--text)}
+  .issue-body{padding:16px 20px}
+  .kv{display:grid;grid-template-columns:160px 1fr;gap:6px 16px;font-size:13px;margin-bottom:14px}
+  .kv dt{color:var(--muted);font-size:12px}
+  .kv dd{color:var(--text2)}
+  .kv dd code{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:12px}
+  .desc{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--text2);white-space:pre-wrap;line-height:1.6;margin-bottom:14px}
+  .comments{margin-top:14px}
+  .comments h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .cmt{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .cmt .cmt-meta{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .cmt .cmt-meta b{color:var(--text)}
+  .cmt pre{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--text2);white-space:pre-wrap;word-break:break-word}
+  /* verdict blocks */
+  .verdict{border-radius:12px;padding:14px 16px;margin-top:14px;font-size:13px;line-height:1.6}
+  .verdict h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+  .verdict ul{margin:6px 0 0 18px}
+  .verdict li{margin-bottom:4px}
+  .v-ok{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25)}
+  .v-ok h4{color:var(--green)}
+  .v-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25)}
+  .v-warn h4{color:var(--amber)}
+  .v-bad{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25)}
+  .v-bad h4{color:var(--red)}
+  .v-info{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25)}
+  .v-info h4{color:var(--accent)}
+  /* suggested comment */
+  .suggest{margin-top:14px;background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(167,139,250,.08));border:1px solid rgba(56,189,248,.25);border-radius:12px;padding:14px 16px}
+  .suggest h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .suggest .copy-hint{font-size:11px;color:var(--muted);margin-bottom:8px}
+  .suggest pre{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--text2);white-space:pre-wrap;word-break:break-word;line-height:1.6}
+  /* tables */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+  th{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  td{padding:9px 10px;border-bottom:1px solid rgba(51,65,85,.6);color:var(--text2);vertical-align:top}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  /* callout */
+  .callout{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:16px}
+  .callout h3{font-size:14px;font-weight:700;margin-bottom:6px}
+  .callout p{font-size:13px;color:var(--text2);line-height:1.6}
+  .callout ul{margin:8px 0 0 18px;font-size:13px;color:var(--text2)}
+  .footer{margin-top:36px;padding:18px 20px;background:var(--card);border:1px solid var(--border);border-radius:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .footer b{color:var(--text)}
+  .tag{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:3px 9px;font-size:11px;color:var(--muted)}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 14px}
+  .legend span{font-size:12px;display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <p style="color:var(--accent);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700">HotelApp LiveOps · Independent Review · AG REV</p>
+  <h1>Аудит <span>Linear</span> — команда ANT</h1>
+  <p>Полный разбор задач, постановки, выполнения и соответствия коду. Ветка ROO исключена из scope по указанию владельца.</p>
+  <div class="meta">
+    <span class="chip"><b>Дата:</b> 31 октября 2026</span>
+    <span class="chip"><b>Ревьюер:</b> AG REV</span>
+    <span class="chip"><b>Владелец:</b> Anton Novozhilov</span>
+    <span class="chip green">● Linear доступен</span>
+    <span class="chip">Команда: <b>ANT (Anton-Novozhilov)</b> · 9 задач</span>
+    <span class="chip amber">Дедлайн хакатона: 4 ноя 21:00 ET → 5 ноя 09:00 GMT+7</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Содержание отчёта</h3>
+    <div class="toc-grid">
+      <a href="#overview">1. Общая картина <small>→</small></a>
+      <a href="#kpi">2. KPI и статусы <small>→</small></a>
+      <a href="#structure">3. Структура работ <small>→</small></a>
+      <a href="#ant5">4. ANT-5 — корневая задача <small>→</small></a>
+      <a href="#ant6">5. ANT-6 — старт проекта <small>→</small></a>
+      <a href="#ant7">6. ANT-7 — тест реального AI <small>→</small></a>
+      <a href="#ant8">7. ANT-8 — responsive-правило <small>→</small></a>
+      <a href="#ant9">8. ANT-9 — staff-экран <small>→</small></a>
+      <a href="#ant10">9. ANT-10 — голосовой ввод <small>→</small></a>
+      <a href="#ant11">10. ANT-11 — правка voice UX <small>→</small></a>
+      <a href="#ant12">11. ANT-12 — приватность + reset <small>→</small></a>
+      <a href="#ant13">12. ANT-13 — бейджи на staff-пикере <small>→</small></a>
+      <a href="#process">13. Процесс и гигиена <small>→</small></a>
+      <a href="#risks">14. Риски и блокеры <small>→</small></a>
+      <a href="#summary">15. Итоговая таблица + рекомендации <small>→</small></a>
+    </div>
+  </div>
+
+  <!-- 1. OVERVIEW -->
+  <div class="section-title" id="overview">1 — Общая картина <span class="badge">Executive summary</span><div class="line"></div></div>
+  <div class="callout">
+    <h3>Что это за проект</h3>
+    <p>HotelApp LiveOps — операционный слой для мини-отелей (15–80 номеров). Гость отправляет запрос через QR в номере (текст/голос) → AI маршрутизирует в задачи → персонал выполняет → владелец получает бриф. Трек хакатона: <b>Meta Global AI Developer Hackathon 2026 · Build for Your World</b>. Продукт должен реально использовать Meta AI, а не быть идеей.</p>
+  </div>
+  <div class="callout">
+    <h3>Как ведётся работа</h3>
+    <p>Всё в одной команде Linear <b>ANT</b> (Anton-Novozhilov). Корневая задача <b>ANT-5 «Hotel App»</b>, от неё 8 подзадач ANT-6…ANT-13. Исполнитель — агент <b>Meta1 (Muse via opencode)</b>. Каждая подзадача: создать → In Progress → комменты с отчётом → Done → DEVLOG.md + git commit (без push).</p>
+    <p style="margin-top:8px"><span class="tag">Проверено: 9 задач ANT, 20 комментариев, история статусов, проекты/документы отсутствуют — это нормально для хакатон-формата</span></p>
+  </div>
+
+  <!-- 2. KPI -->
+  <div class="section-title" id="kpi">2 — KPI и статусы <div class="line"></div></div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="num">9</div><div class="lbl">Задач в ANT (без отменённых)</div></div>
+    <div class="kpi"><div class="num" style="color:var(--green)">8</div><div class="lbl">Done (88,9%)</div></div>
+    <div class="kpi"><div class="num" style="color:var(--amber)">1</div><div class="lbl">In Progress (ANT-5)</div></div>
+    <div class="kpi"><div class="num">20</div><div class="lbl">Комментариев (все от Meta1)</div></div>
+  </div>
+  <table>
+    <tr><th>Статус</th><th>Кол-во</th><th>Задачи</th><th>Оценка</th></tr>
+    <tr><td><span class="st st-done">Done</span></td><td>8</td><td>ANT-6,7,8,9,10,11,12,13</td><td>Высокий темп — 8 задач за ~3 часа 29 октября</td></tr>
+    <tr><td><span class="st st-prog">In Progress</span></td><td>1</td><td>ANT-5 (корневая, открыта с 28.10)</td><td>Нормально — это эпик, закрывается в конце</td></tr>
+    <tr><td><span class="st st-cancel">Canceled</span></td><td>4</td><td>ANT-1…4 (системные онбординг-задачи Linear)</td><td>Шум, не относится к проекту — можно скрыть</td></tr>
+    <tr><td>Проекты / Документы</td><td>0</td><td>—</td><td>Для хакатона ок; для прод-продукта нужен проект с milestones</td></tr>
+  </table>
+  <div class="legend"><span><span class="dot" style="background:var(--green)"></span> Корректно</span><span><span class="dot" style="background:var(--amber)"></span> Замечание</span><span><span class="dot" style="background:var(--red)"></span> Требует действия</span></div>
+
+  <!-- 3. STRUCTURE -->
+  <div class="section-title" id="structure">3 — Структура работ и вехи <div class="line"></div></div>
+  <table>
+    <tr><th>#</th><th>Задача</th><th>Создана</th><th>Закрыта</th><th>Длительность</th><th>Статус</th></tr>
+    <tr><td>1</td><td>ANT-5 Hotel App (эпик)</td><td>28.10 21:54</td><td>—</td><td>открыта 3 дня</td><td><span class="st st-prog">In Progress</span></td></tr>
+    <tr><td>2</td><td>ANT-6 Guest /r/204 + AI routing</td><td>29.10 15:09</td><td>29.10 16:00</td><td>51 мин</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>3</td><td>ANT-7 Тест реального Meta AI</td><td>29.10 15:59</td><td>29.10 16:00</td><td>~1 мин (тест 4.5с)</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>4</td><td>ANT-8 Responsive-правило в AGENTS.md</td><td>29.10 16:17</td><td>29.10 16:17</td><td>&lt;1 мин</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>5</td><td>ANT-9 Staff-экран /staff</td><td>29.10 16:18</td><td>29.10 16:25</td><td>6 мин</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>6</td><td>ANT-10 Голосовой ввод</td><td>29.10 16:45</td><td>29.10 17:11</td><td>26 мин + верификация</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>7</td><td>ANT-11 Правка voice UX</td><td>29.10 17:24</td><td>29.10 17:28</td><td>4 мин</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>8</td><td>ANT-12 Приватность + reset</td><td>29.10 17:37</td><td>29.10 17:44</td><td>7 мин</td><td><span class="st st-done">Done</span></td></tr>
+    <tr><td>9</td><td>ANT-13 Бейджи NEW на staff-пикере</td><td>29.10 17:50</td><td>29.10 17:53</td><td>3 мин</td><td><span class="st st-done">Done</span></td></tr>
+  </table>
+  <div class="verdict v-info" style="margin-top:12px"><h4>Наблюдение</h4><p>Все 8 подзадач закрыты за один день (29.10) с 15:09 до 17:53. Последовательность логична: фундамент → AI → правила → staff → голос → полировка. ANT-11/12/13 — итеративные доработки после тестирования, это здоровый паттерн.</p></div>
+
+  <!-- ANT-5 -->
+  <div class="section-title" id="ant5">4 — ANT-5 · Hotel App (эпик) <span class="badge">In Progress · с 28.10</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-5</code> Hotel App</h2><span class="st st-prog">In Progress</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Создана</dt><dd>28.10.2026 21:54 (за 6 дней до дедлайна)</dd>
+        <dt>Автор</dt><dd>Antons Work (owner)</dd>
+        <dt>Assignee / Priority / Labels</dt><dd>— / No Priority / — (нет)</dd>
+        <dt>URL</dt><dd><a href="https://linear.app/anton-novozhilov/issue/ANT-5/hotel-app" target="_blank">linear.app/anton-novozhilov/issue/ANT-5/hotel-app</a></dd>
+        <dt>Подзадачи</dt><dd>ANT-6 … ANT-13 (8 шт.) — см. ниже</dd>
+      </dl>
+      <div class="desc">Содержит ссылку на HotelApp_Participant_Overview_RU.md (загружен в Linear как вложение) + фразу «Start work Hotel».
+Описание минимальное — роль эпика выполняет, но как единственный источник правды о скоупе слабовато.</div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Скудное описание.</b> Эпик должен содержать цель, скоуп хакатона, критерий «готово», ссылку на IDEA.md / README. Сейчас там только файл + 2 слова.</li>
+        <li><b>Нет приоритетов и лейблов</b> — ни у эпика, ни у подзадач. Трудно отличить MVP от полировки.</li>
+        <li><b>Нет due date</b> — до дедлайна 4 ноября осталось 5 дней, а в Linear дедлайн не зафиксирован.</li>
+        <li><b>Плюс:</b> подзадачи корректно привязаны как sub-issues, статус In Progress для эпика верный (закроется последним).</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><p class="copy-hint">От имени AG REV — скопируйте в Linear (ENG):</p><pre>AG REV review — ANT-5 (epic):
+
+Good structure as epic. To make it audit-ready before submission:
+- Add to description: goal, hackathon scope, acceptance criteria (link to IDEA.md + README demo steps).
+- Set due date = 2026-11-04 and add label “Hackathon”.
+- Consider adding a checklist of remaining submission items (video, Devpost, README polish).
+
+No action required now — will be closed when ANT-6…ANT-13 + submission are done.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-6 -->
+  <div class="section-title" id="ant6">5 — ANT-6 · Гостевая страница + AI-роутинг <span class="badge">Done · 29.10 15:09 → 16:00</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-6</code> [Meta1] Guest page /r/204 and AI routing API</h2><span class="st st-done">Done</span><span class="prio">No Priority · No labels</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>Next.js 15 + TS + Tailwind, страница <code>/r/204</code> (текст + Send), <code>POST /api/guest/message → Meta muse-spark-1.3</code> (tasks JSON: department/title/priority/confidence), MOCK-фолбэк, .gitignore/.env.example, ключ не в коде, не пушить.</dd>
+        <dt>Результат</dt><dd>18 файлов, 2420+ строк, сборки typecheck+build OK, коммит <code>1d94a38</code> на GitHub main. Гость → 1–2 задачи, MOCK работает, 400 на пустое сообщение.</dd>
+        <dt>Комментариев</dt><dd>4 (все Meta1): план → сборка → push-фейл (no creds) → push OK → Live-тест → Done.</dd>
+        <dt>Git</dt><dd>Коммит «Add guest page … MOCK mode» — на origin/main ✅</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Чёткая постановка — стек, маршрут, контракт API, критерий MOCK/LIVE.</li>
+        <li>Подробные комменты: файлы, проверки, что НЕ сделано (честно).</li>
+        <li>Push-проблема задокументирована и решена (с инструкцией для owner).</li>
+        <li>Фундамент для всего продукта — самая важная задача спринта.</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Нет тестов/скриншотов в комментах</b> — есть словесное описание, но скриншот упомянут без вложения.</li>
+        <li><b>Реальный AI не входил в скоуп этой задачи</b> — вынесен в ANT-7, это правильно, но в описании стоило явно написать «MOCK ok, LIVE — отдельная задача».</li>
+        <li><b>Нет assignee/priority/label</b> — для истории ок, для командной работы — пробел.</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-6: ✅ Verified.
+
+- Linear spec is clear and complete for a kickoff ticket.
+- Implementation matches spec: /r/204 + POST /api/guest/message + MOCK fallback confirmed via GitHub commit 1d94a38.
+- Push issue was handled transparently — good.
+
+Minor: for future kickoffs, attach a screenshot and state explicitly “MOCK is acceptable, LIVE tested separately in ANT-7”. Otherwise — solid foundation. No further action.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-7 -->
+  <div class="section-title" id="ant7">6 — ANT-7 · Тест реального Meta AI <span class="badge">Done · 29.10 15:59 → 16:07</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-7</code> [Meta1] Test real Meta AI on /r/204</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>Перезапуск после добавления MODEL_API_KEY в .env.local, тест фразы «leak in the bathroom and bring towels» через реальный muse-spark-1.3. Критерий: mode LIVE, 2 задачи.</dd>
+        <dt>Результат</dt><dd>PASS: HTTP 200, LIVE, 2 задачи (maintenance/high/0.95 + housekeeping/low/0.95), бейдж LIVE AI в браузере, 4.5с латентность. DEVLOG обновлён, коммит 89bfe5e.</dd>
+        <dt>Комментариев</dt><dd>2: curl+браузер лог + DEVLOG-коммит.</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Критерий успеха заранее определён и проверен — эталон для интеграционных тестов.</li>
+        <li>Ключ не печатался, проверена только непустота — корректно с т.з. безопасности.</li>
+        <li>Отмечена разница приоритетов (MOCK medium vs LIVE low для towels) — честность, а не подгонка.</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Один тест-кейс.</b> Проверена только одна фраза. Нет негативного теста (абракадабра → front_desk/low), нет теста на русском, нет теста на лимит 2000 симв.</li>
+        <li><b>Нет проверки ошибки 502/503</b> — что видит гость, если Meta API упал?</li>
+        <li>Задача закрыта за ~1 минуту — ок для теста, но для аудита стоит приложить curl-лог или скрин.</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-7: ✅ Verified (single-case).
+
+- LIVE integration proven: muse-spark-1.3 returns 2 valid tasks, confirmed via curl + browser.
+- Security handled correctly (key not logged).
+
+Suggestion before submission: add 2 more cases to DEVLOG or a TESTING.md — (a) unclear message → front_desk/low, (b) 2000-char boundary. Not blocking, but strengthens the demo narrative.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-8 -->
+  <div class="section-title" id="ant8">7 — ANT-8 · Responsive-правило <span class="badge">Done · 29.10 16:17</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-8</code> [Meta1] Responsive rule in AGENTS.md</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>Добавить в AGENTS.md правило: каждая страница работает на телефоне 375px и десктопе 1440px, responsive, тест на обоих размерах. Коммит без пуша.</dd>
+        <dt>Результат</dt><dd>Добавлен раздел Other rules в AGENTS.md, DEVLOG, коммит 235c765. Кода страниц не меняла — правило для будущих задач.</dd>
+        <dt>Комментариев</dt><dd>1 — с признанием «no page test at 375/1440 was done here».</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Правило короткое, конкретное, с цифрами — легко проверять.</li>
+        <li>Честно указано, что тест страниц в этой задаче не делался (нечего ломать).</li>
+      </ul></div>
+      <div class="verdict v-info"><h4>ℹ Наблюдение</h4><p>Это мета-задача (процесс), а не фича. В Linear такие лучше помечать лейблом <span class="tag">Improvement</span> или <span class="tag">Process</span> и низким приоритетом — чтобы не смешивать с продуктовыми задачами в отчётах.</p></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-8: ✅ Verified (process ticket).
+
+Rule added to AGENTS.md — clear and testable (375px / 1440px).
+For hygiene, consider labeling process tickets (Improvement/Process) so product board stays focused. No action needed.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-9 -->
+  <div class="section-title" id="ant9">8 — ANT-9 · Staff-экран /staff <span class="badge">Done · 29.10 16:18 → 16:25</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-9</code> [Meta1] Staff screen /staff with saved tasks</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>JSON-хранилище .data/tasks.json, страница /staff (375px → 1440px, колонки New/Accepted/In progress/Done), пикер Ruslan/Aigerim/Daniyar/Madina, фильтр по department, сортировка urgent→newest, кнопки Accept→Start→Done, гость видит live-статус (poll 3с). E2E-тест, коммит.</dd>
+        <dt>Результат</dt><dd>13 файлов, typecheck+build OK, E2E: гость → Ruslan Accept/Start/Done → гость-статус обновился без перезагрузки. Фильтр и «1 min ago» проверены. Responsive 355px/1440px OK. Коммит 6f02dc4.</dd>
+        <dt>Комментариев</dt><dd>2: техотчёт + коммит-отчёт.</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Самая объёмная фича спринта — фундамент операционного слоя.</li>
+        <li>E2E-тест описан по шагам с наблюдаемым результатом — можно повторить.</li>
+        <li>Защита от пропуска статусов (409 Invalid transition) — продумано.</li>
+        <li>Responsive проверен двумя способами (браузер + headless screenshot).</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Файл-хранилище без БД и авторизации</b> — для хакатона ок, но в отчёте стоит явно назвать ограничением (любой может выбрать любое имя).</li>
+        <li><b>Race condition:</b> на .data/tasks.json есть строкой «atomic write», но нет лога о конкурентных запросах — стоит упомянуть в DEVLOG как known limitation.</li>
+        <li><b>Сортировка:</b> urgent→newest — это продуктовое решение, стоило обсудить с owner до реализации (сейчас принято агентом автономно).</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-9: ✅ Verified (core feature).
+
+- Staff board + persistence + live guest polling work end-to-end.
+- Status guard (409 on skip) and responsive checks are solid.
+
+Notes for reviewers: .data is demo-only, no auth — by design for hackathon. Consider adding a one-line “Known limitations” note to README. Priority sorting was agent-chosen; owner may want to confirm order. No blocking issues.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-10 -->
+  <div class="section-title" id="ant10">9 — ANT-10 · Голосовой ввод <span class="badge">Done · 29.10 16:45 → 17:11</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-10</code> [Meta1] Voice input on guest page /r/204</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>Mic рядом с Send (push-to-talk, 45с, таймер), новый роут <code>/api/guest/transcribe</code> через muse-voice-transcribe-1.0 (POST /v1/asr/transcribe, WAV), «We heard» + язык, ошибки mic/transcribe дружелюбные, Chrome desktop+phone, не печатать ключ, протестить.</dd>
+        <dt>Результат</dt><dd>5 файлов, доки Meta проверены (URL в комменте), WAV 24kHz конверсия, HTTP 200 «leak… bring towels». Fake-mic browser test + blocked-mic test пройдены. Пользователь подтвердил реальный голос EN+RU. Коммит 1aae503.</dd>
+        <dt>Комментариев</dt><dd>3: техотчёт In Progress → коммит → верификация пользователем → Done.</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Доки Meta проверены ДО кодинга — указано в комменте (редкость, плюс к доверию).</li>
+        <li>Отмечен нюанс: официальный ответ без detected-language → fallback-guess, languageSource — честно.</li>
+        <li>Ошибки покрыты: NotFoundError, DevicesNotFoundError, 415/413/502/503.</li>
+        <li>Статус In Progress до верификации владельцем — дисциплина.</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Phone-мик не протестирован на устройстве</b> — отмечено как known gap (HTTPS-требование), но до дедлайна стоит проверить на реальном телефоне.</li>
+        <li><b>Конверсия WebM→WAV в браузере</b> — потенциальный перформанс-риск на слабых устройствах; нет замера времени конверсии.</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-10: ✅ Verified (with live voice confirmation by owner).
+
+- Meta docs checked before coding — exemplary.
+- Transcribe integration (WAV 24kHz, 45s cap, error handling) matches spec.
+- Owner’s EN/RU live test closes the verification gap.
+
+Suggestion: add one phone test (HTTPS) before submission and log conversion time in DEVLOG. No blocking issues.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-11 -->
+  <div class="section-title" id="ant11">10 — ANT-11 · Правка voice UX <span class="badge">Done · 29.10 17:24 → 17:28</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-11</code> [Meta1] Voice transcript into text box, Send to create tasks</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>После записи НЕ создавать задачи автоматически. Транскрипт — в текстовое поле + хинт «Check the text and fix it if needed, then press Send.» Задачи только по Send. Язык авто, без пикера.</dd>
+        <dt>Результат</dt><dd>3 файла (GuestForm.tsx/README/DEVLOG), проверено: счётчик задач не вырос до Send (12→12), после правки текста и Send 12→14, хинт исчез. Коммит b7e3894.</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Критичная UX-правка: гость видит и правит текст до отправки — снижает ошибки.</li>
+        <li>Проверка «не создавать до Send» — через счётчик задач, убедительно.</li>
+        <li>Хинт над полем — минимальный, не ломает layout.</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Перекрывается с ANT-10:</b> ANT-10 уже закрыта как Done, а ANT-11 меняет поведение ANT-10. Для аудита лучше было бы переоткрыть ANT-10 или сделать ANT-11 sub-task с ссылкой — сейчас история размазана.</li>
+        <li>Нет проверки: что если гость нажал Mic, потом сразу Send без Stop? (гонка)</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-11: ✅ Verified (UX fix).
+
+- Voice no longer auto-creates tasks — transcript waits in text box, edit-then-Send flow works.
+- Verified via task counter (12→12→14).
+
+Note for process: this amends ANT-10’s behavior — for audit clarity, link the two tickets or add a note to ANT-10. Consider testing the edge case “Send while Mic is active”. No blocking issues.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-12 -->
+  <div class="section-title" id="ant12">11 — ANT-12 · Приватность + reset <span class="badge">Done · 29.10 17:37 → 17:44</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-12</code> [Meta1] Guest page privacy: only this message confirmation + staff reset</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>Убрать историю задач гостя, показывать только задачи этого сообщения (Sent to Maintenance: Fix leak + live Received/On the way/Done, poll по IDs, refresh — чисто). На /staff — Reset demo data с confirm «Are you sure?».</dd>
+        <dt>Результат</dt><dd>6 файлов, приватность проверена (15 задач на сервере → 0 на гостевой), live-статус без перезагрузки, refresh чистый, reset с диалогом и очисткой .data/tasks.json → 0. Коммит 934832e.</dd>
+        <dt>Комментариев</dt><dd>2: техотчёт + коммит.</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Критичная хакатон-фича: защита предыдущего гостя — частый вопрос жюри.</li>
+        <li>Poll только по IDs (не по room) — экономно и приватно.</li>
+        <li>Reset с confirm-диалогом и честным предупреждением «ALL tasks».</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Reset без авторизации</b> — любой посетитель /staff может стереть всё. Для демо ок, но стоит явно назвать в README как demo-only и подумать о простом guard (PIN или «только localhost»).</li>
+        <li><b>Гонка reset:</b> если гость только что отправил, а staff нажал reset — задачи пропадут. Низкий риск, но стоит упомянуть как known limitation.</li>
+        <li>Poll 3с — ок для демо, но при 20 гостях одновременно может быть нагрузка; не критично на хакатоне.</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-12: ✅ Verified (privacy + demo tooling).
+
+- Guest privacy works: no history leak, per-tab confirmation only, refresh-clean.
+- ID-based polling and Reset with confirmation are well done.
+
+Notes: Reset is unauthenticated (demo-only) — add a one-line disclaimer to README if not already there. Polling interval is fine for demo scale. No blocking issues.</pre></div>
+    </div>
+  </div>
+
+  <!-- ANT-13 -->
+  <div class="section-title" id="ant13">12 — ANT-13 · Бейджи NEW на staff-пикере <span class="badge">Done · 29.10 17:50 → 17:53</span><div class="line"></div></div>
+  <div class="issue">
+    <div class="issue-head"><h2><code>ANT-13</code> [Meta1] New-task badges on staff picker + plain Done label</h2><span class="st st-done">Done</span></div>
+    <div class="issue-body">
+      <dl class="kv">
+        <dt>Постановка</dt><dd>На /staff в карточках «Who are you?» — круглый бейдж с числом NEW задач команды (авто-обновление, скрыть при 0). Done-колонка — plain-метка Done ✓, не кнопка.</dd>
+        <dt>Результат</dt><dd>2 файла, typecheck+build OK, бейджи 2/1/1/— проверены, live-update (taxi → Daniyar 1) без reload, Done — plain text (0 кнопок в колонке). Responsive 355/1440 OK. Коммит b4fcf5e.</dd>
+        <dt>Комментариев</dt><dd>2: техотчёт + коммит (3 ahead of origin — нужен push).</dd>
+      </dl>
+      <div class="verdict v-ok"><h4>✓ Что хорошо</h4><ul>
+        <li>Быстрая полировка с измеримым эффектом — staff видит новые задачи, не заходя в колонки.</li>
+        <li>Один fetch на все бейджи + борд — экономно, без N+1 запросов.</li>
+        <li>Done как текст, а не кнопка — убирает ложный affordance.</li>
+      </ul></div>
+      <div class="verdict v-warn"><h4>⚠ Замечания</h4><ul>
+        <li><b>Push не сделан:</b> local main 3 коммита ahead (b7e3894, 934832e, b4fcf5e) — к дню аудита (31.10) они уже должны быть на origin. Проверьте `git push`.</li>
+        <li><b>Доступность:</b> красный бейдж — проверить контраст (WCAG), добавить aria-label (судя по коду, он есть — отлично).</li>
+      </ul></div>
+      <div class="suggest"><h4>💬 Рекомендуемый комментарий</h4><pre>AG REV review — ANT-13: ✅ Verified (polish).
+
+- NEW badges per team with live update — works, single-fetch is efficient.
+- Done column as plain label — correct.
+
+Action: push 3 local commits to origin/main before submission (b7e3894, 934832e, b4fcf5e). Otherwise ready.</pre></div>
+    </div>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="section-title" id="process">13 — Процесс и гигиена Linear <div class="line"></div></div>
+  <div class="callout">
+    <h3>Сильные стороны</h3>
+    <ul>
+      <li><b>Дисциплина статусов:</b> In Progress → Done только после проверки, иначе остаётся In Progress (ANT-10 пример).</li>
+      <li><b>Детальные комменты:</b> что сделано, какие файлы, как проверено, что НЕ проверено — редкий уровень честности.</li>
+      <li><b>Подпись агента:</b> [Meta1] в заголовках + «Agent: Meta1 (Muse via opencode)» в коммитах — можно отследить кто что делал.</li>
+      <li><b>DEVLOG.md синхронен с Linear</b> — каждое Done имеет запись в DEVLOG с датой и номером ANT.</li>
+    </ul>
+  </div>
+  <div class="callout">
+    <h3>Что улучшить</h3>
+    <ul>
+      <li><b>Приоритеты и лейблы не используются</b> — все 9 задач No Priority, без лейблов. Для 5-дневного дедлайна стоит расставить: P0 = MVP, P1 = полировка.</li>
+      <li><b>Assignee пустой везде</b> — владелец не назначен ни на одну задачу; при подключении второго разработчика будет путаница.</li>
+      <li><b>Нет due dates</b> — дедлайн хакатона не в Linear; риск пропустить.</li>
+      <li><b>Нет estimate</b> — для планирования финальных 5 дней полезно.</li>
+      <li><b>Нет Projects/Cycles</b> — для хакатона избыточно, но один проект «Meta Hackathon 2026» с таргет-датой добавил бы наглядности.</li>
+      <li><b>Отменённые ANT-1…4</b> — системный шум Linear, можно архивировать/скрыть.</li>
+    </ul>
+  </div>
+  <div class="verdict v-info"><h4>ℹ Общая оценка постановки</h4><p>Постановки конкретные, с критериями успеха и тест-планом — <b>уровень выше среднего для хакатона</b>. Формулировки на английском, простые слова, без жаргона — жюри поймёт. Итерации (ANT-11/12/13) показывают, что продукт тестируют, а не просто закрывают тикеты.</p></div>
+
+  <!-- RISKS -->
+  <div class="section-title" id="risks">14 — Риски и блокеры к дедлайну <div class="line"></div></div>
+  <table>
+    <tr><th>Риск</th><th>Уровень</th><th>Где проявится</th><th>Что делать</th></tr>
+    <tr><td>Не запушены 3 коммита (b7e3894, 934832e, b4fcf5e)</td><td style="color:var(--red);font-weight:700">Высокий</td><td>GitHub отстанет от Linear — жюри увидит старый код</td><td><code>git push origin main</code> сейчас; проверить на github.com</td></tr>
+    <tr><td>Нет видео-демо и Devpost-страницы</td><td style="color:var(--red);font-weight:700">Высокий</td><td>Хакатон требует видео — без него дисквалификация</td><td>Запланировать съёмку 2-мин демо (гость голос → staff Done → бриф)</td></tr>
+    <tr><td>.data — файл, не БД; нет бэкапа</td><td style="color:var(--amber);font-weight:700">Средний</td><td>Падение сервера / деплой стирает задачи</td><td>Упомянуть как demo-only; для прод — БД (не сейчас)</td></tr>
+    <tr><td>Reset без авторизации</td><td style="color:var(--amber);font-weight:700">Средний</td><td>Зритель на демо может стереть данные</td><td>Добавить guard или скрыть кнопку на прод-деплое</td></tr>
+    <tr><td>Только одна комната (204) в тестах</td><td style="color:var(--amber);font-weight:700">Средний</td><td>Не проверена маршрутизация по комнатам</td><td>Протестировать /r/305 и фильтр room в API</td></tr>
+    <tr><td>Нет тестов (unit/e2e в коде)</td><td style="color:var(--amber);font-weight:700">Средний</td><td>Регрессия при финальных правках</td><td>Хотя бы smoke-тест вручную по чек-листу</td></tr>
+    <tr><td>Phone-микрофон не проверен на устройстве</td><td>Низкий</td><td>Жюри смотрит с телефона — голос может не работать</td><td>Проверить на iPhone/Android + HTTPS (ngrok/Vercel)</td></tr>
+  </table>
+
+  <!-- SUMMARY -->
+  <div class="section-title" id="summary">15 — Итоговая таблица и рекомендации <div class="line"></div></div>
+  <table>
+    <tr><th>Задача</th><th>Оценка</th><th>Комментарий ревьюера</th><th>Действие</th></tr>
+    <tr><td><b>ANT-5</b> Hotel App</td><td style="color:var(--amber)">Good, expand</td><td>Эпик выполняет роль, но описание скудное; добавить скоуп и due date.</td><td>Дополнить описание + due date 04.11</td></tr>
+    <tr><td><b>ANT-6</b> Guest + AI</td><td style="color:var(--green)">✅ Excellent</td><td>Фундамент — чётко, честно, с учётом push-проблемы.</td><td>—</td></tr>
+    <tr><td><b>ANT-7</b> Live AI test</td><td style="color:var(--green)">✅ Good</td><td>Один кейс, но критерий и проверка образцовые.</td><td>Добавить 1–2 кейса перед сабмитом</td></tr>
+    <tr><td><b>ANT-8</b> Responsive rule</td><td style="color:var(--green)">✅ Done</td><td>Мета-задача, помечать лейблом Process в будущем.</td><td>—</td></tr>
+    <tr><td><b>ANT-9</b> Staff board</td><td style="color:var(--green)">✅ Excellent</td><td>Ключевая фича, E2E + guards на месте.</td><td>Добавить Known limitations в README</td></tr>
+    <tr><td><b>ANT-10</b> Voice input</td><td style="color:var(--green)">✅ Excellent</td><td>Доки проверены до кода — эталон. Верифицировано владельцем EN+RU.</td><td>Phone-тест на устройстве</td></tr>
+    <tr><td><b>ANT-11</b> Voice UX fix</td><td style="color:var(--green)">✅ Good</td><td>Важная правка, проверена счётчиком; связать с ANT-10.</td><td>Связать тикеты ссылкой</td></tr>
+    <tr><td><b>ANT-12</b> Privacy + reset</td><td style="color:var(--green)">✅ Excellent</td><td>Приватность — сильный пункт для жюри.</td><td>Disclaimer про reset в README</td></tr>
+    <tr><td><b>ANT-13</b> Badges</td><td style="color:var(--green)">✅ Good</td><td>Полировка с пользой, экономный fetch.</td><td>Push 3 коммита на GitHub</td></tr>
+  </table>
+
+  <div class="callout" style="margin-top:18px;border-color:rgba(52,211,153,.3)">
+    <h3 style="color:var(--green)">Вердикт по Linear</h3>
+    <p>Linear ведётся <b>образцово для хакатон-команды из 1–2 человек</b>: постановки конкретные, комменты честные, статусы дисциплинированные, DEVLOG синхронен. Все 8 подзадач Done — это реальный прогресс, а не бумажный. До дедлайна (5 дней) критично только запушить код и подготовить видео-демо. Процесс-косяки (приоритеты, assignee, due date) — косметика, не блокеры.</p>
+    <p style="margin-top:10px"><span class="tag">Проверено по API: 9 задач, 20 комментариев, история статусов — всё из первых рук, без домыслов</span></p>
+  </div>
+
+  <div class="footer">
+    <span><b>AG REV</b> · Independent Review · HotelApp LiveOps · Linear Audit · 31 октября 2026</span>
+    <span>Подпись: <b>AG REV</b> · Профиль: hotel-app-meta · Источник: Linear API (ANT team) · Проверено вручную</span>
+  </div>
+
+</div>
+</body>
+</html>

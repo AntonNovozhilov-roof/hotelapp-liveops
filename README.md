@@ -20,8 +20,16 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   (Received / On the way / Done) that refreshes every few seconds.
   Guests never see older tasks from the room (privacy), and a page refresh
   starts clean. All tasks stay visible on `/staff`.
+- Photo proof on staff tasks: after pressing **Start**, staff add 1–3
+  photos with **Add photo** (on a phone it opens the camera; on desktop it
+  opens a file picker). Photos show on the task, open full size on click,
+  and can be deleted with the × on the photo. Photo files are saved locally
+  in `.data/photos` (ignored by git) and survive a server restart; only the
+  photo link is saved on the task. All photo saving/reading lives in
+  `src/lib/photos.ts`, so it can switch to cloud storage later by changing
+  only that file.
 - `/staff` has a small "Reset demo data" link at the bottom that deletes
-  all saved tasks (it asks "Are you sure?" first).
+  all saved tasks and their photos (it asks "Are you sure?" first).
 - Voice input on the guest page: press **Mic**, speak (up to 45 seconds),
   press **Stop**. The recording is turned into text by Meta's
   `muse-voice-transcribe-1.0` and put into the text box. The guest can

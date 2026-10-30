@@ -1,5 +1,40 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Photo upload on staff tasks (ANT-19 / M3)
+
+What I built (simple words): Staff can now prove finished work with photos. On /staff, after pressing Start on a task, an "Add photo" button appears: on a phone it opens the camera, on a desktop it opens a file picker. A task takes 1–3 photos. Photos show as small pictures on the task, a click opens them full size, and the × on a photo deletes it. The photo files are saved on this Mac in `.data/photos` (never in git) and are still there after the server restarts. All photo saving and reading lives in one small file, `src/lib/photos.ts` — when photos move to cloud storage later (M11), only that file changes.
+
+Files changed:
+- `src/lib/photos.ts` — new: the one photo helper (save / read / delete photo files in `.data/photos`, allowed photo types, 10 MB size limit, 3-photos-per-task limit value, safe file names so no path tricks)
+- `src/app/api/tasks/[id]/photos/route.ts` — new: POST saves one photo to a started (in_progress) task, DELETE removes one (`?name=...`); friendly errors (404 unknown task, 409 not started / already 3 photos, 415 not a photo, 413 too big)
+- `src/app/api/photos/[name]/route.ts` — new: serves one saved photo (reading only through the helper)
+- `src/lib/tasks.ts` — `photos` list on the saved task (name, url, type, size, time)
+- `src/lib/store.ts` — photo list saved in `.data/tasks.json`; old saved tasks without photos get an empty list; add/remove photo with the 3-photo limit; "Reset demo data" also deletes the photo files
+- `src/app/staff/StaffBoard.tsx` — photo area on started tasks: counter (n/3), thumbnails, full-size link, delete ×, "Add photo" with `accept="image/*"` + `capture="environment"` (phone camera), "Max 3 photos" note; Done tasks keep their photos visible read-only
+- `README.md` — photo proof explained
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-19 (M3) — taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment. Its description was first updated for the plan change (no M2 dependency, local `.data/photos`).
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok (new routes `/api/tasks/[id]/photos` and `/api/photos/[name]` built).
+- API test on a fresh server (port 3100): guest message made a task (LIVE), upload before Start returned 409; after Accept → Start, two photos uploaded (201 each); a text file returned 415; a 3rd photo was accepted and a 4th returned 409 ("already has 3 photos"); the served photo bytes were identical to the uploaded file (same SHA-256).
+- Delete test: deleting one photo removed it from the task, deleted the file from `.data/photos`, and its URL then returned 404.
+- Restart test (the required one): killed and restarted the server — the task still listed 2 photos and both photo URLs answered 200 with the same bytes.
+- Browser test on /staff: the started task showed "Photos (2/3)" with both pictures loaded and no console errors; adding a third photo through the page's own file input (a real file sent into the input) made it "Photos (3/3)" with the "Max 3 photos" note; at a true 375px width (measured in a 375px frame) there is no sideways scroll, pictures load, and the file input has `accept="image/*"` + `capture="environment"`. Desktop 1440px headless screenshot: photo thumbnails, delete buttons and "Add photo" sit correctly in the In progress column.
+- `git check-ignore` confirms `.data/photos` is ignored (`.data/` rule), so no photo can be committed.
+- Test data cleaned up afterwards: my test task and its 3 photo files were removed by hand; the older saved tasks were left untouched.
+
+NOT working / NOT checked yet:
+- A real phone camera photo (HEIC from an iPhone) is not checked — only PNG files were used in tests. JPG/PNG/WEBP/GIF/HEIC are accepted by type; the camera flow on a real phone needs a human test.
+- The task still goes straight to Done after photos — sending it "to review" is M4/M6, not this task. The "Retake photos" button (clear all photos + AI result) also comes with M6; here staff delete photos one by one.
+- Photos are local files on this Mac only; cloud storage is M11 (only `src/lib/photos.ts` changes then).
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-19, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Plan change: build the full app locally first (ANT-5)
 
 What I did (simple words): The owner changed the order. We now build the whole app on the Mac first — photos, review flow, AI photo check, supervisor, history, owner report (M3 to M10) — using the local `.data` files as today. The real database (M2) and going online (M11) come last and start on Nov 3 morning at the latest, then the full online test (M12).

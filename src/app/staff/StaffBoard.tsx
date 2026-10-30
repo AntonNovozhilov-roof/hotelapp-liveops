@@ -10,6 +10,7 @@ import {
   timeAgo,
   type Department,
   type StoredTask,
+  type TaskPhoto,
   type TaskStatus,
 } from "@/lib/tasks";
 
@@ -41,6 +42,7 @@ export default function StaffBoard() {
   });
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
   const [, setNowTick] = useState(0);
 
   const member = STAFF.find((person) => person.name === staffName) ?? STAFF[0];
@@ -125,6 +127,58 @@ export default function StaffBoard() {
           ? resetError.message
           : "Could not clear the tasks.",
       );
+    }
+  }
+
+  async function uploadPhoto(task: StoredTask, file: File) {
+    if (photoBusyId) return;
+    setPhotoBusyId(task.id);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      const response = await fetch(`/api/tasks/${task.id}/photos`, {
+        method: "POST",
+        body: form,
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Could not save the photo.");
+      }
+      await loadTasks();
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Could not save the photo.",
+      );
+    } finally {
+      setPhotoBusyId(null);
+    }
+  }
+
+  async function deleteTaskPhoto(task: StoredTask, photo: TaskPhoto) {
+    if (photoBusyId) return;
+    setPhotoBusyId(task.id);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/tasks/${task.id}/photos?name=${encodeURIComponent(photo.name)}`,
+        { method: "DELETE" },
+      );
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Could not delete the photo.");
+      }
+      await loadTasks();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete the photo.",
+      );
+    } finally {
+      setPhotoBusyId(null);
     }
   }
 
@@ -253,6 +307,77 @@ export default function StaffBoard() {
                           </span>
                           <span>{timeAgo(task.createdAt)}</span>
                         </div>
+                        {(task.status === "in_progress" ||
+                          task.photos.length > 0) && (
+                          <div className="mt-3 border-t border-slate-100 pt-3">
+                            <p className="text-sm font-semibold text-slate-700">
+                              Photos ({task.photos.length}/3)
+                            </p>
+                            {task.photos.length > 0 && (
+                              <ul className="mt-2 grid grid-cols-3 gap-2">
+                                {task.photos.map((photo) => (
+                                  <li key={photo.name} className="relative">
+                                    <a
+                                      href={photo.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      aria-label="Open photo full size"
+                                    >
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={photo.url}
+                                        alt="Task photo"
+                                        className="aspect-square w-full rounded-lg object-cover"
+                                      />
+                                    </a>
+                                    {task.status === "in_progress" && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void deleteTaskPhoto(task, photo)
+                                        }
+                                        disabled={photoBusyId === task.id}
+                                        aria-label="Delete photo"
+                                        className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white shadow disabled:opacity-50"
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {task.status === "in_progress" &&
+                              (task.photos.length < 3 ? (
+                                <label
+                                  className={`mt-2 block w-full cursor-pointer rounded-xl border border-teal-700 px-4 py-2.5 text-center font-semibold text-teal-800 hover:bg-teal-50 ${
+                                    photoBusyId === task.id
+                                      ? "pointer-events-none opacity-50"
+                                      : ""
+                                  }`}
+                                >
+                                  {photoBusyId === task.id
+                                    ? "Saving photo..."
+                                    : "Add photo"}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="hidden"
+                                    onChange={(event) => {
+                                      const file = event.target.files?.[0];
+                                      event.target.value = "";
+                                      if (file) void uploadPhoto(task, file);
+                                    }}
+                                  />
+                                </label>
+                              ) : (
+                                <p className="mt-2 text-sm text-slate-500">
+                                  Max 3 photos. Delete one to add another.
+                                </p>
+                              ))}
+                          </div>
+                        )}
                         {action ? (
                           <button
                             type="button"

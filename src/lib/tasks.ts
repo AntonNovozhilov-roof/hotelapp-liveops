@@ -31,11 +31,25 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   done: "Done",
 };
 
+/**
+ * One saved photo proof on a task. The photo bytes live in photo storage
+ * (local .data/photos for now — see src/lib/photos.ts); only this small
+ * record is saved on the task.
+ */
+export interface TaskPhoto {
+  name: string;
+  url: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 /** A task saved on the server (in .data/tasks.json for now). */
 export interface StoredTask extends Task {
   id: string;
   room: string;
   status: TaskStatus;
+  photos: TaskPhoto[];
   createdAt: string;
   updatedAt: string;
 }

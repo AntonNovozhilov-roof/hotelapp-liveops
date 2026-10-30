@@ -5,8 +5,10 @@ import {
   TASK_STATUSES,
   type StoredTask,
   type Task,
+  type TaskPhoto,
   type TaskStatus,
 } from "./tasks";
+import { MAX_PHOTOS_PER_TASK, deleteAllPhotos } from "./photos";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
@@ -36,12 +38,33 @@ function isStoredTask(value: unknown): value is StoredTask {
   );
 }
 
+function isTaskPhoto(value: unknown): value is TaskPhoto {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.name === "string" &&
+    typeof record.url === "string" &&
+    typeof record.contentType === "string" &&
+    typeof record.size === "number" &&
+    typeof record.uploadedAt === "string"
+  );
+}
+
+/** Tasks saved before photos existed have no photo list: give them []. */
+function normalizeTask(task: StoredTask): StoredTask {
+  const raw = (task as { photos?: unknown }).photos;
+  return {
+    ...task,
+    photos: Array.isArray(raw) ? raw.filter(isTaskPhoto) : [],
+  };
+}
+
 async function readAll(): Promise<StoredTask[]> {
   try {
     const raw = await fs.readFile(DATA_FILE, "utf8");
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isStoredTask);
+    return parsed.filter(isStoredTask).map(normalizeTask);
   } catch {
     // No file yet (or unreadable): start with an empty list.
     return [];
@@ -75,8 +98,14 @@ export async function clearStoredTasks(): Promise<number> {
   return withLock(async () => {
     const tasks = await readAll();
     await writeAll([]);
+    await deleteAllPhotos();
     return tasks.length;
   });
+}
+
+export async function getStoredTask(id: string): Promise<StoredTask | null> {
+  const tasks = await readAll();
+  return tasks.find((task) => task.id === id) ?? null;
 }
 
 export async function createStoredTasks(
@@ -90,6 +119,7 @@ export async function createStoredTasks(
       id: randomUUID(),
       room,
       status: "new",
+      photos: [],
       createdAt: now,
       updatedAt: now,
     }));
@@ -104,6 +134,69 @@ const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
   accepted: "in_progress",
   in_progress: "done",
 };
+
+export type PhotoUpdateResult =
+  | { ok: true; task: StoredTask }
+  | {
+      ok: false;
+      reason: "not_found" | "not_started" | "limit_reached" | "photo_not_found";
+      task?: StoredTask;
+    };
+
+/** Attach one saved photo to a started (in_progress) task. Max 3 photos. */
+export async function addStoredTaskPhoto(
+  id: string,
+  photo: TaskPhoto,
+): Promise<PhotoUpdateResult> {
+  return withLock(async () => {
+    const all = await readAll();
+    const index = all.findIndex((task) => task.id === id);
+    if (index === -1) return { ok: false, reason: "not_found" } as const;
+
+    const current = all[index];
+    if (current.status !== "in_progress") {
+      return { ok: false, reason: "not_started", task: current } as const;
+    }
+    if (current.photos.length >= MAX_PHOTOS_PER_TASK) {
+      return { ok: false, reason: "limit_reached", task: current } as const;
+    }
+
+    const updated: StoredTask = {
+      ...current,
+      photos: [...current.photos, photo],
+      updatedAt: new Date().toISOString(),
+    };
+    all[index] = updated;
+    await writeAll(all);
+    return { ok: true, task: updated } as const;
+  });
+}
+
+/** Remove one photo record from a task. The caller deletes the file. */
+export async function removeStoredTaskPhoto(
+  id: string,
+  photoName: string,
+): Promise<PhotoUpdateResult> {
+  return withLock(async () => {
+    const all = await readAll();
+    const index = all.findIndex((task) => task.id === id);
+    if (index === -1) return { ok: false, reason: "not_found" } as const;
+
+    const current = all[index];
+    if (!current.photos.some((photo) => photo.name === photoName)) {
+      return { ok: false, reason: "photo_not_found", task: current } as const;
+    }
+
+    const updated: StoredTask = {
+      ...current,
+      photos: current.photos.filter((photo) => photo.name !== photoName),
+      updatedAt: new Date().toISOString(),
+    };
+    all[index] = updated;
+    await writeAll(all);
+    return { ok: true, task: updated } as const;
+  });
+}
 
 export type UpdateResult =
   | { ok: true; task: StoredTask }

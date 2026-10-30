@@ -12,7 +12,7 @@ Phone / computer browser
 Vercel  — the app itself (Next.js pages + /api routes)
         |
         +--> Supabase Postgres  — saved tasks (and later history)
-        +--> Supabase Storage   — staff photos (bucket "task-photos", later, in M3)
+        +--> Supabase Storage   — staff photos (bucket "task-photos", from M11; local .data/photos until then)
         |
         +--> Meta Model API     — AI, with MODEL_API_KEY (server only)
 ```
@@ -47,17 +47,22 @@ the day before and send one test guest message. If it is slow or errors,
 open Supabase and click **Restore project** if shown, then wait a few
 minutes.
 
-## Work order (changed 2026-10-31)
+## Work order (changed again 2026-10-31 — owner: build the full app locally first)
 
 ```text
-M1 (this plan) -> M2 (tasks into Supabase Postgres) -> M11 (go online early)
--> M3..M10 (photos, review, supervisor, history, owner report) -> M12 (full demo test)
+M3..M10 (photos, review, supervisor, history, owner report — all local,
+on the Mac, with the local .data storage)
+-> M2 (tasks into Supabase Postgres) -> M11 (go online) -> M12 (full demo test)
 ```
 
-We put what already works (guest page + staff board) online right after
-the database move, so we can test on a real phone early. Photo survival
-online is then proved in M3 when photos are added, and proved again in
-the M12 full-loop test.
+**M2 and M11 stay Todo and start on Nov 3 morning at the latest.** Until
+then nothing in the app needs Supabase or Vercel: tasks stay in
+`.data/tasks.json` and photos in `.data/photos`, exactly as local dev works
+today. When M2/M11 happen, only two things switch storage: the task store
+(`src/lib/store.ts`, database when `DATABASE_URL` is set) and the one photo
+helper file (`src/lib/photos.ts`, cloud storage instead of `.data/photos`).
+Photo survival online is then proved in M11 and again in the M12 full-loop
+test.
 
 ## Where things live
 
@@ -65,7 +70,7 @@ the M12 full-loop test.
 |---|---|---|
 | App code | Vercel, built from the GitHub repo | This repo, `npm run dev` |
 | Tasks | Supabase Postgres table `tasks` | `.data/tasks.json` if no `DATABASE_URL` is set (today's behaviour) |
-| Photos (from M3) | Supabase Storage bucket `task-photos`; only the photo URL is saved on the task row | Same Supabase bucket when online keys are set locally; otherwise the M3 task must keep a local fallback so `npm run dev` still works offline |
+| Photos (from M3) | Supabase Storage bucket `task-photos`; only the photo URL is saved on the task row | Local files in `.data/photos` (git-ignored), via the one helper file `src/lib/photos.ts` — so `npm run dev` works with no cloud keys at all. Only that helper file changes when photos move to the cloud in M11 |
 | History (from M8) | Supabase Postgres table `history` | Same local fallback story as tasks |
 | Secrets | Vercel Environment Variables (typed in by the owner, see below) | `.env.local` (never committed, never pasted into chat/Linear) |
 
@@ -81,14 +86,14 @@ only for testing the real database from the Mac.
 |---|---|---|---|
 | `MODEL_API_KEY` | Already used today | `.env.local` on the Mac; Vercel env settings online | Yes — server only |
 | `DATABASE_URL` | M2 | `.env.local` (optional, local DB test); Vercel env settings | Yes — it contains the database password. Server only, never `NEXT_PUBLIC_` |
-| `SUPABASE_URL` | M3 (photos) | Same places as above | No, but keep server-side anyway |
-| `SUPABASE_SERVICE_ROLE_KEY` | M3 (photos) | Same places as above | Yes — server only, never in the browser, never `NEXT_PUBLIC_` |
-| `SUPABASE_PHOTOS_BUCKET` | M3 (photos) | Same places; value is just `task-photos` | No |
+| `SUPABASE_URL` | M11 (photos online; local M3 photos need no keys) | Same places as above | No, but keep server-side anyway |
+| `SUPABASE_SERVICE_ROLE_KEY` | M11 (photos online) | Same places as above | Yes — server only, never in the browser, never `NEXT_PUBLIC_` |
+| `SUPABASE_PHOTOS_BUCKET` | M11 (photos online) | Same places; value is just `task-photos` | No |
 
 That is the whole list. The M2 agent may only add a var by updating this
 table, `.env.example`, and the issue comment — no silent new secrets.
 
-## Part A — Owner: create the Supabase project (about 10 minutes, do this now)
+## Part A — Owner: create the Supabase project (about 10 minutes; not needed until Nov 3 morning — M2/M11 start then)
 
 Do this once. Have your password manager open (or pen and paper you keep).
 
@@ -113,7 +118,7 @@ Do this once. Have your password manager open (or pen and paper you keep).
 9. Stop here for now. Do **not** create tables or buckets yet:
    - the `tasks` table is created in M2 — the agent will give you one
      exact block of text to paste into **SQL Editor → New query → Run**;
-   - the `task-photos` bucket is created in M3 the same click-by-click way.
+   - the `task-photos` bucket is created at M11 the same click-by-click way.
 10. Tell the agent in Linear (on ANT-17 or ANT-18): "Supabase project
     created". Do not send the password or any key.
 
@@ -153,7 +158,7 @@ which does not survive on Vercel.
      the brackets) with the database password from your password manager.
      Paste the finished URI into Vercel as the value. Never into chat.
    - Click **Add**.
-7. (Only when the agent says M3 is being deployed) add `SUPABASE_URL`,
+7. (Only when the agent says photos are moving online, at M11) add `SUPABASE_URL`,
    `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_PHOTOS_BUCKET` the same way.
    In Supabase, `SUPABASE_URL` and the service role key are under
    **Project Settings (gear) → API**. The service role key is the one
@@ -207,13 +212,14 @@ Changing a secret later: Vercel dashboard → project `hotelapp-liveops` →
 
 | Step | Who | What |
 |---|---|---|
-| A | Owner (now) | Part A above: Supabase project + save DB password in password manager |
-| M2 | Agent | Move tasks to Supabase Postgres (same API shapes, local fallback kept); gives owner one SQL block to run in Supabase SQL Editor |
+| M3–M10 | Agent (all local, first) | Photos (local `.data/photos`), review flow, supervisor, history, owner report — no accounts, no deploy |
+| A | Owner (by Nov 3 morning) | Part A above: Supabase project + save DB password in password manager |
+| M2 | Agent (Nov 3 morning at the latest) | Move tasks to Supabase Postgres (same API shapes, local fallback kept); gives owner one SQL block to run in Supabase SQL Editor |
 | — | Owner | Run that SQL block (Supabase → SQL Editor → New query → paste → Run), say "done" in Linear |
-| M11 | Agent | Small online-safety changes (hidden Reset online, guest rate limit), checks `npm run build`, says "ready to deploy" |
-| B | Owner | Say "push", then Part B above (Vercel import + paste 2 env vars + Deploy) |
+| M11 | Agent (right after M2) | Switch photos to cloud storage (only `src/lib/photos.ts`), small online-safety changes (hidden Reset online, guest rate limit), checks `npm run build`, says "ready to deploy" |
+| B | Owner | Say "push", then Part B above (Vercel import + paste env vars + Deploy) |
 | C | Owner + agent | Part C phone checks together; agent logs results in ANT-27 |
-| M3–M10, M12 | Agent + owner clicks when asked | Photos (bucket + 3 env vars), review flow, supervisor, history, owner report; final full-loop test on the public link |
+| M12 | Agent + owner | Final full-loop test on the public link (demo script in README) |
 
 ## Safety rules (unchanged from AGENTS.md)
 

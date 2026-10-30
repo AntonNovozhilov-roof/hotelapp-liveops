@@ -1,5 +1,30 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Plan change: build the full app locally first (ANT-5)
+
+What I did (simple words): The owner changed the order. We now build the whole app on the Mac first — photos, review flow, AI photo check, supervisor, history, owner report (M3 to M10) — using the local `.data` files as today. The real database (M2) and going online (M11) come last and start on Nov 3 morning at the latest, then the full online test (M12).
+
+Files changed:
+- `docs/PROJECT_MAP.md` — new build order M3 → M4 → M5 → M6 → M7 → M8 → M9 → M10 (all local), then M2 → M11 → M12; M2 removed from the dependencies of M3, M4 and M8 (they use the local `.data` storage for now); M3 photos live in local `.data/photos` behind one helper file; table reordered; M2/M11 rows marked "starts Nov 3 morning at the latest"
+- `docs/DEPLOY.md` — work order rewritten (M3–M10 local first, then M2 → M11 → M12); photos row now says local `.data/photos` via `src/lib/photos.ts` and only that file changes in M11; Part A/Vercel steps moved to Nov 3; who-does-what table reordered
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-5 — comment with the new order
+- ANT-19 (M3), ANT-20 (M4), ANT-24 (M8) — descriptions rewritten: no M2 dependency, local `.data` storage
+- ANT-18 (M2), ANT-27 (M11) — descriptions rewritten: stay Todo, start Nov 3 morning at the latest; comments added on all five issues
+
+How I checked it works:
+- Docs-only change: no app code touched. Read both files back after editing; the order and dependencies match in the text, the task table, and the Linear descriptions.
+- `git status` shows only `docs/PROJECT_MAP.md`, `docs/DEPLOY.md`, `DEVLOG.md` changed.
+
+NOT working / NOT checked yet:
+- Nothing new built yet — next step is ANT-19 (M3: photo upload on staff tasks), taken right after this commit.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-5 (plan change); issues ANT-18, ANT-19, ANT-20, ANT-24, ANT-27 updated
+
 ## Meta1 — 2026-10-31 — Hosting choice + deploy plan, new build order (ANT-17 / M1)
 
 What I did (simple words): Picked where the app will live online and wrote the exact steps. The app goes on Vercel (free, web address with HTTPS appears by itself). The saved tasks and, later, the staff photos go in Supabase — one service for both the database and photo storage (free). Both websites let the owner sign in with the GitHub login that already owns this repo, so there are as few accounts and passwords as possible, and no bank card. The plan in `docs/DEPLOY.md` has click-by-click steps for the only parts the owner must do by hand (create the Supabase project and save its database password in a password manager; later, at deploy time, import the repo in Vercel and paste the two secret values there — never into chat or Linear).

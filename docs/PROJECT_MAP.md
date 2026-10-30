@@ -50,8 +50,14 @@ History
   (who did what and when, for every task)
 ```
 
-Everything in the loop must work online over HTTPS, and saved tasks and
-photos must survive a server restart.
+**Plan change, 2026-10-31 (owner): build the full app locally first;
+database and going online come last.** Everything in the loop is built and
+checked on the Mac against the local `.data` storage, in the order
+M3 → M4 → M5 → M6 → M7 → M8 → M9 → M10. Only then M2 (real database) →
+M11 (online over HTTPS) → M12 (full loop test online). M2 and M11 start
+on **Nov 3 morning at the latest**. In the end, everything in the loop must
+work online over HTTPS, and saved tasks and photos must survive a server
+restart.
 
 ## Blocks
 
@@ -110,7 +116,9 @@ photos must survive a server restart.
 
 **Left**
 - The JSON file does not survive real hosting (see Online block). MUST: move
-  to a real database, keep the same API shape.
+  to a real database, keep the same API shape — but this is **M2, done last**
+  (plan change 2026-10-31, start Nov 3 morning at the latest). Until then,
+  M3–M10 use the local `.data` storage as today.
 - The loop needs one more status: **review** (staff sent photo proof,
   waiting for the supervisor). MUST.
 - v1.2 has more task kinds (cleaning tasks from check-outs, repair tickets,
@@ -150,12 +158,20 @@ photos must survive a server restart.
 **Left (all MUST)**
 - Staff uploads 1–3 photos on a started task (phone camera works:
   file input with `capture`).
-- Photos are saved so they survive restarts (object storage or database —
-  decided in the storage task), and the photo URLs live on the task.
-- Staff can retake (delete photos and the AI result, like v1.2 `retake`).
+- Photos are saved locally in `.data/photos` (git-ignored, never committed)
+  so they survive restarts, and the photo URLs live on the task. All photo
+  saving and reading lives in one small helper file (`src/lib/photos.ts`),
+  so it can later switch to cloud storage by changing only that file.
+  (Plan change 2026-10-31: M3 no longer waits for the database, M2.)
+- Staff can retake (delete photos and the AI result, like v1.2 `retake`;
+  the button itself is built in M6, with the AI result).
 
 **Files (new)**
-- `src/app/api/tasks/[id]/photos/route.ts`, photo field in `src/lib/store.ts`
+- `src/lib/photos.ts` — the one photo helper (save / read / delete files in
+  `.data/photos`); the only file to change when photos move to the cloud
+- `src/app/api/tasks/[id]/photos/route.ts` (upload + delete),
+  `src/app/api/photos/[name]/route.ts` (serve one photo),
+  photo list on the task in `src/lib/tasks.ts` / `src/lib/store.ts`
 - Photo UI in `src/app/staff/StaffBoard.tsx` (or a per-task panel there)
 
 ### 6. AI photo check (SAM 3.1)
@@ -242,8 +258,11 @@ photos must survive a server restart.
 
 **Done**
 - The app runs locally (`npm run dev` / `npm run start`). Nothing is online.
+  This is on purpose until the end (plan change 2026-10-31): the full app is
+  built locally first (M3–M10), then M2 → M11 → M12. **M2 and M11 stay Todo
+  and start on Nov 3 morning at the latest.**
 
-**Left (all MUST)**
+**Left (all MUST, last — after M3–M10)**
 - The app must be online over **HTTPS** (also needed so a phone browser
   allows the microphone and camera).
 - **Hosting (chosen in M1, 2026-10-31 — see `docs/DEPLOY.md`):**
@@ -258,10 +277,11 @@ photos must survive a server restart.
   - Tasks: replace the `.data/tasks.json` file with database tables
     (Postgres on Vercel/Neon, or SQLite on a VPS persistent disk). Keep the
     API routes and their shapes the same, so the pages do not change.
-  - Photos: never save photos only on the server disk of a normal cloud
-    host (they can be deleted on restart/redeploy). Save them in object
-    storage (Supabase Storage / S3) or in the database; save only the URL
-    on the task.
+  - Photos: until then they live in local `.data/photos`, behind the one
+    helper file `src/lib/photos.ts`. Online, never save photos only on the
+    server disk of a normal cloud host (they can be deleted on
+    restart/redeploy): switch only that helper file to object storage
+    (Supabase Storage / S3) or the database; only the URL lives on the task.
   - Keys: `MODEL_API_KEY` moves to the hosting provider's env settings.
     Still never in code, never in git.
 - Deploy, then test the whole loop on the public HTTPS link (guest phone +
@@ -280,32 +300,33 @@ M5=ANT-21, M6=ANT-22, M7=ANT-23, M8=ANT-24, M9=ANT-25, M10=ANT-26,
 M11=ANT-27, M12=ANT-28, S1=ANT-29, S2=ANT-30, S3=ANT-31, S4=ANT-32,
 S5=ANT-33, S6=ANT-34. This map itself is ANT-16.
 
-**Build order (changed 2026-10-31): M1 -> M2 -> M11 first** (put what we
-already have online right after the database move, so we can test on a
-real phone early), **then M3-M10, then M12.** The table below is in that
-order. Dependencies inside M3-M10 did not change; only M11 moved earlier,
-so M11 now depends only on M1+M2 (not M3). Photo survival online is proved
-in M3 when photos are added, and again in M12.
+**Build order (changed again 2026-10-31, owner: build the full app locally
+first; database and going online come last): M3 → M4 → M5 → M6 → M7 → M8 →
+M9 → M10 (all local), then M2 → M11 → M12.** The table below is in that
+order. **M2 was removed from the dependencies of M3, M4 and M8** — they use
+the local `.data` storage for now (photos in `.data/photos`, behind one
+helper file). **M2 and M11 stay Todo and start on Nov 3 morning at the
+latest.** (M1 is already Done.)
 
 ### MUST
 
 | # | Task | Depends on | Done when |
 |---|------|-----------|-----------|
-| M1 | Choose hosting and write the deploy plan | — | Plan is in `docs/DEPLOY.md`: platform, HTTPS, env vars, where tasks/photos live. Anyone can follow it. |
-| M2 | Move task storage to a real database | M1 | Tasks are in the DB (same API shapes). Restart the server: tasks are still there. `.data` file is not used when `DATABASE_URL` is set, and local dev without `DATABASE_URL` still uses `.data` exactly as before. |
-| M11 | Go online over HTTPS (early) | M1, M2 | The app (guest + staff, as built so far) is on a public HTTPS link; guest + staff pages open on a phone; tasks survive a restart/redeploy. "Reset demo data" is hidden online (still available in local dev). Guest text + voice sending has a simple per-minute limit per visitor (friendly "please wait" / HTTP 429). Photos are not built yet — photo survival online is proved in M3 and again in M12. |
-| M3 | Photo upload on staff tasks | M2 | Staff adds 1–3 photos to a started task on `/staff`; photos show on the task and are still there after a server restart. After deploying this, photos also survive a redeploy online. |
-| M4 | Add "review" status end to end | M2 | Flow New -> Accepted -> In progress -> In review -> Done/Sent back works via API and `/staff`; guest still sees Received / On the way / Done correctly. |
+| M3 | Photo upload on staff tasks | — | Staff adds 1–3 photos to a started task on `/staff`; photos show on the task and are still there after a server restart. Photos are saved locally in `.data/photos` (git-ignored) and all photo saving/reading lives in one small helper file, so it can later switch to cloud storage by changing only that file. |
+| M4 | Add "review" status end to end | — | Flow New -> Accepted -> In progress -> In review -> Done/Sent back works via API and `/staff`; guest still sees Received / On the way / Done correctly. Uses the local `.data` storage (no database yet). |
 | M5 | SAM 3.1 photo check API | M3 | `POST /api/tasks/[id]/ai-check` saves `{score, issues, model}` on the task (or a clearly marked MOCK when no key). curl test shows the saved result. |
 | M6 | AI result + retake on staff board | M4, M5 | Staff sees the score and issues; "Retake photos" clears photos + AI result; staff can only send to review after a photo check ran. |
 | M7 | Supervisor page: approve / send back | M4 | On `/supervisor`, a review task can be approved (-> Done) or sent back with a note (-> staff sees it and can fix). Guest status follows. |
-| M8 | History events + history API | M2 | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. |
+| M8 | History events + history API | — | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. Uses the local `.data` storage (no database yet). |
 | M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. |
 | M10 | Owner morning report (Muse Wonder) | M8 | `/owner` Generate button makes a short report from real task facts (MOCK marked if no key); report text shows counts that match the board. |
+| M1 | Choose hosting and write the deploy plan (Done) | — | Plan is in `docs/DEPLOY.md`: platform, HTTPS, env vars, where tasks/photos live. Anyone can follow it. |
+| M2 | Move task storage to a real database — starts Nov 3 morning at the latest | M1 | Tasks are in the DB (same API shapes). Restart the server: tasks are still there. `.data` file is not used when `DATABASE_URL` is set, and local dev without `DATABASE_URL` still uses `.data` exactly as before. |
+| M11 | Go online over HTTPS — starts Nov 3 morning at the latest (after M2) | M1, M2 | The full app (guest, staff, supervisor, owner, as built in M3–M10) is on a public HTTPS link; pages open on a phone; tasks and photos survive a restart/redeploy (photo storage switches from `.data/photos` to cloud at this point, by changing only the photo helper file). "Reset demo data" is hidden online (still available in local dev). Guest text + voice sending has a simple per-minute limit per visitor (friendly "please wait" / HTTP 429). |
 | M12 | Full loop test online + demo script | M6, M7, M9, M10, M11 | The written demo script in README runs end to end on the public link: guest -> AI tasks -> staff -> photo -> AI check -> supervisor -> owner report -> history. |
 
 Files per MUST task (short): M1 `docs/DEPLOY.md`, `.env.example` ·
-M2 `src/lib/store.ts`, `src/app/api/tasks/*` · M3 photo route + `StaffBoard.tsx` ·
+M2 `src/lib/store.ts`, `src/app/api/tasks/*` · M3 `src/lib/photos.ts` + photo routes + `StaffBoard.tsx` ·
 M4 `src/lib/tasks.ts`, `src/lib/store.ts`, `src/app/api/tasks/[id]/route.ts`,
 `StaffBoard.tsx`, `GuestForm.tsx` · M5 ai-check route + `src/lib/tasks.ts` ·
 M6 `StaffBoard.tsx` · M7 `src/app/supervisor/*`, tasks API · M8 `src/lib/history.ts`

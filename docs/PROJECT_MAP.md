@@ -246,14 +246,14 @@ photos must survive a server restart.
 **Left (all MUST)**
 - The app must be online over **HTTPS** (also needed so a phone browser
   allows the microphone and camera).
-- **Hosting that fits:** a small VPS or a Node host with a persistent disk
-  (for example Hetzner/DigitalOcean + Docker, or Render/Fly.io with a
-  volume) **or** Vercel + a hosted Postgres (Neon/Supabase). Our app is a
-  normal Next.js server app, so both fit.
-  Recommendation for the hackathon: **Vercel + Neon/Supabase Postgres +
-  Supabase Storage (or S3) for photos** — HTTPS is automatic, no server to
-  patch, and data survives restarts. A VPS also works but we must set up
-  HTTPS and backups ourselves.
+- **Hosting (chosen in M1, 2026-10-31 — see `docs/DEPLOY.md`):**
+  **Vercel (Hobby, free)** runs the app with automatic HTTPS, and
+  **Supabase (Free)** is the one service for both Postgres (tasks/history)
+  and Storage (photos, bucket `task-photos`). Both sign in with the
+  owner's existing GitHub account, so there are the fewest accounts and
+  steps for a non-developer owner. A VPS was rejected: more manual
+  HTTPS/backup/patching work. Full click-by-click owner steps, env vars,
+  and local-dev fallback rules are in `docs/DEPLOY.md`.
 - **What must change in storage:**
   - Tasks: replace the `.data/tasks.json` file with database tables
     (Postgres on Vercel/Neon, or SQLite on a VPS persistent disk). Keep the
@@ -280,13 +280,21 @@ M5=ANT-21, M6=ANT-22, M7=ANT-23, M8=ANT-24, M9=ANT-25, M10=ANT-26,
 M11=ANT-27, M12=ANT-28, S1=ANT-29, S2=ANT-30, S3=ANT-31, S4=ANT-32,
 S5=ANT-33, S6=ANT-34. This map itself is ANT-16.
 
+**Build order (changed 2026-10-31): M1 -> M2 -> M11 first** (put what we
+already have online right after the database move, so we can test on a
+real phone early), **then M3-M10, then M12.** The table below is in that
+order. Dependencies inside M3-M10 did not change; only M11 moved earlier,
+so M11 now depends only on M1+M2 (not M3). Photo survival online is proved
+in M3 when photos are added, and again in M12.
+
 ### MUST
 
 | # | Task | Depends on | Done when |
 |---|------|-----------|-----------|
 | M1 | Choose hosting and write the deploy plan | — | Plan is in `docs/DEPLOY.md`: platform, HTTPS, env vars, where tasks/photos live. Anyone can follow it. |
-| M2 | Move task storage to a real database | M1 | Tasks are in the DB (same API shapes). Restart the server: tasks are still there. `.data` file is not used. |
-| M3 | Photo upload on staff tasks | M2 | Staff adds 1–3 photos to a started task on `/staff`; photos show on the task and are still there after a server restart. |
+| M2 | Move task storage to a real database | M1 | Tasks are in the DB (same API shapes). Restart the server: tasks are still there. `.data` file is not used when `DATABASE_URL` is set, and local dev without `DATABASE_URL` still uses `.data` exactly as before. |
+| M11 | Go online over HTTPS (early) | M1, M2 | The app (guest + staff, as built so far) is on a public HTTPS link; guest + staff pages open on a phone; tasks survive a restart/redeploy. "Reset demo data" is hidden online (still available in local dev). Guest text + voice sending has a simple per-minute limit per visitor (friendly "please wait" / HTTP 429). Photos are not built yet — photo survival online is proved in M3 and again in M12. |
+| M3 | Photo upload on staff tasks | M2 | Staff adds 1–3 photos to a started task on `/staff`; photos show on the task and are still there after a server restart. After deploying this, photos also survive a redeploy online. |
 | M4 | Add "review" status end to end | M2 | Flow New -> Accepted -> In progress -> In review -> Done/Sent back works via API and `/staff`; guest still sees Received / On the way / Done correctly. |
 | M5 | SAM 3.1 photo check API | M3 | `POST /api/tasks/[id]/ai-check` saves `{score, issues, model}` on the task (or a clearly marked MOCK when no key). curl test shows the saved result. |
 | M6 | AI result + retake on staff board | M4, M5 | Staff sees the score and issues; "Retake photos" clears photos + AI result; staff can only send to review after a photo check ran. |
@@ -294,7 +302,6 @@ S5=ANT-33, S6=ANT-34. This map itself is ANT-16.
 | M8 | History events + history API | M2 | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. |
 | M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. |
 | M10 | Owner morning report (Muse Wonder) | M8 | `/owner` Generate button makes a short report from real task facts (MOCK marked if no key); report text shows counts that match the board. |
-| M11 | Go online over HTTPS | M2, M3 | The app is on a public HTTPS link; guest + staff pages open on a phone; tasks and photos survive a restart/redeploy. |
 | M12 | Full loop test online + demo script | M6, M7, M9, M10, M11 | The written demo script in README runs end to end on the public link: guest -> AI tasks -> staff -> photo -> AI check -> supervisor -> owner report -> history. |
 
 Files per MUST task (short): M1 `docs/DEPLOY.md`, `.env.example` ·

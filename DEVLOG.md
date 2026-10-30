@@ -1,5 +1,39 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Hosting choice + deploy plan, new build order (ANT-17 / M1)
+
+What I did (simple words): Picked where the app will live online and wrote the exact steps. The app goes on Vercel (free, web address with HTTPS appears by itself). The saved tasks and, later, the staff photos go in Supabase — one service for both the database and photo storage (free). Both websites let the owner sign in with the GitHub login that already owns this repo, so there are as few accounts and passwords as possible, and no bank card. The plan in `docs/DEPLOY.md` has click-by-click steps for the only parts the owner must do by hand (create the Supabase project and save its database password in a password manager; later, at deploy time, import the repo in Vercel and paste the two secret values there — never into chat or Linear).
+
+New build order (owner decision): M1 -> M2 -> M11 first (put what we already have — guest page and staff board — online right after the database move, so we can test on a real phone early), then M3-M10, then M12. M11 no longer waits for photos (M3): it now depends only on M1+M2, and photo survival online will be proved in M3 and again in M12. Added to M11's "Done when": the "Reset demo data" button must be hidden online (it stays on the Mac in local dev, so nobody can wipe the online data from a public page), and guest text + voice sending gets a simple per-minute limit per visitor (friendly "please wait" message, HTTP 429; suggested 10 texts and 5 voice recordings per minute).
+
+Files changed:
+- `docs/DEPLOY.md` — new: the choice and why (VPS and 3-service options rejected, in simple words), where tasks/photos/secrets live online vs on the Mac, the full env var list (names only), Part A owner clicks for Supabase (do now), Part B owner clicks for Vercel (at M11, after saying "push"), Part C phone checks after deploy, who-does-what table, and the warning that a free Supabase project pauses after about a week unused (one click to wake; check the link the day before any demo)
+- `.env.example` — added `DATABASE_URL` (M2), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PHOTOS_BUCKET` (M3), all empty/with comments; rule written in the file: no `DATABASE_URL` locally = local `.data/tasks.json` as today, so local dev keeps working
+- `docs/PROJECT_MAP.md` — Online block now names the chosen hosting; task table reordered M1, M2, M11, M3-M10, M12; M11 row depends on M1+M2 only and its "Done when" includes the hidden-online Reset button and the per-minute guest limit; M2 note that local dev without `DATABASE_URL` still uses `.data`
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-17 (M1) — taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment
+- ANT-27 (M11) — description rewritten: depends on ANT-17+ANT-18 only (M3 removed), "Done when" now includes hidden-online Reset button + simple per-minute limit on guest messages and voice, plus local-dev-still-works
+- ANT-5 — comment with the new order M1 -> M2 -> M11 -> M3-M10 -> M12
+- ANT-18 (M2) — comment: it is next, target is Supabase Postgres, local fallback must stay, owner runs the one SQL block it provides
+- ANT-19 (M3) — comment: M11 now goes before it, so it must prove photos survive a redeploy online
+
+How I checked it works:
+- Read the current app first (store, guest message/voice routes, staff board): the app is a normal Next.js server app, tasks are a local `.data/tasks.json` file, the only secret today is `MODEL_API_KEY` — the plan is built on those facts.
+- Checked today's free tiers on the official pricing pages (2026-10-31): Vercel Hobby $0 with automatic HTTPS; Supabase Free $0 with 500 MB database + 1 GB storage, pausing after 1 week of inactivity (written into the plan as a warning).
+- This task changes docs and `.env.example` only, no app code: `npm run typecheck` ok, `npm run build` ok, fresh `npm run start` answered 200 on `/r/204` and `/staff`, and `/api/tasks` answered with the saved tasks — local dev behaviour is unchanged.
+- Secret scan of the diff: no key/password values, only empty variable names in `.env.example`.
+
+NOT working / NOT checked yet:
+- Nothing is online yet, on purpose: deploying today's code would lose tasks on Vercel (local file storage). First real deploy is M11, after M2 moves tasks to Supabase.
+- The owner still has to do Part A (create the Supabase project, save the database password in a password manager) and say "Supabase project created" in Linear. No accounts were created by the agent.
+- The hidden-Reset and rate-limit items are written as M11 requirements; the code for them is part of ANT-27, not this task.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-17, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Project map (ANT-16)
 
 What I did (simple words): No app code today. I read the full v1.2 design in the other folder (read only, changed nothing there), compared it with what we built here, and wrote the project map for the road to Nov 4.

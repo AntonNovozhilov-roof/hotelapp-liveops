@@ -1,5 +1,30 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Project map (ANT-16)
+
+What I did (simple words): No app code today. I read the full v1.2 design in the other folder (read only, changed nothing there), compared it with what we built here, and wrote the project map for the road to Nov 4.
+
+Files changed:
+- `docs/PROJECT_MAP.md` — new: what the app is (3 sentences), the full loop guest -> AI tasks -> staff -> photo proof -> AI photo check (SAM 3.1) -> supervisor approve/send back -> owner morning report (Muse Wonder) -> history, 10 blocks with done/left/files, a task list of 12 MUST + 6 SHOULD small tasks (about 1-2 hours each, with depends-on and "Done when"), LATER list (other v1.2 screens), and hosting: online over HTTPS with tasks/photos surviving restarts (recommendation: Vercel + hosted Postgres + object storage, or a VPS with a persistent disk; storage must move off the local .data file and off plain server disk for photos)
+- `AGENTS.md` — new section "How agents take tasks", and the title rule fixed: [Meta1] is only for Meta1's own log issues, shared tasks have no agent prefix
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-16 "[Meta1] Project map" — sub-issue of ANT-5, marked Done
+- 18 shared sub-issues of ANT-5 (no agent name, Todo): MUST = High priority ANT-17..ANT-28 (M1-M12), SHOULD = Medium priority ANT-29..ANT-34 (S1-S6). No Linear issues for LATER tasks.
+
+How I checked it works:
+- Read README.md, docs/API.md and the app/staff/guest screens in the v1.2 folder; `git status` in that folder is clean (nothing changed there).
+- Checked the current repo file list and git log to write the "Done" parts from real files, not from memory.
+- Opened one created Linear issue (ANT-22) and checked: title has no agent name, priority High, status Todo, parent ANT-5, description has what to build / files / depends on / Done when.
+
+NOT working / NOT checked yet:
+- The map is a plan. The photo proof, AI photo check, supervisor, owner report, history and online hosting are not built yet — they are the MUST tasks.
+- Hosting choice (M1, ANT-17) is a recommendation in the map; the owner still has to pick/approve the platform and accounts.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-16, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-29 — New-task badges on staff picker + plain Done label (ANT-13)
 
 What I changed (simple words): On /staff, each person box in "Who are you?" now has a small round red badge in the corner with the number of NEW tasks for that person's team. The number updates by itself every 3 seconds, and there is no badge when the number is 0. In the Done column, "Done ✓" is now plain text, not a button-looking box.

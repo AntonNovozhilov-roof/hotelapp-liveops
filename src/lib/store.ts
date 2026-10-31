@@ -3,8 +3,10 @@ import path from "path";
 import { randomUUID } from "crypto";
 import {
   TASK_STATUSES,
+  type AiCheckItem,
   type StoredTask,
   type Task,
+  type TaskAiCheck,
   type TaskPhoto,
   type TaskStatus,
 } from "./tasks";
@@ -50,14 +52,45 @@ function isTaskPhoto(value: unknown): value is TaskPhoto {
   );
 }
 
-/** Tasks saved before photos/review existed get empty photos and no note. */
+function isAiCheckItem(value: unknown): value is AiCheckItem {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.key === "string" &&
+    typeof record.label === "string" &&
+    (record.status === "found" ||
+      record.status === "not_found" ||
+      record.status === "unsure") &&
+    (record.confidence === null || typeof record.confidence === "number") &&
+    typeof record.count === "number"
+  );
+}
+
+function isTaskAiCheck(value: unknown): value is TaskAiCheck {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.score === "number" &&
+    Array.isArray(record.checks) &&
+    record.checks.every(isAiCheckItem) &&
+    Array.isArray(record.issues) &&
+    record.issues.every((issue) => typeof issue === "string") &&
+    typeof record.model === "string" &&
+    (record.mode === "LIVE" || record.mode === "MOCK") &&
+    typeof record.checkedAt === "string"
+  );
+}
+
+/** Tasks saved before photos/review/AI-check existed get empty photos, no note, no check. */
 function normalizeTask(task: StoredTask): StoredTask {
   const raw = (task as { photos?: unknown }).photos;
   const note = (task as { reviewNote?: unknown }).reviewNote;
+  const check = (task as { aiCheck?: unknown }).aiCheck;
   return {
     ...task,
     photos: Array.isArray(raw) ? raw.filter(isTaskPhoto) : [],
     reviewNote: typeof note === "string" && note.trim() ? note : null,
+    aiCheck: isTaskAiCheck(check) ? check : null,
   };
 }
 
@@ -123,6 +156,7 @@ export async function createStoredTasks(
       status: "new",
       photos: [],
       reviewNote: null,
+      aiCheck: null,
       createdAt: now,
       updatedAt: now,
     }));
@@ -172,11 +206,33 @@ export async function addStoredTaskPhoto(
     const updated: StoredTask = {
       ...current,
       photos: [...current.photos, photo],
+      // The photo set changed: any old AI check no longer matches it.
+      aiCheck: null,
       updatedAt: new Date().toISOString(),
     };
     all[index] = updated;
     await writeAll(all);
     return { ok: true, task: updated } as const;
+  });
+}
+
+/** Save the AI photo check result on a task. Returns null for an unknown id. */
+export async function saveStoredTaskAiCheck(
+  id: string,
+  aiCheck: TaskAiCheck,
+): Promise<StoredTask | null> {
+  return withLock(async () => {
+    const all = await readAll();
+    const index = all.findIndex((task) => task.id === id);
+    if (index === -1) return null;
+    const updated: StoredTask = {
+      ...all[index],
+      aiCheck,
+      updatedAt: new Date().toISOString(),
+    };
+    all[index] = updated;
+    await writeAll(all);
+    return updated;
   });
 }
 
@@ -198,6 +254,8 @@ export async function removeStoredTaskPhoto(
     const updated: StoredTask = {
       ...current,
       photos: current.photos.filter((photo) => photo.name !== photoName),
+      // The photo set changed: any old AI check no longer matches it.
+      aiCheck: null,
       updatedAt: new Date().toISOString(),
     };
     all[index] = updated;

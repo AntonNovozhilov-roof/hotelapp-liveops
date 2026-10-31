@@ -34,6 +34,17 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   photo link is saved on the task. All photo saving/reading lives in
   `src/lib/photos.ts`, so it can switch to cloud storage later by changing
   only that file.
+- AI photo check on staff tasks (SAM 3.1): on a started task with photos,
+  press **Run AI photo check**. The server sends the photo(s) to Meta's
+  `sam-3.1` (one short object search per check — e.g. housekeeping looks
+  for bed, towels, pillow; the list lives in `src/lib/photo-check.ts`)
+  and saves the result on the task: a score (0–100), each check as Found /
+  Not found / Not sure (with the AI confidence; low confidence is always
+  "Not sure", never pass or fail), problems in plain words, and the model
+  name. The AI only helps the supervisor — it never approves a task, and
+  the task status does not change. With no API key, or when the model
+  errors, the saved result is clearly marked **MOCK** and the flow still
+  works. API: `POST /api/tasks/<id>/ai-check`.
 - `/staff` has a small "Reset demo data" link at the bottom that deletes
   all saved tasks and their photos (it asks "Are you sure?" first).
 - Voice input on the guest page: press **Mic**, speak (up to 45 seconds),

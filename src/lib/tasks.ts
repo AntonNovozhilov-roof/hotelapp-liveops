@@ -55,6 +55,37 @@ export interface TaskPhoto {
   uploadedAt: string;
 }
 
+/** One line of an AI photo check: was this thing seen in the photo? */
+export type AiCheckItemStatus = "found" | "not_found" | "unsure";
+
+export interface AiCheckItem {
+  /** Short key of the check, e.g. "towels" (see PHOTO_CHECKS in src/lib/photo-check.ts). */
+  key: string;
+  /** Plain name shown to staff, e.g. "Towels". */
+  label: string;
+  status: AiCheckItemStatus;
+  /** Best SAM confidence 0..1, or null when SAM gave none (or in MOCK mode). */
+  confidence: number | null;
+  /** How many matching objects SAM found. */
+  count: number;
+}
+
+/**
+ * The saved AI photo check result on a task (SAM 3.1, see
+ * src/lib/photo-check.ts). This only helps the supervisor — the AI never
+ * approves a task, so there is deliberately no pass/fail verdict here.
+ * `score` is 0..100: the share of checks found (an "unsure" check counts half).
+ */
+export interface TaskAiCheck {
+  score: number;
+  checks: AiCheckItem[];
+  /** Problems in plain words. Empty when every check was found. */
+  issues: string[];
+  model: string;
+  mode: "LIVE" | "MOCK";
+  checkedAt: string;
+}
+
 /** A task saved on the server (in .data/tasks.json for now). */
 export interface StoredTask extends Task {
   id: string;
@@ -63,6 +94,8 @@ export interface StoredTask extends Task {
   photos: TaskPhoto[];
   /** Supervisor note when a task is sent back from review. Null otherwise. */
   reviewNote: string | null;
+  /** Last AI photo check, or null when no check ran on the current photos. */
+  aiCheck: TaskAiCheck | null;
   createdAt: string;
   updatedAt: string;
 }

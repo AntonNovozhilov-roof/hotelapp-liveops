@@ -43,6 +43,7 @@ export default function StaffBoard() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
+  const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [, setNowTick] = useState(0);
 
   const member = STAFF.find((person) => person.name === staffName) ?? STAFF[0];
@@ -179,6 +180,30 @@ export default function StaffBoard() {
       );
     } finally {
       setPhotoBusyId(null);
+    }
+  }
+
+  async function runAiCheck(task: StoredTask) {
+    if (aiBusyId) return;
+    setAiBusyId(task.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/ai-check`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Could not run the AI photo check.");
+      }
+      await loadTasks();
+    } catch (checkError) {
+      setError(
+        checkError instanceof Error
+          ? checkError.message
+          : "Could not run the AI photo check.",
+      );
+    } finally {
+      setAiBusyId(null);
     }
   }
 
@@ -402,6 +427,77 @@ export default function StaffBoard() {
                                   Max 3 photos. Delete one to add another.
                                 </p>
                               ))}
+                          </div>
+                        )}
+                        {(task.photos.length > 0 || task.aiCheck) && (
+                          <div className="mt-3 border-t border-slate-100 pt-3">
+                            <p className="text-sm font-semibold text-slate-700">
+                              AI photo check
+                            </p>
+                            {task.aiCheck ? (
+                              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                <p className="font-bold text-slate-800">
+                                  Score: {task.aiCheck.score}/100
+                                  {task.aiCheck.mode === "MOCK" && (
+                                    <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900">
+                                      MOCK
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                  Model: {task.aiCheck.model}. This check
+                                  only helps the supervisor — it never
+                                  approves the task.
+                                </p>
+                                <ul className="mt-2 space-y-1">
+                                  {task.aiCheck.checks.map((check) => (
+                                    <li key={check.key}>
+                                      {check.label}:{" "}
+                                      <span className="font-semibold">
+                                        {check.status === "found"
+                                          ? "Found"
+                                          : check.status === "not_found"
+                                            ? "Not found"
+                                            : "Not sure"}
+                                      </span>
+                                      {check.confidence !== null &&
+                                        ` (${Math.round(check.confidence * 100)}% sure)`}
+                                    </li>
+                                  ))}
+                                </ul>
+                                {task.aiCheck.issues.length > 0 ? (
+                                  <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                                    {task.aiCheck.issues.map((issue) => (
+                                      <li key={issue}>{issue}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="mt-2 text-emerald-800">
+                                    No problems found in the photo.
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-sm text-slate-500">
+                                Not checked yet.
+                              </p>
+                            )}
+                            {(task.status === "in_progress" ||
+                              task.status === "review") &&
+                              task.photos.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => void runAiCheck(task)}
+                                  disabled={aiBusyId === task.id}
+                                  className="mt-2 w-full rounded-xl border border-teal-700 px-4 py-2.5 font-semibold text-teal-800 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {aiBusyId === task.id
+                                    ? "Checking photo..."
+                                    : task.aiCheck
+                                      ? "Run AI photo check again"
+                                      : "Run AI photo check"}
+                                </button>
+                              )}
                           </div>
                         )}
                         {action ? (

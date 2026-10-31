@@ -1,5 +1,57 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — SAM 3.1 photo check API (ANT-21 / M5)
+
+**Did the real sam-3.1 call work? YES.** With the key in `.env.local` (value never printed), `POST /api/tasks/<id>/ai-check` called the real Meta Model API and saved LIVE results (about 5 seconds per task, 3 SAM requests per photo). What it returned for each test photo:
+
+- **Bed WITH towels** (`.data/test-photos/bed-with-towels.jpg`): score **100/100** — Bed: found (83% sure, 2 found), Towels: found (71% sure, 4 found), Pillow: found (93% sure, 2 found). No issues.
+- **Bed WITHOUT towels** (`.data/test-photos/bed-without-towels.jpg`): score **67/100** — Bed: found (85% sure), Towels: **not found**, Pillow: found (94% sure). Issue: "No towels found in the photo. Please check the work and take a new photo if needed."
+
+Both results make sense. The same LIVE results were still on the tasks after a server restart.
+
+Official docs read first (no guessing): SAM overview https://dev.meta.ai/docs/sam/overview, media segmentation https://dev.meta.ai/docs/media-segmentation, segmenting with prompts https://dev.meta.ai/docs/sam/segmenting, reading output https://dev.meta.ai/docs/sam/reading-segmentation, Responses API https://dev.meta.ai/docs/protocols/responses. Exact wire format: `POST https://api.meta.ai/v1/responses`, model `sam-3.1`, Bearer `MODEL_API_KEY`, body `{model, input:[{type:"message",role:"user",content:[{type:"input_text",text:"<one short noun phrase>"},{type:"input_image",image_url:"<public URL or data:image/...;base64,...>"}]}], metadata:{include_confidence:"true", mask_encoding:"one_bit"}}`. One concept per request, so each check is its own request. The answer text (`output[].content[].text`) is `text<0f>id<|box;x1=..;y1=..;x2=..;y2=..;w=..;h=..;c=..|><|mask;...|>` per match; empty text = nothing found (a valid answer, not an error). Confidence `c` only comes when `include_confidence` is the string `"true"`.
+
+Test photo sources (free license, saved only in `.data/test-photos/`, git-ignored, never committed):
+- With towels: "0504dahab 0080" by Geoff Clark, Wikimedia Commons https://commons.wikimedia.org/wiki/File:0504dahab_0080_(138559655).jpg, CC BY 2.0 https://creativecommons.org/licenses/by/2.0 (towel swans on the beds)
+- Without towels: "Hotel beds" by Sridhar Rao, Wikimedia Commons https://commons.wikimedia.org/wiki/File:Hotel_beds.jpg, CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0 (made bed, pillows, no towels)
+
+What I built (simple words): SAM finds objects in a photo; it does not judge work and it never approves anything — the saved result only helps the supervisor. Each team has a short check list in one place (`PHOTO_CHECKS` in `src/lib/photo-check.ts`: housekeeping = bed/towels/pillow, maintenance = sink/toilet, front desk = desk/chair, room service = tray/plate/cup — change that one list to change the checks). The result is saved on the task: score 0–100 (share of checks found, "not sure" counts half), each check Found / Not found / Not sure with SAM confidence and count, issues in plain words, model name, LIVE/MOCK mode and time. If SAM confidence is below 0.5 the check says "not sure" — never pass or fail (there is no pass/fail verdict at all). With no key, or any model error (tested: a wrong key gets HTTP 401 from Meta), the route saves a clearly marked MOCK result (model `sam-3.1 (MOCK — not called)`, every check "not sure", issue "This is a MOCK result — no AI checked this photo. A person must look at the photo.") and the flow still works. Adding or deleting a photo clears the old check, because it no longer matches the photo set. Smallest UI only: on `/staff` a task with photos shows an "AI photo check" block (score, MOCK badge, checks, issues, "only helps the supervisor" note) and a **Run AI photo check** button. No screen redesign; retake/gating is M6.
+
+Files changed:
+- `src/lib/photo-check.ts` — new: THE check list (one place), SAM request/parse/score code, MOCK builder; docs links and the exact wire format in the header comment
+- `src/app/api/tasks/[id]/ai-check/route.ts` — new: POST ai-check; 404 unknown task, 409 no photo / missing photo file; reads photo bytes via `src/lib/photos.ts`, sends data URLs, saves LIVE or MOCK result; never changes task status
+- `src/lib/tasks.ts` — `TaskAiCheck` / `AiCheckItem` types, `aiCheck` field on the saved task
+- `src/lib/store.ts` — saves/loads `aiCheck` (old saved tasks load with null), `saveStoredTaskAiCheck`, photo add/delete clears `aiCheck`
+- `src/app/staff/StaffBoard.tsx` — smallest UI: Run button + result block on tasks with photos
+- `README.md` — AI photo check explained
+- `DEVLOG.md` — this entry
+- Not committed (git-ignored): `.data/test-photos/bed-with-towels.jpg`, `.data/test-photos/bed-without-towels.jpg`
+
+Linear:
+- ANT-21 (M5) — shared task, taken by Meta1 ("Meta1: taking this" + the docs links), In Progress, then Done with a summary comment.
+- ANT-36 "Test photo check with real room photos (owner)" — new sub-issue of ANT-5, Todo, Medium priority. Done when: owner uploads 2 real photos (bed with towel, bed without) and the results make sense.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok (new route `/api/tasks/[id]/ai-check` built).
+- Parser/scoring unit check (compiled the one lib file and ran it in node): a box with `c=0.30` parses to count 1 / confidence 0.30 and builds an "unsure" check (score 50 for 1 unsure check) with the issue "Not sure about towels — the AI confidence is low, so a person should look at the photo."; empty text parses to count 0; Responses `output[].content[].text` extraction works; MOCK builder gives mode MOCK, all checks unsure.
+- LIVE API test on a fresh server (port 3100): two housekeeping tasks made through the real guest API, Accept → Start, one sample photo uploaded to each, then `POST ai-check` — results exactly as written at the top of this entry (WITH = 100, towels found 71%; WITHOUT = 67, towels not found + plain issue). Results were identical on a second run and still saved after a server restart.
+- Error paths: unknown task → 404; task with no photo → 409 "Add at least 1 photo before running the AI photo check."
+- MOCK tests: server with no key → saved MOCK (score 50, all checks unsure, MOCK warning issue); server with a wrong key → Meta answered HTTP 401, route logged "SAM photo check failed, saving MOCK result: SAM API returned HTTP 401" and still saved the clearly marked MOCK result with HTTP 200.
+- Browser test on /staff (Aigerim): both test tasks showed "Score: 100/100" and "Score: 67/100" with Bed/Towels/Pillow lines, confidence % and the "No towels found..." issue; clicking **Run AI photo check** on a third started task ran the check through the page (network shows the ai-check call, result appeared, no console errors). No MOCK badge on LIVE results.
+- Responsive: at a true 375px and 1440px width (measured in frames) /staff has no sideways scroll (`scrollWidth` = width) and the AI check block is present.
+- Test data cleaned up afterwards: my 3 test tasks and their uploaded photo copies were removed and the pre-existing saved tasks restored untouched (`.data` is git-ignored; the 2 sample photos stay in `.data/test-photos/`).
+
+NOT working / NOT checked yet:
+- Low-confidence "not sure" from the real SAM was not seen live — both sample photos gave clear found/not-found answers. The unsure path is unit-checked and is also what MOCK shows; ANT-36 (owner real photos) may hit it.
+- SAM checks only whether objects are visible in the photo. It cannot tell if a bed is made well or a leak is fixed — the supervisor still judges the work. Checks for maintenance/front desk/room service are simple object presence only.
+- Only the first confident find per check is used (extra photos are skipped for that check to save calls); a check runs over all task photos until then. One photo = 3 SAM calls for housekeeping; timing was ~5 s per task in tests.
+- The sample photos are stock photos, not real room photos — that owner test is ANT-36. A real phone photo is not checked.
+- Retake (clear photos + AI result) and "can only send to review after a check ran" are M6, not built here. The supervisor page is M7.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1). Photo check model tested live: sam-3.1 (Meta Model API)
+Linear: ANT-21, sub-issue of ANT-5; follow-up ANT-36
+
 ## Meta1 — 2026-10-31 — Review status end to end (ANT-20 / M4)
 
 What I built (simple words): Staff can no longer finish a task by themselves. After Start and at least 1 photo, the button is now "Send to review" (it stays greyed out with the hint "Add at least 1 photo to send to review." until a photo exists). The task then sits in a new, clearly marked "In review" column — "Waiting for supervisor". A supervisor approves it to Done or sends it back to In progress with a short note; staff see that note on the task ("Sent back by supervisor: ..."), can fix the work and send it to review again. The supervisor page itself comes in M7 — for now approve / send back works through the API: `PATCH /api/tasks/<id>` with `{"action":"approve"}` or `{"action":"send_back","note":"..."}`, also as `{"status":"review"|"done"|"in_progress","note":"..."}`. The guest still sees only simple words: Received → On the way (also while In review, and after a send-back) → Done only after approval.

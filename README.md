@@ -15,16 +15,27 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   One message can create 2 tasks, e.g. "leak in the bathroom and bring towels".
 - With no API key, the app uses a fake MOCK answer and shows the word **MOCK**.
 - Every created task is saved in `.data/tasks.json` (local only, ignored by git).
-- `/staff` — staff screen. Choose who you are (Ruslan - Maintenance,
-  Aigerim - Housekeeping, Daniyar - Front desk, Madina - Room service).
-  You see only your team tasks, most urgent and newest first, and move them
-  with buttons: Accept -> Start -> Send to review. Staff cannot finish a
-  task themselves: **Send to review** needs at least 1 photo. A supervisor
-  then approves it (Done) or sends it back to In progress with a short note
-  that staff see on the task. The supervisor page comes later; for now use
-  the API: `PATCH /api/tasks/<id>` with `{"action":"approve"}` or
-  `{"action":"send_back","note":"..."}` (or `{"status":"done"}` /
-  `{"status":"in_progress","note":"..."}` from In review).
+- `/login` — demo sign-in. Accounts: **owner**, **supervisor**,
+  **aigerim** (Housekeeping / cleaner), **ruslan** (Maintenance),
+  **daniyar** (Front desk), **madina** (Room service). Every demo account
+  uses the password **`demo1234`**, shown on the login page (tap a person
+  to sign in as them). Real sign-up comes later with the database.
+  After sign-in each person lands on their own screen: staff on their
+  role screen (`My rooms`, `Repairs`, `Front desk`, `Room service
+  orders`), the Supervisor and Owner on simple home pages for now (their
+  real pages are M7 and M10). Sign out is in the top bar.
+- `/staff` — the signed-in staff member's screen. You see only your team
+  tasks, most urgent and newest first, and move them with buttons:
+  Accept -> Start -> Send to review. Staff cannot finish a task
+  themselves: **Send to review** needs at least 1 photo. A supervisor
+  then approves it (Done) or sends it back to In progress with a short
+  note that staff see on the task. **The server checks the role:**
+  `PATCH /api/tasks/<id>` with `{"action":"approve"}` or
+  `{"action":"send_back","note":"..."}` only works with a supervisor
+  sign-in (staff get HTTP 403); the staff steps, photo upload and the AI
+  check only work for the task's own team; **Reset demo data**
+  (`DELETE /api/tasks`, button on the Owner home) only works for the
+  Owner. The guest page and guest APIs stay open without sign-in.
 - After Send, the guest page shows only the tasks created by that one
   message, like "Sent to Maintenance: Fix leak", with a simple live status
   (Received / On the way / Done) that refreshes every few seconds.
@@ -49,8 +60,8 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   the task status does not change. With no API key, or when the model
   errors, the saved result is clearly marked **MOCK** and the flow still
   works. API: `POST /api/tasks/<id>/ai-check`.
-- `/staff` has a small "Reset demo data" link at the bottom that deletes
-  all saved tasks and their photos (it asks "Are you sure?" first).
+- The Owner home has a "Reset demo data" button that deletes all saved
+  tasks and their photos (it asks "Are you sure?" first). Owner only.
 - Voice input on the guest page: press **Mic**, speak (up to 45 seconds),
   press **Stop**. The recording is turned into text by Meta's
   `muse-voice-transcribe-1.0` and put into the text box. The guest can
@@ -72,16 +83,17 @@ npm run dev
 Then open in your browser:
 
 - Guest (room 204): http://localhost:3000/r/204
-- Staff: http://localhost:3000/staff
+- Sign in: http://localhost:3000/login (demo accounts, password `demo1234`)
 
 Try this text:
 
 > There is a leak in the bathroom and please bring towels
 
-Then go to the staff page, choose Ruslan (Maintenance), and press
-Accept -> Start, add a photo, then Send to review on the leak task. The
-guest page still shows "On the way" while it waits for a supervisor.
-Approve it with the API above to see the guest status become "Done".
+Then sign in as Ruslan (Maintenance) and press Accept -> Start, add a
+photo, then Send to review on the leak task. The guest page still shows
+"On the way" while it waits for a supervisor. Sign in as the Supervisor
+and approve it with the API above (`{"action":"approve"}`) to see the
+guest status become "Done" — the real supervisor screen comes in M7.
 
 ## Try voice input
 

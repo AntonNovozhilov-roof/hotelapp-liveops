@@ -1,5 +1,52 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Demo sign-in and role screens (ANT-38 / D2)
+
+What I built (simple words): There is now a sign-in page at `/login` in the v1.2 style. Six demo accounts — Owner, Supervisor, Aigerim (Housekeeping / cleaner), Ruslan (Maintenance), Daniyar (Front desk), Madina (Room service) — all with the demo password `demo1234`, shown on the login page; tap a person to sign in as them. Real sign-up comes later with the database (M2). After sign-in each person lands on their own screen in the v1.2 style: Aigerim gets "My rooms" (cleaner), Ruslan "Repairs", Daniyar "Front desk", Madina "Room service orders" — each sees only the tasks the AI sent to their department. The Supervisor and Owner get simple home pages with live task counts for now (their real pages are M7 and M10). Every signed-in screen has your name, role and a Sign out button. The guest page stays open without sign-in (QR link), and guests still create tasks without any account.
+
+The server checks the role (not just the page): signing in is checked on the server and the browser only holds a random httpOnly cookie (sessions live in server memory, so a server restart signs everyone out — fine for a demo). Approve and Send back only work with a supervisor session — staff get HTTP 403 "Only a supervisor can approve or send back a task." The staff steps (Accept/Start/Send to review), photo upload and the AI photo check only work for the task's own team (wrong team = 403, signed out = 401). "Reset demo data" moved to the Owner home and the server refuses it for everyone else. The old "Who are you?" picker is gone: who you are is who you signed in as.
+
+Links and demo accounts to try (dev server, http://localhost:3000):
+- Guest, no login: `/r/204`
+- Sign in: `/login` — owner, supervisor, aigerim, ruslan, daniyar, madina, password `demo1234` for all
+- Owner home: `/owner` (sign in as owner) · Supervisor home: `/supervisor` (sign in as supervisor) · Staff screens: `/staff` (sign in as any staff account; the screen follows the account)
+
+Files changed:
+- `src/lib/users.ts` — new: the 6 demo accounts (username, name, role, department, landing screen) and the demo password constant, with a clear "demo only, real accounts in M2" note
+- `src/lib/auth.ts` — new: server demo sessions (random token, httpOnly cookie, in-memory store), credential check, current-user helper
+- `src/app/api/auth/login/route.ts`, `src/app/api/auth/logout/route.ts`, `src/app/api/auth/me/route.ts` — new: sign in / sign out / who-am-I (me returns `{user: null}` signed out so the login page checks quietly)
+- `src/app/login/page.tsx` — new: v1.2-style sign-in (form + one-tap demo accounts + password shown + guest link + brand-950 aside)
+- `src/components/SessionBar.tsx` — new: logo, avatar, name/role, Sign out on signed-in screens
+- `src/app/staff/page.tsx` — sign-in guard (signed out → /login; owner/supervisor → their homes), per-role screen title
+- `src/app/staff/StaffBoard.tsx` — board takes the signed-in user: picker and Reset link removed, department fixed by the account, v1.2 dark "Today" summary card added
+- `src/app/supervisor/page.tsx` — new simple supervisor home (live counts; real review page is M7)
+- `src/app/owner/page.tsx`, `src/app/owner/OwnerReset.tsx` — new simple owner home (live counts; Reset demo data here, Owner only)
+- `src/app/api/tasks/[id]/route.ts` — server role check on PATCH (supervisor-only approve/send-back incl. the status forms; staff steps own-team only)
+- `src/app/api/tasks/[id]/photos/route.ts`, `src/app/api/tasks/[id]/ai-check/route.ts` — signed-in own-team check
+- `src/app/api/tasks/route.ts` — DELETE (Reset demo data) is Owner-only on the server
+- `src/app/page.tsx` — home shows "Open my screen" when signed in, else the sign-in link
+- `README.md` — accounts, links and server role rules written down
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-38 (D2) — taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment. D1 (ANT-37) was finished and committed right before this in the same session.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok (new routes /login, /owner, /supervisor, /api/auth/* built).
+- Page guards with curl: /staff and /owner signed out → 307 to /login; /owner as Aigerim → 307 to /staff; /staff as Supervisor → 307 to /supervisor; /staff as Aigerim and /owner as Owner → 200. Guest /r/204 and guest message API work with no sign-in (LIVE, created both tasks).
+- Full role matrix with cookie jars (server on port 3100): wrong password → 401; signed-out PATCH → 401 "Please sign in to do this."; Aigerim accepting a Maintenance task → 403 wrong team; Aigerim Accept/Start on her own task → 200; Supervisor trying a staff step → 403; Supervisor uploading a photo → 403; Aigerim photo upload → 201; signed-out AI check → 401; Aigerim AI check → 200 LIVE score 100; Aigerim approve and send-back → 403 "Only a supervisor can approve or send back a task."; Supervisor send-back with note → 200 (note saved), Aigerim resubmits → 200, Supervisor approve → 200 Done. Reset as Supervisor and as Aigerim → 403 "Only the Owner can reset demo data."; Reset as Owner → 200 (cleared 9, run last on purpose). Logout → /api/auth/me shows signed out.
+- Browser: /login shows all 6 demo accounts with the password; tapping Aigerim lands on /staff "My rooms" with "Hi, Aigerim" and housekeeping tasks only (no leak task); Ruslan lands on "Repairs" (only maintenance: leak + air conditioner, no towels task); Daniyar lands on "Front desk" (only the taxi task); Madina lands on "Room service orders" (correctly empty — no room-service tasks in the saved data); Owner lands on /owner with counts and Reset (Supervisor home has no Reset); Sign out returns to /login; no console errors after the /api/auth/me fix. Staff at a true 375px and 1440px width (frames): no sideways scroll. Screenshots: login, Owner/Supervisor homes and Ruslan's Repairs screen all in the v1.2 look.
+- Test data handling, honest note: the API tests created tasks and the final Owner-reset test cleared the board (that is what Reset does). I restored the 7 pre-existing tasks from the backup taken before the tests. One pre-existing demo photo file (from an old Done test task) was deleted by that reset test; I recreated a simple placeholder PNG under the same file name so that task's photo link works again (200) — the original photo bytes are gone. Demo data only, but noting it here.
+
+NOT working / NOT checked yet:
+- Sessions live in server memory: restarting the server signs everyone out, and sessions do not survive. Real accounts, hashed passwords and sign-up come with the database (M2). The demo password `demo1234` is public on purpose — never use it for a real hotel.
+- `GET /api/tasks` is still readable without sign-in (the guest confirmation and the boards read it; tasks hold no guest personal data). Locking reads down is a later hardening step, together with real accounts.
+- Supervisor and Owner pages are simple homes (counts + text). Approving from a page is M7, the morning report is M10.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-38, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — v1.2 look for guest and staff screens (ANT-37 / D1)
 
 The design is ported from our earlier v1.2 prototype (`/Users/batyr/Documents/hotelapp/hotelapp-v1.2`, read only — nothing changed there). Plan change first: Linear D1 (ANT-37) and D2 (ANT-38) were created as High-priority sub-issues of ANT-5, and `docs/PROJECT_MAP.md` now orders M5 → D1 → D2 → M6 → M7 → M8 → M9 → M10 (then M2 → M11 → M12).

@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Camera, Check, Sparkles, TriangleAlert } from "lucide-react";
-import { Avatar, Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/ui";
 import {
-  DEPARTMENT_LABELS,
-  STAFF,
   STATUS_LABELS,
   TASK_STATUSES,
   sortTasks,
@@ -16,8 +14,9 @@ import {
   type TaskStatus,
 } from "@/lib/tasks";
 
+import type { PublicUser } from "@/lib/users";
+
 const POLL_MS = 3000;
-const STORAGE_KEY = "hotelapp-staff-name";
 
 const PRIORITY_TONES: Record<StoredTask["priority"], string> = {
   high: "dirty",
@@ -39,29 +38,16 @@ const NEXT_ACTION: Partial<
   in_progress: { label: "Send to review", next: "review" },
 };
 
-export default function StaffBoard() {
-  const [staffName, setStaffName] = useState(STAFF[0].name);
+export default function StaffBoard({ user }: { user: PublicUser }) {
   const [tasks, setTasks] = useState<StoredTask[]>([]);
-  const [newCounts, setNewCounts] = useState<Record<Department, number>>({
-    maintenance: 0,
-    housekeeping: 0,
-    front_desk: 0,
-    room_service: 0,
-  });
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [, setNowTick] = useState(0);
 
-  const member = STAFF.find((person) => person.name === staffName) ?? STAFF[0];
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved && STAFF.some((person) => person.name === saved)) {
-      setStaffName(saved);
-    }
-  }, []);
+  // The signed-in person decides the team: no picker, no other teams.
+  const department = user.department;
 
   const loadTasks = useCallback(async () => {
     try {
@@ -71,31 +57,13 @@ export default function StaffBoard() {
       if (!response.ok) throw new Error("Could not load tasks");
       const data = (await response.json()) as { tasks: StoredTask[] };
       setTasks(
-        sortTasks(
-          data.tasks.filter((task) => task.department === member.department),
-        ),
+        sortTasks(data.tasks.filter((task) => task.department === department)),
       );
-      setNewCounts({
-        maintenance: data.tasks.filter(
-          (task) => task.department === "maintenance" && task.status === "new",
-        ).length,
-        housekeeping: data.tasks.filter(
-          (task) =>
-            task.department === "housekeeping" && task.status === "new",
-        ).length,
-        front_desk: data.tasks.filter(
-          (task) => task.department === "front_desk" && task.status === "new",
-        ).length,
-        room_service: data.tasks.filter(
-          (task) =>
-            task.department === "room_service" && task.status === "new",
-        ).length,
-      });
       setError(null);
     } catch {
       setError("Could not load tasks. The page will keep trying.");
     }
-  }, [member.department]);
+  }, [department]);
 
   useEffect(() => {
     void loadTasks();
@@ -105,39 +73,6 @@ export default function StaffBoard() {
     }, POLL_MS);
     return () => clearInterval(timer);
   }, [loadTasks]);
-
-  function chooseStaff(name: string) {
-    setStaffName(name);
-    window.localStorage.setItem(STORAGE_KEY, name);
-  }
-
-  async function resetDemoData() {
-    const confirmed = window.confirm(
-      "Are you sure? This will delete ALL saved tasks for every room and team.",
-    );
-    if (!confirmed) return;
-    setError(null);
-    try {
-      const response = await fetch("/api/tasks", { method: "DELETE" });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        throw new Error(data.error || "Could not clear the tasks.");
-      }
-      setTasks([]);
-      setNewCounts({
-        maintenance: 0,
-        housekeeping: 0,
-        front_desk: 0,
-        room_service: 0,
-      });
-    } catch (resetError) {
-      setError(
-        resetError instanceof Error
-          ? resetError.message
-          : "Could not clear the tasks.",
-      );
-    }
-  }
 
   async function uploadPhoto(task: StoredTask, file: File) {
     if (photoBusyId) return;
@@ -242,56 +177,26 @@ export default function StaffBoard() {
     }
   }
 
+  const openTasks = tasks.filter((task) => task.status !== "done");
+  const newTaskCount = tasks.filter((task) => task.status === "new").length;
+  const nextTask = openTasks.find((task) => task.status !== "review");
+
   return (
     <div>
-      <Card className="p-5 sm:p-6">
-        <h2 className="text-[15px] font-semibold">Who are you?</h2>
-        <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-4">
-          {STAFF.map((person) => {
-            const isActive = person.name === staffName;
-            const newCount = newCounts[person.department];
-            return (
-              <button
-                key={person.name}
-                type="button"
-                onClick={() => chooseStaff(person.name)}
-                aria-pressed={isActive}
-                aria-label={
-                  newCount > 0
-                    ? `${person.name}, ${DEPARTMENT_LABELS[person.department]}, ${newCount} new tasks`
-                    : `${person.name}, ${DEPARTMENT_LABELS[person.department]}`
-                }
-                className={`relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
-                  isActive
-                    ? "border-brand-700 bg-brand-700 text-white shadow-card"
-                    : "border-line bg-white text-ink hover:border-brand-500"
-                }`}
-              >
-                <Avatar name={person.name} role={person.department} size={34} />
-                <span className="min-w-0">
-                  <span className="block text-[14px] font-semibold leading-tight">
-                    {person.name}
-                  </span>
-                  <span
-                    className={`block text-[12.5px] ${
-                      isActive ? "text-brand-100/80" : "text-ink-3"
-                    }`}
-                  >
-                    {DEPARTMENT_LABELS[person.department]}
-                  </span>
-                </span>
-                {newCount > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-dirty px-1.5 text-xs font-bold text-white shadow-pop">
-                    {newCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-[13px] text-ink-3">
-          Showing only {DEPARTMENT_LABELS[member.department]} tasks for{" "}
-          {member.name}. New tasks appear automatically.
+      <Card className="bg-brand-950 p-4 text-white sm:p-5">
+        <p className="text-[12.5px] text-brand-100/70">Today · {user.roleLabel}</p>
+        <p className="mt-1 font-display text-[19px] font-semibold leading-tight">
+          {openTasks.length > 0
+            ? `${openTasks.length} task${openTasks.length > 1 ? "s" : ""} to go`
+            : "All done, great work"}
+        </p>
+        <p className="mt-0.5 text-[13px] text-brand-100/80">
+          {newTaskCount > 0
+            ? `${newTaskCount} new. `
+            : ""}
+          {nextTask
+            ? `Next: Room ${nextTask.room} — ${nextTask.title}`
+            : "New tasks appear automatically."}
         </p>
       </Card>
 
@@ -567,15 +472,6 @@ export default function StaffBoard() {
         })}
       </div>
 
-      <footer className="mt-10 text-center">
-        <button
-          type="button"
-          onClick={() => void resetDemoData()}
-          className="text-[13px] text-ink-4 underline underline-offset-4 hover:text-dirty-deep"
-        >
-          Reset demo data
-        </button>
-      </footer>
     </div>
   );
 }

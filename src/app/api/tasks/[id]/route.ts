@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { updateStoredTaskStatus } from "@/lib/store";
+import { getStoredTask, updateStoredTaskStatus } from "@/lib/store";
 import { FLOW_TEXT, TASK_STATUSES, type TaskStatus } from "@/lib/tasks";
+import { getCurrentUser } from "@/lib/auth";
 
 const ACTION_TO_STATUS: Record<string, TaskStatus> = {
   accept: "accepted",
@@ -45,6 +46,47 @@ export async function PATCH(
         error: `Please send the next status or action. Flow: ${FLOW_TEXT}. Actions: accept, start, send_to_review, approve, send_back (send_back needs {"note":"..."}).`,
       },
       { status: 400 },
+    );
+  }
+
+  // Server role check (D2): who is signed in decides what is allowed,
+  // never the page. Approve / send back = supervisor only. The staff
+  // steps (accept, start, send to review) = the task's own team only.
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please sign in to do this." },
+      { status: 401 },
+    );
+  }
+  const task = await getStoredTask(id);
+  if (!task) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+  const isSupervisorAction =
+    action === "approve" ||
+    action === "send_back" ||
+    requested === "done" ||
+    (task.status === "review" && requested === "in_progress");
+  if (isSupervisorAction && user.role !== "supervisor") {
+    return NextResponse.json(
+      {
+        error: "Only a supervisor can approve or send back a task.",
+        task,
+      },
+      { status: 403 },
+    );
+  }
+  if (!isSupervisorAction && user.department !== task.department) {
+    return NextResponse.json(
+      {
+        error:
+          user.role === "supervisor" || user.role === "owner"
+            ? "This step is done by the staff team. A supervisor only approves or sends back tasks in review."
+            : "This task belongs to another team. You can only work on your own team's tasks.",
+        task,
+      },
+      { status: 403 },
     );
   }
 

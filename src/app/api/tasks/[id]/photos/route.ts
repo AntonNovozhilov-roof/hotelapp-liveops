@@ -10,6 +10,32 @@ import {
   isSupportedPhotoType,
   savePhoto,
 } from "@/lib/photos";
+import { getCurrentUser } from "@/lib/auth";
+import type { PublicUser } from "@/lib/users";
+
+/** Photos are staff work: signed-in member of the task's own team only (D2). */
+async function photoGuard(
+  taskDepartment: string,
+): Promise<{ user: PublicUser } | { response: NextResponse }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      response: NextResponse.json(
+        { error: "Please sign in to do this." },
+        { status: 401 },
+      ),
+    };
+  }
+  if (user.department !== taskDepartment) {
+    return {
+      response: NextResponse.json(
+        { error: "This task belongs to another team. You can only work on your own team's tasks." },
+        { status: 403 },
+      ),
+    };
+  }
+  return { user };
+}
 
 const NOT_STARTED_MESSAGE =
   "Photos can only be added to a started task. Press Start first.";
@@ -24,6 +50,8 @@ export async function POST(
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
+  const guard = await photoGuard(task.department);
+  if ("response" in guard) return guard.response;
   if (task.status !== "in_progress") {
     return NextResponse.json(
       { error: NOT_STARTED_MESSAGE, task },
@@ -98,6 +126,13 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const name = new URL(request.url).searchParams.get("name") ?? "";
+
+  const existing = await getStoredTask(id);
+  if (!existing) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+  const guard = await photoGuard(existing.department);
+  if ("response" in guard) return guard.response;
 
   const result = await removeStoredTaskPhoto(id, name);
   if (!result.ok && result.reason === "not_found") {

@@ -3,6 +3,7 @@ import { getStoredTask, saveStoredTaskAiCheck } from "@/lib/store";
 import { readPhoto } from "@/lib/photos";
 import { mockAiCheck, runLivePhotoCheck } from "@/lib/photo-check";
 import type { TaskAiCheck } from "@/lib/tasks";
+import { getCurrentUser } from "@/lib/auth";
 
 /**
  * POST /api/tasks/[id]/ai-check — run the SAM 3.1 photo check (M5 / ANT-21).
@@ -22,6 +23,23 @@ export async function POST(
   const task = await getStoredTask(id);
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+  // Staff work (D2): signed-in member of the task's own team only.
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: "Please sign in to do this." },
+      { status: 401 },
+    );
+  }
+  if (user.department !== task.department) {
+    return NextResponse.json(
+      {
+        error: "This task belongs to another team. You can only work on your own team's tasks.",
+        task,
+      },
+      { status: 403 },
+    );
   }
   if (task.photos.length === 0) {
     return NextResponse.json(

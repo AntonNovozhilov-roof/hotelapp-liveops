@@ -1,5 +1,38 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — M8+M9: History events, API and History page (ANT-24 + ANT-25)
+
+What I built: Every step now saves a history event (`.data/history.json`, `src/lib/history.ts`): task created (Guest via AI, or supervisor/owner), accepted, started, photo added/removed, AI check (simple verdict; score, model and item details stored system-only, never shown), sent to review (including the automatic "Failed AI check twice" one), approved (by whom, or "Auto-approved by AI (owner setting)"), sent back (with note), reopened, done — plus reference photo added/approved/replaced, QR regenerated, rooms changed and hotel info saved. Each event has time, who (name + role, or Guest / AI), room, task, action and short details. The guest chat is never stored, only the request text. `GET /api/history` is owner/supervisor only (staff get 403), newest first, with room/person/task-type/today/last-7-days/search filters and `?task=<id>`. The History page (`/history`, owner + supervisor; staff are redirected away) has the same filters and search; a task link opens its full timeline oldest-first, and every review card has a "Timeline" link. Links added on the Owner home and Supervisor page. (Also fixed in the final backtest: a Done cleaning task on the staff board no longer shows its old "Not ready yet" verdict — it shows the Done line.)
+
+Files changed:
+- `src/lib/history.ts`, `src/app/api/history/route.ts` — new: events store + filtered API (item details stripped)
+- `src/components/HistoryBoard.tsx`, `src/app/history/page.tsx` — new: filters, search, timeline view, helpful empty states
+- Event writes in: guest message, tasks create + status, photos, ai-check, rooms (+QR regenerate), reference routes, hotel-info
+- `src/app/supervisor/SupervisorBoard.tsx` — "Timeline" link; `src/app/owner/page.tsx`, `src/app/supervisor/page.tsx` — History links
+- `docs/PROJECT_MAP.md` — History block + M9 row updated
+
+Full-session backtest (all run this session; LIVE AI unless noted):
+- Print all popup: PDF downloads (`room-qr-codes.pdf`, 3 A4 pages / 11 rooms, cards show hotel, room, "Scan to message the hotel"); PNG ZIP floor 1 = exactly `101A.png`, `102.png`, `103.png`; no new tab; no console errors. PASS
+- Done column newest first: staff Done column shows the just-approved task on top; label "Newest first"; other columns "Urgent first, then oldest". PASS
+- Room 205: perfect photo set + approved. Cleaning task, photo with towels missing: 1st fail (Send to review disabled in UI + 409 on the server) → retake → 2nd fail → auto In review flagged "Failed AI check twice", perfect + latest side by side → supervisor approved in the browser. PASS
+- Matching photo: pass → Send to review → one-tap Approve → Done. PASS
+- Auto-approve on: passing task became Done at check time, logged "Auto-approved by AI (owner setting)"; supervisor reopened it; setting turned off again (verified off in the saved settings). PASS
+- Replace perfect photo: old one in reference history (2 entries now, with who/when/reason), new one used for the next check. PASS
+- Room without a perfect photo (204): simple check ran, hint text path confirmed. PASS
+- No item names, counts, scores or "% sure" anywhere on cleaner or supervisor screens (checked the rendered text); supervisor sees only the simple verdict. PASS
+- History: the flagged 205 task timeline shows Task created → Accepted → Started → Photo added → AI check → Photos removed → Photo added → AI check → Sent to review, right names in order; full History filters (room, search "towel", today, type) work; staff API 403 and staff page redirects away. PASS
+- Old flows: guest chat in the browser (reply + housekeeping task), repair (no photo = 409, proof photo → Done → supervisor reopen with note), QR regenerate (old link shows "no longer valid"). PASS (Voice: code unchanged since G1; not re-recorded.)
+- `npm run typecheck` and `npm run build` pass; no console errors on staff/supervisor/history/rooms/guest pages; iframe checks at 375px and 1440px: `scrollWidth` equals the width on /staff, /supervisor, /history, /owner/rooms and /r/205 — no sideways scroll. PASS
+- After the tests: demo tasks restored to the 4 pre-session ones, orphan test photos deleted. Left on purpose: room 205's perfect reference (2 archived versions in its history) and today's history events, so there is something to look at. Auto-approve is OFF.
+
+NOT working / NOT checked yet:
+- A real phone, printer and phone-camera QR scan are not checked.
+- Tasks created before M8 have no history events (the timeline says so in a helpful empty state).
+- Owner morning report (M10) is still Todo. Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1). Checks LIVE with muse-spark-1.3 + sam-3.1.
+Linear: ANT-24 + ANT-25, sub-issues of ANT-5
+
 ## Meta1 — 2026-10-31 — P1: Perfect room reference photos (ANT-45)
 
 Meta docs checked first: Muse Spark image understanding (https://dev.meta.ai/docs/image-understanding) can describe/identify objects in photos, so the item list is built from the perfect photo by `muse-spark-1.3`, then SAM 3.1 (existing wire format in `src/lib/photo-check.ts`) finds and counts those items. Fallback when the vision list is unusable: `BROAD_ROOM_ITEMS` (bed, pillow, blanket, towel, lamp, chair, table, curtain, trash bin, bottle, cup, mirror, TV, rug, sink, toilet) — one place, easy to change, never only towels/pillows.

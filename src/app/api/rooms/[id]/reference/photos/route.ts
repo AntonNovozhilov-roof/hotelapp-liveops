@@ -17,6 +17,7 @@ import {
 } from "@/lib/photos";
 import { runReferenceCheck } from "@/lib/photo-check";
 import { randomUUID } from "crypto";
+import { appendHistory } from "@/lib/history";
 
 async function guard() {
   const user = await getCurrentUser();
@@ -86,6 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   await setPendingReference(room.id, pending);
   // Spec: right after upload, run the check on the perfect photo(s).
   await checkPending(room.id, pending);
+  await appendHistory({ actorName: g.user.name, actorRole: g.user.roleLabel, room: room.number, taskId: null, taskTitle: null, taskType: null, action: "Reference photo added", details: `Perfect room photo (${label}) added for room ${room.number} by ${g.user.name}. Not active until set as the reference.` });
   const fresh = await roomOr404(room.id);
   return NextResponse.json({ room: fresh ? publicRoom(fresh) : null }, { status: 201 });
 }

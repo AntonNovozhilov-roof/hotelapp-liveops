@@ -12,6 +12,7 @@ import {
   savePhoto,
 } from "@/lib/photos";
 import { getCurrentUser } from "@/lib/auth";
+import { appendHistory } from "@/lib/history";
 import type { PublicUser } from "@/lib/users";
 
 /** Photos are staff work: signed-in member of the task's own team only (D2). */
@@ -118,6 +119,7 @@ export async function POST(
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  await appendHistory({ actorName: guard.user.name, actorRole: guard.user.roleLabel, room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type, action: "Photo added", details: `Photo added by ${guard.user.name}.` });
   return NextResponse.json({ task: result.task, photo }, { status: 201 });
 }
 
@@ -148,6 +150,7 @@ export async function DELETE(
       );
     }
     await Promise.all(cleared.removedNames.map((n) => deletePhoto(n)));
+    await appendHistory({ actorName: guard.user.name, actorRole: guard.user.roleLabel, room: cleared.task.room, taskId: cleared.task.id, taskTitle: cleared.task.title, taskType: cleared.task.type, action: "Photos removed", details: `All photos cleared for a retake by ${guard.user.name}.` });
     return NextResponse.json({ task: cleared.task });
   }
 
@@ -163,5 +166,6 @@ export async function DELETE(
   }
 
   await deletePhoto(name);
+  await appendHistory({ actorName: guard.user.name, actorRole: guard.user.roleLabel, room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type, action: "Photo removed", details: `Photo removed by ${guard.user.name}.` });
   return NextResponse.json({ task: result.task });
 }

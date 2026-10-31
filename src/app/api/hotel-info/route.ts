@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData, saveHotelInfo, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
 import { randomUUID } from "crypto";
+import { appendHistory } from "@/lib/history";
 
 export async function GET() {
   const data = await getHotelData();
@@ -35,5 +36,6 @@ export async function PUT(request: Request) {
     info.faqs = faqs;
   }
   const saved = await saveHotelInfo(info);
+  await appendHistory({ actorName: user.name, actorRole: user.roleLabel, room: null, taskId: null, taskTitle: null, taskType: null, action: "Hotel info saved", details: `Hotel info saved by ${user.name}.` });
   return NextResponse.json({ hotelInfo: saved, saved: true });
 }

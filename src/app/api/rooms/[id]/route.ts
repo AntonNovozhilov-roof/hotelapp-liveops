@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { cleanRoomNumber, deleteRoom, publicRoom, regenerateRoomToken, updateRoom, validRoomNumber } from "@/lib/hotel-data";
+import { cleanRoomNumber, deleteRoom, getHotelData, publicRoom, regenerateRoomToken, updateRoom, validRoomNumber } from "@/lib/hotel-data";
+import { appendHistory } from "@/lib/history";
+import { getCurrentUser as getUser2 } from "@/lib/auth";
 
 async function ownerOnly() {
   const user = await getCurrentUser();
@@ -18,20 +20,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (r.action === "regenerate") {
     const room = await regenerateRoomToken(id);
     if (!room) return NextResponse.json({ error: "Room not found." }, { status: 404 });
+    const actor = await getUser2();
+    await appendHistory({ actorName: actor?.name ?? "Owner", actorRole: actor?.roleLabel ?? "Owner", room: room.number, taskId: null, taskTitle: null, taskType: null, action: "QR regenerated", details: `New QR code for room ${room.number}. The old one no longer works.` });
     return NextResponse.json({ room: publicRoom(room) });
   }
   const number = r.number !== undefined ? cleanRoomNumber(r.number) : undefined;
   if (number !== undefined && !validRoomNumber(number)) return NextResponse.json({ error: "Write a room number like 204 (letters, numbers, dash)." }, { status: 400 });
   const floor = typeof r.floor === "number" ? Math.trunc(r.floor) : undefined;
+  const before = (await getHotelData()).rooms.find((x) => x.id === id);
   const result = await updateRoom(id, { number, floor });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.error === "Room not found." ? 404 : 409 });
+  { const actor = await getUser2(); await appendHistory({ actorName: actor?.name ?? "Owner", actorRole: actor?.roleLabel ?? "Owner", room: result.room.number, taskId: null, taskTitle: null, taskType: null, action: "Rooms changed", details: `Room ${before?.number ?? ""} changed to ${result.room.number}.` }); }
   return NextResponse.json({ room: publicRoom(result.room) });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const err = await ownerOnly(); if (err) return err;
   const { id } = await params;
+  const beforeDel = (await getHotelData()).rooms.find((x) => x.id === id);
   const ok = await deleteRoom(id);
   if (!ok) return NextResponse.json({ error: "Room not found." }, { status: 404 });
+  { const actor = await getUser2(); await appendHistory({ actorName: actor?.name ?? "Owner", actorRole: actor?.roleLabel ?? "Owner", room: beforeDel?.number ?? null, taskId: null, taskTitle: null, taskType: null, action: "Rooms changed", details: `Room ${beforeDel?.number ?? ""} removed.` }); }
   return NextResponse.json({ ok: true });
 }

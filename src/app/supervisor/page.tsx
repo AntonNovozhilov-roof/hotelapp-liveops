@@ -84,6 +84,12 @@ export default async function SupervisorPage() {
       </Card>
 
       <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">History</h2>
+        <p className="mt-1.5 text-[13.5px] text-ink-3">Every step of every task — who did what, and when.</p>
+        <p className="mt-3 text-[13.5px]"><a href="/history" className="font-semibold text-brand-700 hover:underline">Open History</a></p>
+      </Card>
+
+      <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Rooms &amp; QR codes</h2>
         <p className="mt-1.5 text-[13.5px] text-ink-3">View and print the room QR codes. Only the Owner can change them.</p>
         <p className="mt-3 text-[13.5px]"><a href="/owner/rooms" className="font-semibold text-brand-700 hover:underline">Open Rooms &amp; QR</a></p>

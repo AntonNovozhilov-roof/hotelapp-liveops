@@ -99,6 +99,8 @@ function finishBlocked(task: StoredTask): boolean {
 function cleanerVerdict(task: StoredTask): { text: string; good: boolean } | null {
   const check = task.aiCheck;
   if (!check) return null;
+  if (task.status === "done")
+    return { text: "Done ✓ — approved by a supervisor or finished automatically.", good: true };
   if (check.verdict === "ready") return { text: "✓ Looks ready", good: true };
   if (check.verdict === "different") {
     return {
@@ -492,9 +494,6 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                   <p className="mt-2 text-[12.5px] text-ink-4">
                                     No perfect photo for room {task.room} yet. Ask the owner to add one.
                                   </p>
-                                )}
-                                {task.status === "done" && (
-                                  <p className="mt-2 text-[12.5px] text-ink-4">This task was finished automatically or approved by a supervisor.</p>
                                 )}
                               </div>
                             ) : (

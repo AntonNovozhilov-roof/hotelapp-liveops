@@ -257,18 +257,21 @@ auto-approve setting (off by default) = Done (supervisor can reopen).
 
 ### 9. History
 
-**Done**
-- Each task has `createdAt` / `updatedAt` only. There is no list of events
-  and no "who" on any step.
-
-**Left (MUST)**
-- Save one history event for every step: created, accepted, started, photo
-  added, AI check (score), sent to review, approved, sent back (with note),
-  done. Each event: task id, action, person (staff/supervisor name chosen
-  on the page), time.
-- `GET /api/history` (newest first, can filter by task id).
-- Simple history view: a "History" section on `/supervisor` or `/owner`
-  (list: time, room, task, action, person). No separate login.
+**Done (M8+M9, 2026-10-31, ANT-24/ANT-25)**
+- Every step saves an event in `.data/history.json` (`src/lib/history.ts`):
+  task created (Guest via AI, or supervisor/owner), accepted, started,
+  photo added/removed, AI check (verdict; score/model/item details stored
+  system-only), sent to review (incl. the automatic 2nd-fail one),
+  approved (by whom, or auto-approved by AI), sent back (note), reopened,
+  done — plus reference photo added/approved/replaced, QR regenerated,
+  rooms changed and hotel info saved. Each event: time, who (name + role,
+  or Guest / AI), room, task, action, short details. The guest chat is
+  never stored, only the request text.
+- `GET /api/history` (owner/supervisor only): newest first; filters room,
+  person, task type, today / last 7 days, search, and `?task=<id>`.
+- History page `/history` (owner + supervisor; staff are sent away and
+  the API refuses them): filters + search, and a per-task timeline
+  (oldest first) linked as "Timeline" from review cards and history rows.
 
 **Files (new / changed)**
 - `src/lib/history.ts` (or inside `src/lib/store.ts`), events written from
@@ -358,7 +361,7 @@ back; Reset demo data is Owner-only; the guest page stays open).
 | F1 | Small fixes from owner testing (ANT-44) | — | "Print all" opens a popup (no new page): PDF for printing (A4, several QR cards per page) or all PNGs in one ZIP (file name = room number), all rooms or one floor, direct download. Done column on every board is newest first; other columns stay urgent first, then oldest. |
 | P1 | Perfect room reference photos (ANT-45) | — | Each room has 1–3 "perfect room" photos (Bed area / Bathroom / Other). Muse Spark lists the objects in the perfect photo (Meta image-understanding docs), SAM 3.1 finds/counts them (broad fallback list in one place); the check runs on upload and a person presses "Set as perfect reference" (cached). Replacing archives the old reference (who/when/reason history). Cleaning checks compare all cleaner photos with the active reference and show only a simple verdict — item names/counts stay system-only. 1st fail = retake only, 2nd fail = auto review flagged; pass = one-tap approve; owner auto-approve setting (off by default); no reference = simple check + hint. |
 | M8 | History events + history API | — | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. Uses the local `.data` storage (no database yet). |
-| M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. |
+| M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. Delivered as the `/history` page (owner + supervisor), linked from both homes and from review cards ("Timeline"). |
 | M10 | Owner morning report (Muse Wonder) | M8 | `/owner` Generate button makes a short report from real task facts (MOCK marked if no key); report text shows counts that match the board. |
 | M1 | Choose hosting and write the deploy plan (Done) | — | Plan is in `docs/DEPLOY.md`: platform, HTTPS, env vars, where tasks/photos live. Anyone can follow it. |
 | M2 | Move task storage to a real database — starts Nov 3 morning at the latest | M1 | Tasks are in the DB (same API shapes). Restart the server: tasks are still there. `.data` file is not used when `DATABASE_URL` is set, and local dev without `DATABASE_URL` still uses `.data` exactly as before. |

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Check, RotateCcw, Sparkles, TriangleAlert } from "lucide-react";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import {
@@ -198,6 +199,11 @@ export default function SupervisorBoard({
                     {task.aiCheck?.mode === "MOCK" && <span className="ml-2"><Badge tone="occ">MOCK</Badge></span>}
                   </p>
 
+                  <p className="mt-2 text-[12.5px]">
+                    <Link href={`/history?task=${task.id}`} className="font-semibold text-brand-700 hover:underline">
+                      Timeline
+                    </Link>
+                  </p>
                   <Button
                     size="lg"
                     loading={busyId === task.id}

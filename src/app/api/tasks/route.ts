@@ -6,6 +6,7 @@ import {
 } from "@/lib/store";
 import { sortTasks } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
+import { appendHistory } from "@/lib/history";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
   }
 
   const task = await createCleaningTask(room);
+  await appendHistory({ actorName: user.name, actorRole: user.roleLabel, room: task.room, taskId: task.id, taskTitle: task.title, taskType: task.type, action: "Task created", details: `${user.name} created this cleaning task.` });
   return NextResponse.json({ task }, { status: 201 });
 }
 

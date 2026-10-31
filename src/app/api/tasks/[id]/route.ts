@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStoredTask, updateStoredTaskStatus } from "@/lib/store";
 import { FLOW_TEXT, TASK_STATUSES, type TaskStatus } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
+import { appendHistory } from "@/lib/history";
 
 const ACTION_TO_STATUS: Record<string, TaskStatus> = {
   accept: "accepted",
@@ -181,6 +182,25 @@ export async function PATCH(
       },
       { status: 409 },
     );
+  }
+
+  const t = result.task;
+  const base = { actorName: user.name, actorRole: user.roleLabel, room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type };
+  if (action === "approve" || (task.status === "review" && requested === "done")) {
+    await appendHistory({ ...base, action: "Approved", details: `Approved by ${user.name}.` });
+    await appendHistory({ ...base, action: "Done", details: "Task is done." });
+  } else if (action === "send_back" || (task.status === "review" && requested === "in_progress")) {
+    await appendHistory({ ...base, action: "Sent back", details: `Sent back by ${user.name}: ${note ?? ""}`.trim() });
+  } else if (action === "reopen" || (task.status === "done" && requested === "in_progress")) {
+    await appendHistory({ ...base, action: "Reopened", details: `Reopened by ${user.name}: ${note ?? ""}`.trim() });
+  } else if (requested === "accepted") {
+    await appendHistory({ ...base, action: "Accepted", details: `Accepted by ${user.name}.` });
+  } else if (requested === "in_progress") {
+    await appendHistory({ ...base, action: "Started", details: `Started by ${user.name}.` });
+  } else if (requested === "review") {
+    await appendHistory({ ...base, action: "Sent to review", details: `Sent to review by ${user.name}.` });
+  } else if (requested === "done") {
+    await appendHistory({ ...base, action: "Done", details: `Finished by ${user.name}.` });
   }
 
   return NextResponse.json({ task: result.task });

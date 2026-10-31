@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { approvePendingReference, getHotelData, publicRoom } from "@/lib/hotel-data";
+import { appendHistory } from "@/lib/history";
 
 /** Set the pending perfect photos as the room's active reference (P1). */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -23,5 +24,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const result = await approvePendingReference(id, reason);
   if (!result) return NextResponse.json({ error: "Add a perfect photo first, then set it as the reference." }, { status: 409 });
+  await appendHistory({ actorName: user.name, actorRole: user.roleLabel, room: result.room.number, taskId: null, taskTitle: null, taskType: null, action: result.archived ? "Reference replaced" : "Reference approved", details: result.archived ? `Perfect reference for room ${result.room.number} replaced by ${user.name}${reason ? `: ${reason}` : ""}. The old one was archived.` : `Perfect reference for room ${result.room.number} set by ${user.name}.` });
   return NextResponse.json({ room: publicRoom(result.room), replaced: Boolean(result.archived) });
 }

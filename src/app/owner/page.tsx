@@ -51,10 +51,11 @@ export default async function OwnerPage() {
         </Card>
       </div>
 
-      <nav className="mt-4 grid grid-cols-1 min-[420px]:grid-cols-3 gap-3" aria-label="Owner pages">
+      <nav className="mt-4 grid grid-cols-1 min-[420px]:grid-cols-2 gap-3" aria-label="Owner pages">
         <Link href="/supervisor"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Review</p><p className="mt-1 text-[12.5px] text-ink-3">Approve cleaning work</p></Card></Link>
         <Link href="/owner/rooms"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Rooms &amp; QR</p><p className="mt-1 text-[12.5px] text-ink-3">Room QR codes to print</p></Card></Link>
         <Link href="/owner/hotel-info"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Hotel info</p><p className="mt-1 text-[12.5px] text-ink-3">Info the AI can tell guests</p></Card></Link>
+        <Link href="/history"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">History</p><p className="mt-1 text-[12.5px] text-ink-3">Who did what, and when</p></Card></Link>
       </nav>
 
       <Card className="mt-4 p-5">

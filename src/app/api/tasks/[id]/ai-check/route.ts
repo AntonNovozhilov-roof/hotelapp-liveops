@@ -5,6 +5,7 @@ import { compareWithReference, mockAiCheck, runLivePhotoCheck, verdictFor } from
 import type { TaskAiCheck } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
+import { appendHistory } from "@/lib/history";
 
 /**
  * POST /api/tasks/[id]/ai-check — SAM 3.1 photo check (M5) + perfect
@@ -109,6 +110,20 @@ export async function POST(
   const result = await saveAiCheckOutcome(id, aiCheck, hotel.settings.autoApproveCleaning);
   if (!result) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  const verdictWord = aiCheck.verdict === "ready" ? "Looks ready" : aiCheck.verdict === "different" ? "Different from perfect photo" : "AI not sure";
+  await appendHistory({
+    actorName: "AI", actorRole: "AI", room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type,
+    action: "AI check", details: `AI check: ${verdictWord}.`,
+    ai: { verdict: aiCheck.verdict ?? null, score: aiCheck.score, model: aiCheck.model, mode: aiCheck.mode, checks: aiCheck.checks },
+  });
+  if (result.outcome === "review") {
+    await appendHistory({ actorName: "AI", actorRole: "AI", room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type, action: "Sent to review", details: "Failed AI check twice — sent to review automatically for a supervisor to decide." });
+  }
+  if (result.outcome === "done_auto") {
+    await appendHistory({ actorName: "AI", actorRole: "AI", room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type, action: "Approved", details: "Auto-approved by AI (owner setting)." });
+    await appendHistory({ actorName: "AI", actorRole: "AI", room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type, action: "Done", details: "Task is done." });
   }
 
   return NextResponse.json({

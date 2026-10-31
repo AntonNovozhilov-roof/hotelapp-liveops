@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateTasks, type Task } from "@/lib/tasks";
 import { createStoredTasks } from "@/lib/store";
 import { getHotelData } from "@/lib/hotel-data";
+import { appendHistory } from "@/lib/history";
 import { applyGuardrails, buildSystemPrompt, mockAssistant, type ChatMessage } from "@/lib/guest-ai";
 
 const MODEL_BASE_URL = "https://api.meta.ai/v1";
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
   if (!process.env.MODEL_API_KEY) {
     const result = mockAssistant(message, hotelInfo, room);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
+    for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });
     return NextResponse.json({ mode: "MOCK", room, reply: result.reply, tasks: saved });
   }
 
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
     const raw = await assistantFromModel(message, room, history, hotelInfo);
     const result = applyGuardrails(message, hotelInfo, room, raw);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
+    for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });
     return NextResponse.json({ mode: "LIVE", room, model: MODEL_NAME, reply: result.reply, tasks: saved });
   } catch (error) {
     console.error("Model call failed:", error instanceof Error ? error.message : "unknown error");

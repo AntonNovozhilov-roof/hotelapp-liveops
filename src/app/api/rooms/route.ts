@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { addRoomsBulk, addSingleRoom, cleanRoomNumber, getHotelData, publicRoom, validRoomNumber } from "@/lib/hotel-data";
+import { appendHistory } from "@/lib/history";
 
 async function guard(viewOnly = false) {
   const user = await getCurrentUser();
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
     if (!validRoomNumber(number)) return NextResponse.json({ error: "Write a room number like 204 (letters, numbers, dash)." }, { status: 400 });
     const result = await addSingleRoom(number, floor);
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 409 });
+    await appendHistory({ actorName: g.user?.name ?? "Owner", actorRole: g.user?.roleLabel ?? "Owner", room: result.room.number, taskId: null, taskTitle: null, taskType: null, action: "Rooms changed", details: `Room ${result.room.number} added on floor ${result.room.floor}.` });
     return NextResponse.json({ room: result.room }, { status: 201 });
   }
   // Bulk by floor + range
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Pick a floor and a number range, for example floor 1, 101 to 110 (max 200 rooms at once)." }, { status: 400 });
   }
   const result = await addRoomsBulk(floor, from, to);
+  if (result.added.length) await appendHistory({ actorName: g.user?.name ?? "Owner", actorRole: g.user?.roleLabel ?? "Owner", room: null, taskId: null, taskTitle: null, taskType: null, action: "Rooms changed", details: `Rooms ${from}–${to} added on floor ${floor} (${result.added.length} new).` });
   return NextResponse.json({ added: result.added, skipped: result.skipped }, { status: 201 });
 }
 

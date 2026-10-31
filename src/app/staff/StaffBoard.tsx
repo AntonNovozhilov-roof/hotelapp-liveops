@@ -271,6 +271,9 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                   {columnTasks.length}
                 </span>
               </h3>
+              <p className="mt-1 px-1 text-[12px] text-ink-4">
+                Urgent first, then oldest
+              </p>
               {isReview && (
                 <p className="mt-1 px-1 text-[12.5px] font-semibold text-insp-deep">
                   Waiting for supervisor

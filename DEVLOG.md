@@ -1,5 +1,29 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Staff board order: urgent first, then oldest (ANT-40)
+
+What I built (simple words): Every staff board column now uses the same order: urgent (high priority) tasks first, then the oldest task first (first in, first out). Before, ties went newest first. The rule lives in the one sort helper (`sortTasks` in `src/lib/tasks.ts`), so the API and every column on `/staff` follow it. Under every column title a small line now says "Urgent first, then oldest".
+
+Files changed:
+- `src/lib/tasks.ts` — `sortTasks`: priority first, then `createdAt` oldest first
+- `src/app/staff/StaffBoard.tsx` — "Urgent first, then oldest" line under every column title
+- `README.md`, `docs/PROJECT_MAP.md` — order wording updated
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-40 "[Meta1] Staff board order: urgent first, then oldest" — created as a sub-issue of ANT-5 (follow-up logged against the ANT-39 work area, as the owner allowed), taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok.
+- Unit check: compiled `src/lib/tasks.ts` and ran `sortTasks` on 5 made-up tasks (mixed priorities and times). Result order was exactly `old-urgent, new-urgent, mid, old-low, new-low` — urgent first, then oldest first.
+- The saved demo data file was empty at check time, so the live-board order check is covered by the M6/M7 loop tests in this same session (same `sortTasks`).
+
+NOT working / NOT checked yet:
+- Nothing known. A real phone is not checked; layout impact is one small text line per column.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-40, sub-issue of ANT-5 (follow-up to ANT-39)
+
 ## Meta1 — 2026-10-31 — Task types and photo rules (ANT-39 / T1)
 
 Product change from the owner: not every task needs a photo. Before building: created Linear ANT-39 "T1: Task types and photo rules" (High, sub-issue of ANT-5), added T1 to `docs/PROJECT_MAP.md` before M6 (new order M5 → D1 → D2 → T1 → M6 → …), and updated M6 (ANT-22, title + description) to say it now applies to cleaning tasks only. Then took T1 ("Meta1: taking this", In Progress).

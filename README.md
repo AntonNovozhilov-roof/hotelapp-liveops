@@ -44,7 +44,8 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   ask for cleaning on the guest page. `POST /api/tasks` with
   `{"room":"204"}` does this (supervisor/owner only, server-checked).
 - `/staff` — the signed-in staff member's screen. You see only your team
-  tasks, most urgent and newest first, and move them with the buttons
+  tasks, urgent first then oldest first (same order in every column,
+  shown under each column title), and move them with the buttons
   for their type (see above). **The server checks the role:**
   `PATCH /api/tasks/<id>` with `{"action":"approve"}` or
   `{"action":"send_back","note":"..."}` only works with a supervisor

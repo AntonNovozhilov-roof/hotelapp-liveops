@@ -136,13 +136,13 @@ const PRIORITY_WEIGHT: Record<Priority, number> = {
   low: 1,
 };
 
-/** Most urgent first, then newest first. */
+/** Urgent first, then oldest first (first in, first out). Same in every column. */
 export function sortTasks(tasks: StoredTask[]): StoredTask[] {
   return [...tasks].sort((a, b) => {
     const byPriority =
       PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority];
     if (byPriority !== 0) return byPriority;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 }
 

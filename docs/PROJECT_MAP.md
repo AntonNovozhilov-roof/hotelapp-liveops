@@ -139,7 +139,9 @@ restart.
 **Done**
 - `/staff`: choose who you are (Ruslan – Maintenance, Aigerim –
   Housekeeping, Daniyar – Front desk, Madina – Room service). Each person
-  sees only their team tasks, most urgent then newest first.
+  sees only their team tasks, urgent first then oldest first
+  (first in, first out; same rule in every column, shown under the
+  column title as "Urgent first, then oldest").
 - Columns New / Accepted / In progress / Done on desktop, one column on the
   phone. Red badge with the number of NEW tasks on each person box (hidden
   at 0, updates automatically). Buttons Accept -> Start -> Done.

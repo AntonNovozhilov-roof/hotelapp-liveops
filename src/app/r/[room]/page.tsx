@@ -1,5 +1,6 @@
 import GuestForm from "./GuestForm";
 import { Logo } from "@/components/ui";
+import { getRoomByNumber, guestLinkAllowed } from "@/lib/hotel-data";
 
 /**
  * Guest room page in the v1.2 look (D1 / ANT-37): on desktop the page is a
@@ -8,10 +9,28 @@ import { Logo } from "@/components/ui";
  */
 export default async function RoomPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ room: string }>;
+  searchParams: Promise<{ t?: string }>;
 }) {
   const { room } = await params;
+  const { t } = await searchParams;
+  const { room: roomRecord, data } = await getRoomByNumber(room);
+  const allowed = guestLinkAllowed(roomRecord, t ?? null, data.settings, data.rooms.length > 0);
+  const hotelName = data.hotelInfo.hotelName;
+
+  if (!allowed) {
+    return (
+      <div className="min-h-screen bg-[#E9ECEF] md:py-8 flex justify-center">
+        <div className="w-full md:w-[400px] min-h-screen md:min-h-0 md:rounded-[28px] md:shadow-pop bg-canvas flex flex-col items-center justify-center px-6 py-16 text-center">
+          <Logo />
+          <h1 className="mt-6 font-display text-[22px] font-semibold leading-tight">This QR code is no longer valid.</h1>
+          <p className="mt-2 text-[14px] text-ink-3">Please contact reception{data.hotelInfo.receptionPhone ? ` at ${data.hotelInfo.receptionPhone}` : ""} and they will help you.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#E9ECEF] md:py-8 flex justify-center">

@@ -1,5 +1,32 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Rooms and QR codes (ANT-41 / R1)
+
+What I built: Owner nav now has Review, Rooms & QR, Hotel info. Rooms & QR page (`/owner/rooms`): friendly "Add your rooms" setup when empty; owner adds rooms by floor + number range (101–110) or one room, can fix a number, remove a room, and regenerate a QR token (confirm says the old QR for that room will stop working). Each room record (`src/lib/hotel-data.ts`, stored in `.data/hotel.json` like tasks) has id, number, floor, a random unguessable token, `bookingIds: []` so bookings can attach later, and timestamps. Guest link is `/r/<room>?t=<token>`; a wrong/old token shows "This QR code is no longer valid. Please contact reception." Owner setting "Allow links without QR code (demo mode)" is on by default so `/r/204` keeps working — but a link with a wrong token is always refused. QR grid: one card per room (QR image, room, floor), filter by floor, search by number; per room Download PNG, Copy link, Show full screen, Regenerate. "Print all" opens `/owner/rooms/print` (hotel name, room number, "Scan to message the hotel", several cards per A4 page, Print → Save as PDF). Only the owner can change rooms/QR (server-checked); supervisor can view and print; staff cannot open it (page redirect + API 403).
+
+Files changed:
+- `src/lib/hotel-data.ts` — new: rooms/hotel-info/settings storage (one place, `.data/hotel.json`, same pattern as tasks), token generation, guest-link check
+- `src/app/api/rooms/route.ts`, `src/app/api/rooms/[id]/route.ts` — new: list/add (bulk + single)/fix/remove/regenerate/settings, owner-only changes on the server
+- `src/components/RoomsBoard.tsx`, `src/app/owner/rooms/page.tsx`, `src/app/owner/rooms/print/page.tsx` (+ `PrintButton.tsx`) — new pages
+- `src/app/r/[room]/page.tsx` — token check + friendly invalid-QR page
+- `src/app/owner/page.tsx`, `src/app/supervisor/page.tsx` — nav links (supervisor: view/print QR)
+- `docs/PROJECT_MAP.md` — R1/G2/G1 added before M8; S1 (ANT-29) marked merged into R1; LATER adds manual bookings/income/expenses
+- `package.json`/`package-lock.json` — `qrcode` (+ types) for QR images
+- `DEVLOG.md` — this entry
+
+Linear: ANT-41 (R1, High, sub-issue of ANT-5) — created by Meta1, In Progress, "Meta1: taking this". ANT-29 (S1) commented: merged into R1.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok (new `/owner/rooms`, `/owner/rooms/print`, `/api/rooms*`).
+- API/page test on port 3100: staff rooms API 403; owner added floor 1 rooms 101–103; supervisor add refused ("Only the Owner can change…"); guest wrong token → invalid page, right token → form (200), no token → form (demo on); Regenerate → old link invalid, new link works; fix number 101→101A worked; staff `/owner/rooms` → 307 to `/staff`, supervisor `/owner/rooms` → 200; print page shows "Scan to message the hotel" cards. PNG download/full-screen are client actions on the same QR data URL — checked in the browser pass at the end of the session (see G1 entry).
+
+NOT working / NOT checked yet:
+- Hotel info page is G2 (ANT-42), guest chat is G1 (ANT-43) — next commits in this session.
+- A real printer/phone scan is not checked; QR images are generated with the `qrcode` library from the exact guest link.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-41, sub-issue of ANT-5 (S1 = ANT-29 merged into this)
+
 ## Meta1 — 2026-10-31 — Supervisor page: approve / send back (ANT-23 / M7)
 
 What I built (simple words): `/supervisor` is now the real review page. The **Review queue** lists cleaning tasks In review — each shows the room, the title, who cleaned it (for example "Cleaned by Aigerim · Housekeeping"), the photos (tap one to open it full size), the AI score and the one-line AI result (for example "Not found: towels. Fix the room and take a new photo."), with an "AI: check this" badge when the AI said not found / not sure. Order: AI "not found" or "not sure" first, then oldest first. **Approve** is one tap (task Done, the guest sees Done); **Send back** needs a short note — the button stays off without one, staff see the note and the task goes back to In progress. The **Owner can open and use this page too** (in a small hotel the owner is often the supervisor): the page allows supervisor or owner, the server allows the same two roles to approve / send back / reopen (staff still get 403), and the Owner home links here. The page keeps the counts, the **New cleaning task** form and **Finished repairs** with Reopen. v1.2 style, phone and desktop.

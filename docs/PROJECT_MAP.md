@@ -340,6 +340,9 @@ back; Reset demo data is Owner-only; the guest page stays open).
 | T1 | Task types and photo rules | — | AI also picks a task type: request (Accept → Start → Done, no photo/review), cleaning (photo + AI check → review), repair (proof photo, no AI check → Done; supervisor can reopen). Type rules in one place; type shown on each task card; supervisor/owner can create "Clean room <number>"; old tasks guess type from title, else request; short one-line AI check text. |
 | M6 | AI result + retake on staff board (cleaning tasks only) | M4, M5, T1 | Cleaning tasks only: staff sees the score and issues; "Retake photos" clears photos + AI result; a cleaning task can only be sent to review after a photo check ran. Request and repair tasks do not use this. |
 | M7 | Supervisor page: approve / send back | M4 | On `/supervisor`, a review task can be approved (-> Done) or sent back with a note (-> staff sees it and can fix). Guest status follows. |
+| R1 | Rooms and QR codes (owner) (ANT-41) | — | Owner adds rooms by floor/range + single add/remove/fix; random QR token per room (`/r/<room>?t=<token>`), wrong token friendly page, demo-mode setting on by default; QR grid (filter/search, Download PNG, Copy link, full screen, Regenerate with confirm), Print all A4 page. Supervisor view/print only, staff blocked. S1 merged into R1. |
+| G2 | Hotel info sheet (owner) (ANT-42) | R1 | Hotel name/address/phones/Wi-Fi/times/breakfast/rules + extra Q&A add/edit/delete, saved with "Saved" message; guest header shows hotel name. Owner only. |
+| G1 | Guest AI assistant (ANT-43) | G2 | Guest chat (bubbles, voice as now); one muse-spark-1.3 call returns reply + tasks JSON with last 6 messages; reply rules (guest language, team confirm, no times, info only from sheet, unknown → front desk task, emergency → call numbers + urgent task, no invented prices); live status lines; tab-only chat; MOCK replies marked. |
 | M8 | History events + history API | — | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. Uses the local `.data` storage (no database yet). |
 | M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. |
 | M10 | Owner morning report (Muse Wonder) | M8 | `/owner` Generate button makes a short report from real task facts (MOCK marked if no key); report text shows counts that match the board. |
@@ -367,7 +370,7 @@ hosting config, `README.md` · M12 `README.md` only (test + fixes in the files a
 
 | # | Task | Depends on | Done when |
 |---|------|-----------|-----------|
-| S1 | Signed room QR link | M11 | `/r/204?t=<token>` works with a right token and shows a friendly error with a wrong one; old plain link still works for the demo. |
+| S1 | Signed room QR link | — | **Merged into R1 (ANT-41)** on 2026-10-31 — delivered there, not a separate task. |
 | S2 | Guest tracker steps | M4 | Guest confirmation shows steps Received -> On the way -> Done with the right step lit, like the v1.2 design. |
 | S3 | Housekeeping checklist on staff tasks | M3 | A housekeeping task shows the v1.2 checklist; staff ticks items; ticks are saved and still there after refresh. |
 | S4 | Assign a task to a named person | M2 | Staff board can set an assignee; "Only my tasks" filter shows only that person's tasks. |
@@ -397,6 +400,8 @@ No Linear issues for these. From the v1.2 design:
 - Real login and permissions (server-checked), password rules from
   `docs/API.md`. Country data rules must be checked by a lawyer (design
   note in the v1.2 `constants.ts`).
+- Manual bookings per room (owner enters dates), manual income and
+  expenses. No booking-site integrations.
 
 ## How the two codebases fit together
 

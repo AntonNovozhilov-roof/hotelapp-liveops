@@ -136,7 +136,7 @@ export default function LoginPage() {
                       setPassword(DEMO_PASSWORD);
                       void signIn(user.username, DEMO_PASSWORD);
                     }}
-                    className="flex items-center gap-2 p-1.5 pr-2 rounded-lg hover:bg-white text-left border border-transparent hover:border-line transition disabled:opacity-50"
+                    className="flex min-h-11 items-center gap-2 p-1.5 pr-2 rounded-lg hover:bg-white text-left border border-transparent hover:border-line transition disabled:opacity-50"
                   >
                     <Avatar name={user.name} role={user.role} size={26} />
                     <span className="min-w-0">

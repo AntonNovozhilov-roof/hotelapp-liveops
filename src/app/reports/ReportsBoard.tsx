@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Empty } from "@/components/ui";
 import type { SavedReport } from "@/lib/reports-store";
-import { timeAgo, type StoredTask } from "@/lib/tasks";
+import type { StoredTask } from "@/lib/tasks";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtWhen(iso: string): string { const d = new Date(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
 
 export default function ReportsBoard({ initialReports, isOwner, initialSampleCount }: { initialReports: SavedReport[]; isOwner: boolean; initialSampleCount: number }) {
   const [kind, setKind] = useState<"daily" | "weekly">("daily");
@@ -50,7 +53,17 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
   function reportText(r: SavedReport): string {
     return `${r.kind === "daily" ? "Daily" : "Weekly"} report — ${r.periodLabel}\nMade ${new Date(r.createdAt).toLocaleString()}${r.source === "mock" ? "\nMOCK report (no AI answer — built from the facts)" : ""}${r.includesSample ? "\nIncludes sample data" : ""}\n\n${r.points.map((p) => `${p.section}\n${p.text}`).join("\n\n")}`;
   }
-  async function copyText() { if (!selected) return; try { await navigator.clipboard.writeText(reportText(selected)); setMsg("Report copied. You can paste it anywhere."); } catch { setError("Copy did not work in this browser. Try Download PDF instead."); } }
+  async function copyText() {
+    if (!selected) return;
+    const text = reportText(selected);
+    try { await navigator.clipboard.writeText(text); setMsg("Report copied. You can paste it anywhere."); return; } catch { /* fall back below */ }
+    try {
+      const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand("copy"); ta.remove();
+      if (ok) { setMsg("Report copied. You can paste it anywhere."); } else { setError("Copy did not work in this browser. Try Download PDF instead."); }
+    } catch { setError("Copy did not work in this browser. Try Download PDF instead."); }
+  }
   async function downloadPdf() {
     if (!selected) return;
     const { jsPDF } = await import("jspdf");
@@ -105,7 +118,7 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
               {selected.source === "fallback" && <Badge tone="dirty">Plain report — AI numbers did not pass the check</Badge>}
               {selected.numbersChecked && <Badge tone="ready">All numbers checked ✓</Badge>}
               {selected.includesSample && <Badge tone="brass">Includes sample data</Badge>}
-              <span className="text-[12.5px] text-ink-3">{timeAgo(selected.createdAt)}</span>
+              <span className="text-[12.5px] text-ink-3">{fmtWhen(selected.createdAt)}</span>
             </div>
             {selected.source === "mock" && <p className="mt-2 text-[13px] text-ink-3">No AI answer was available, so this report was built straight from the checked facts. Every number below comes from your tasks.</p>}
             <div className="mt-3 space-y-2">
@@ -139,8 +152,8 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
         {old.length === 0 ? <p className="mt-1.5 text-[13.5px] text-ink-3">No {kind} reports yet. Your first one will appear here and stay here.</p>
           : <ul className="mt-2 divide-y divide-line">{old.map((r) => (
             <li key={r.id}><button type="button" className="flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left" onClick={() => { setSelectedId(r.id); setOpenPoint(null); }}>
-              <span className="text-[14px] font-medium">{new Date(r.createdAt).toLocaleDateString()} · {r.kind === "daily" ? "Daily" : "Weekly"}{r.includesSample ? " · Includes sample data" : ""}</span>
-              <span className="text-[12.5px] text-ink-3">{timeAgo(r.createdAt)}{selected?.id === r.id ? " · showing" : ""}</span></button></li>))}
+              <span className="text-[14px] font-medium">{fmtWhen(r.createdAt)} · {r.kind === "daily" ? "Daily" : "Weekly"}{r.includesSample ? " · Includes sample data" : ""}</span>
+              <span className="text-[12.5px] text-ink-3">{fmtWhen(r.createdAt)}{selected?.id === r.id ? " · showing" : ""}</span></button></li>))}
           </ul>}
       </Card>
 

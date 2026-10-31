@@ -120,6 +120,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
   const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [, setNowTick] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   // The signed-in person decides the team: no picker, no other teams.
   const department = user.department;
@@ -136,7 +137,9 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
       );
       setError(null);
     } catch {
-      setError("Could not load tasks. The page will keep trying.");
+      setError("Could not load tasks. Check your connection — the page will keep trying on its own.");
+    } finally {
+      setLoading(false);
     }
   }, [department]);
 
@@ -352,7 +355,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
 
               {columnTasks.length === 0 ? (
                 <p className="mt-3 rounded-xl bg-white/70 p-3 text-[13px] text-ink-4">
-                  No tasks
+                  {loading ? "Loading your tasks…" : status === "new" ? "No new tasks — you're all caught up. New guest requests appear here." : status === "done" ? "Nothing finished yet. Finished work lands here." : `No tasks ${STATUS_LABELS[status].toLowerCase()} right now.`}
                 </p>
               ) : (
                 <ul className="mt-3 space-y-3">
@@ -376,6 +379,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                           <Badge tone={PRIORITY_TONES[task.priority]} dot>
                             {PRIORITY_LABELS[task.priority]}
                           </Badge>
+                          {task.sample && <Badge tone="brass">Sample</Badge>}
                           <span>{timeAgo(task.createdAt)}</span>
                         </div>
                         {task.status === "review" && (
@@ -431,7 +435,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                         }
                                         disabled={photoBusyId === task.id}
                                         aria-label="Delete photo"
-                                        className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-sm font-bold text-white shadow-pop disabled:opacity-50"
+                                        className="absolute -top-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full bg-ink text-lg font-bold text-white shadow-pop disabled:opacity-50 sm:h-8 sm:w-8"
                                       >
                                         ×
                                       </button>
@@ -443,7 +447,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                             {task.status === "in_progress" &&
                               (task.photos.length < 3 ? (
                                 <label
-                                  className={`mt-2 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink transition hover:border-brand-500 hover:bg-brand-50 ${
+                                  className={`mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink transition hover:border-brand-500 hover:bg-brand-50 sm:h-10 ${
                                     photoBusyId === task.id
                                       ? "pointer-events-none opacity-50"
                                       : ""

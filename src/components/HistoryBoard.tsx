@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Card, Empty, Input } from "@/components/ui";
+import { timeAgo } from "@/lib/tasks";
 
 interface HistoryEventView {
   id: string;
@@ -98,7 +99,7 @@ export default function HistoryBoard({ focusTaskId }: { focusTaskId?: string }) 
             aria-label="Filter by room"
           />
           <select
-            className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
+            className="h-11 sm:h-10 rounded-lg border border-line bg-white px-3 text-sm"
             value={person}
             onChange={(e) => setPerson(e.target.value)}
             aria-label="Filter by person"
@@ -111,7 +112,7 @@ export default function HistoryBoard({ focusTaskId }: { focusTaskId?: string }) 
             ))}
           </select>
           <select
-            className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
+            className="h-11 sm:h-10 rounded-lg border border-line bg-white px-3 text-sm"
             value={type}
             onChange={(e) => setType(e.target.value)}
             aria-label="Filter by task type"
@@ -122,7 +123,7 @@ export default function HistoryBoard({ focusTaskId }: { focusTaskId?: string }) 
             <option value="repair">Repair</option>
           </select>
           <select
-            className="h-10 rounded-lg border border-line bg-white px-3 text-sm"
+            className="h-11 sm:h-10 rounded-lg border border-line bg-white px-3 text-sm"
             value={range}
             onChange={(e) => setRange(e.target.value)}
             aria-label="Filter by time"
@@ -163,8 +164,8 @@ export default function HistoryBoard({ focusTaskId }: { focusTaskId?: string }) 
                     {event.action}
                     {event.room ? <span className="text-brand-700"> · Room {event.room}</span> : null}
                   </p>
-                  <time className="text-[12px] text-ink-4">
-                    {new Date(event.at).toLocaleString()}
+                  <time className="text-[12px] text-ink-4" title={new Date(event.at).toLocaleString()}>
+                    {timeAgo(event.at)}
                   </time>
                 </div>
                 <p className="mt-0.5 text-[13px] text-ink-3">{event.details}</p>

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import SessionBar from "@/components/SessionBar";
+import { PageHeader } from "@/components/ui";
 import HotelInfoForm from "@/components/HotelInfoForm";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
@@ -13,9 +13,7 @@ export default async function HotelInfoPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
-      <p className="mt-4 text-[13px]"><Link href="/owner" className="font-semibold text-brand-700 hover:underline">← Back to Owner home</Link></p>
-      <h1 className="mt-2 font-display text-[26px] font-semibold leading-tight">Hotel info</h1>
-      <p className="mt-1 text-[13.5px] text-ink-3">What guests can ask the assistant about. Only you (the Owner) can change this.</p>
+      <PageHeader title="Hotel info" sub="What guests can ask the assistant about. Only you (the Owner) can change this." />
       <div className="mt-5"><HotelInfoForm initial={data.hotelInfo} /></div>
     </main>
   );

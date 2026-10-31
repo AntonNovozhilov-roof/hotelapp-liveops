@@ -1,5 +1,28 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — U1: v1.2 polish pass on every screen (ANT-46)
+
+Polish changes (design ported from our earlier v1.2 prototype, read-only at `/Users/batyr/Documents/hotelapp/hotelapp-v1.2` — nav per role from its `nav.ts`/`AppShell`/`StaffShell`, PageHeader pattern, "today at a glance" from its Dashboard; no new features):
+- Same navigation per role on every signed-in screen (in `SessionBar`/`RoleNav`): Owner = Owner home/Review/Reports/Rooms & QR/Hotel info/History; Supervisor = Supervisor home/Reports/Rooms & QR/History; staff = My board. Current page is highlighted.
+- One clear page title pattern everywhere (`PageHeader` in `src/components/ui.tsx`): title + one helpful line, on staff, owner, supervisor, reports, history, rooms, hotel info.
+- Owner and Supervisor homes: new "Today at a glance" card (`src/components/TodayGlance.tsx`) — open tasks per team, in review, urgent, done today, and a link to today's report.
+- Tap targets at least 44px on phones (buttons/inputs/nav/photo-delete/demo sign-in rows grow on small screens, back to v1.2 sizes on desktop); nothing cut off.
+- Helpful empty states (each staff column says what belongs there, e.g. "No new tasks — you're all caught up"), a loading state on the staff board, friendlier error words ("Check your connection — the page will keep trying on its own.").
+- Times read "5 min ago" everywhere (history rows now use it too, full date on hover); sample tasks show a "Sample" badge; history filters are 44px on phones.
+- Fixed while testing: Reports page React hydration error from locale-made dates → dates are now formatted the same on server and phone; Copy text got a fallback so it also works where the clipboard API is blocked.
+
+Files changed: `src/components/ui.tsx`, `src/components/SessionBar.tsx`, `src/components/TodayGlance.tsx` (new), `src/components/HistoryBoard.tsx`, `src/components/RoomsBoard.tsx`, `src/app/staff/page.tsx`, `src/app/staff/StaffBoard.tsx`, `src/app/owner/page.tsx`, `src/app/supervisor/page.tsx`, `src/app/reports/page.tsx`, `src/app/reports/ReportsBoard.tsx`, `src/app/history/page.tsx`, `src/app/owner/rooms/page.tsx`, `src/app/owner/hotel-info/page.tsx`, `src/app/login/page.tsx`, `docs/PROJECT_MAP.md`.
+
+Backtest (browser + API, port 3000):
+- Every page for every role at 375px, 768px and 1440px (iframe-measured): owner, supervisor, reports, history, rooms, hotel info, guest, and /staff as Aigerim/Ruslan/Daniyar/Madina — `scrollWidth` equals the width everywhere, no sideways scroll, no console errors (after the date fix). Screenshots checked by eye: login, owner home with glance + nav, reports with a report open, guest room 204, Aigerim's My rooms. PASS
+- Reports in the browser: Daily auto-appeared ("All numbers checked ✓"), tapping "What needs attention today" showed the right task (Room 204 gas smell), Download PDF produced `daily-report-2026-10-31.pdf`, Copy text works (fallback), Regenerate + old reports list were verified in the M10 commit. PASS
+- Old flows still work (API regression, 14/14): guest chat makes 2 tasks, request Accept→Start→Done, repair blocked without proof photo → photo → Done → supervisor reopen, cleaning blocked without photo and without AI check → LIVE AI check → review → supervisor approve, history for supervisor, staff 403 on history. PASS (Voice, cleaning retry-twice and QR/print were not re-run; that code is untouched since their own checked commits.)
+- `npm run typecheck` and `npm run build` pass.
+- NOT checked: a real phone/printer. After the tests: tasks/history restored to the 4 pre-session tasks, test photos deleted, test reports removed so the first Reports visit makes a fresh daily report.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-46, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — M10+S6: AI reports for owner and supervisor (ANT-26 + ANT-34)
 
 Meta docs checked first: Muse Wonder = `muse-wonder-1.0` on Model API, `POST https://api.meta.ai/v1/chat/completions` (dev.meta.ai/docs/models) — same chat format as muse-spark-1.3.

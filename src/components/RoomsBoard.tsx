@@ -93,7 +93,7 @@ function ReferenceSection({ room, onChanged }: { room: Room; onChanged: () => Pr
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={ph.url} alt={`New perfect room photo (${ph.label})`} className="aspect-square w-full rounded-xl border border-line object-cover" />
                 <span className="absolute bottom-1 left-1 rounded bg-brand-950/80 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">{ph.label}</span>
-                <button type="button" disabled={busyRef} onClick={() => void removePending(ph.name)} aria-label="Remove photo" className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-sm font-bold text-white disabled:opacity-50">×</button>
+                <button type="button" disabled={busyRef} onClick={() => void removePending(ph.name)} aria-label="Remove photo" className="absolute -top-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full bg-ink text-lg font-bold text-white disabled:opacity-50 sm:h-8 sm:w-8">×</button>
               </li>
             ))}
           </ul>
@@ -115,7 +115,7 @@ function ReferenceSection({ room, onChanged }: { room: Room; onChanged: () => Pr
       )}
       {history.length > 0 && (
         <div className="mt-2">
-          <button type="button" className="text-[12.5px] font-semibold text-brand-700 hover:underline" onClick={() => setShowHistory((v) => !v)}>{showHistory ? "Hide" : "Show"} reference history ({history.length})</button>
+          <button type="button" className="inline-flex min-h-11 items-center text-[12.5px] font-semibold text-brand-700 hover:underline sm:min-h-0" onClick={() => setShowHistory((v) => !v)}>{showHistory ? "Hide" : "Show"} reference history ({history.length})</button>
           {showHistory && (
             <ul className="mt-2 space-y-2">
               {history.map((h) => (

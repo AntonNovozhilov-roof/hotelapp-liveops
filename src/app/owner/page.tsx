@@ -4,7 +4,8 @@ import OwnerReset from "./OwnerReset";
 import CleanRoomForm from "@/components/CleanRoomForm";
 import DoneRepairs from "@/components/DoneRepairs";
 import SessionBar from "@/components/SessionBar";
-import { Card } from "@/components/ui";
+import TodayGlance from "@/components/TodayGlance";
+import { Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { listStoredTasks } from "@/lib/store";
 
@@ -28,28 +29,9 @@ export default async function OwnerPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
-      <h1 className="mt-5 font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight">
-        {user.screenTitle}
-      </h1>
-      <p className="mt-1 text-[13.5px] text-ink-3">{user.screenSub}</p>
-
-      <div className="mt-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-[12.5px] font-medium text-ink-3">Open tasks</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{open}</p>
-          <p className="text-[12.5px] text-ink-3">all teams</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-[12.5px] font-medium text-ink-3">In review</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{inReview}</p>
-          <p className="text-[12.5px] text-ink-3">waiting for a supervisor</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-[12.5px] font-medium text-ink-3">Done</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{done}</p>
-          <p className="text-[12.5px] text-ink-3">approved and finished</p>
-        </Card>
-      </div>
+      <PageHeader title={user.screenTitle} sub={user.screenSub} />
+      <TodayGlance tasks={tasks} />
+      <p className="mt-3 text-[13px] text-ink-3">{open} open tasks in total · {inReview} in review · {done} done altogether. The glance above is today only.</p>
 
       <nav className="mt-4 grid grid-cols-1 min-[420px]:grid-cols-2 gap-3" aria-label="Owner pages">
         <Link href="/supervisor"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Review</p><p className="mt-1 text-[12.5px] text-ink-3">Approve cleaning work</p></Card></Link>

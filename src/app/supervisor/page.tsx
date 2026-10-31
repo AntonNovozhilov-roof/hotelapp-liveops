@@ -3,7 +3,8 @@ import SupervisorBoard from "./SupervisorBoard";
 import CleanRoomForm from "@/components/CleanRoomForm";
 import DoneRepairs from "@/components/DoneRepairs";
 import SessionBar from "@/components/SessionBar";
-import { Card } from "@/components/ui";
+import TodayGlance from "@/components/TodayGlance";
+import { Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { listStoredTasks } from "@/lib/store";
 import { sortReviewTasks } from "@/lib/tasks";
@@ -44,34 +45,9 @@ export default async function SupervisorPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
-      <h1 className="mt-5 font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight">
-        Supervisor review
-      </h1>
-      <p className="mt-1 text-[13.5px] text-ink-3">
-        Cleaning work waiting for your check. Approve it, or send it back
-        with a short note. AI problems come first, then the oldest task.
-        {user.role === "owner"
-          ? " You are signed in as the Owner — you can review here too."
-          : ""}
-      </p>
-
-      <div className="mt-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-[12.5px] font-medium text-ink-3">In review</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{reviewTasks.length}</p>
-          <p className="text-[12.5px] text-ink-3">cleaning tasks waiting for you</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-[12.5px] font-medium text-ink-3">Open tasks</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{open}</p>
-          <p className="text-[12.5px] text-ink-3">all teams</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-[12.5px] font-medium text-ink-3">Done</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{done}</p>
-          <p className="text-[12.5px] text-ink-3">approved and finished</p>
-        </Card>
-      </div>
+      <PageHeader title="Supervisor review" sub={<>Cleaning work waiting for your check. Approve it, or send it back with a short note. AI problems come first, then the oldest task.{user.role === "owner" ? " You are signed in as the Owner — you can review here too." : ""}</>} />
+      <TodayGlance tasks={tasks} />
+      <p className="mt-3 text-[13px] text-ink-3">{reviewTasks.length} cleaning tasks waiting for you · {open} open in total · {done} done altogether.</p>
 
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Review queue</h2>

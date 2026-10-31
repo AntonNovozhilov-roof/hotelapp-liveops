@@ -50,8 +50,9 @@ export function Button({
     danger: "bg-white text-dirty-deep border border-dirty/30 hover:bg-dirty-soft",
   }[variant];
   const s = {
-    sm: "h-8 px-3 text-[13px] gap-1.5 rounded-lg",
-    md: "h-10 px-4 text-sm gap-2 rounded-lg",
+    // Tap targets are at least 44px on phones (U1); desktop keeps v1.2 sizes.
+    sm: "h-11 px-3 text-[13px] gap-1.5 rounded-lg sm:h-8",
+    md: "h-11 px-4 text-sm gap-2 rounded-lg sm:h-10",
     lg: "h-12 px-5 text-[15px] gap-2 rounded-xl",
   }[size];
   return (
@@ -99,7 +100,7 @@ export function Field({
 }
 
 const inputCls =
-  "w-full h-10 px-3 rounded-lg border border-line bg-white text-sm text-ink placeholder:text-ink-4 transition focus:outline-none focus:border-brand-500 focus:shadow-ring aria-[invalid=true]:border-dirty";
+  "w-full h-11 sm:h-10 px-3 rounded-lg border border-line bg-white text-sm text-ink placeholder:text-ink-4 transition focus:outline-none focus:border-brand-500 focus:shadow-ring aria-[invalid=true]:border-dirty";
 
 export const Input = React.forwardRef<
   HTMLInputElement,
@@ -117,7 +118,7 @@ export function PasswordInput(p: React.InputHTMLAttributes<HTMLInputElement>) {
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-7 grid place-items-center rounded-md text-ink-4 hover:text-ink"
+        className="absolute right-1 top-1/2 -translate-y-1/2 size-11 sm:size-7 grid place-items-center rounded-md text-ink-4 hover:text-ink"
         aria-label={show ? "Hide password" : "Show password"}
       >
         {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -265,6 +266,19 @@ export function Empty({
       <p className="font-semibold text-ink">{title}</p>
       {text && <p className="text-sm text-ink-3 mt-1 max-w-sm">{text}</p>}
       {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+/** One page-title pattern everywhere (U1): clear title, one-line help, optional actions. */
+export function PageHeader({ title, sub, actions }: { title: React.ReactNode; sub?: React.ReactNode; actions?: React.ReactNode }) {
+  return (
+    <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight">{title}</h1>
+        {sub && <p className="mt-1 text-[13.5px] text-ink-3">{sub}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

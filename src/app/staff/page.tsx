@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import StaffBoard from "./StaffBoard";
 import SessionBar from "@/components/SessionBar";
+import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -16,14 +17,7 @@ export default async function StaffPage() {
   return (
     <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
-      <h1 className="mt-5 font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight">
-        {user.screenTitle}
-      </h1>
-      <p className="mt-1 text-[13.5px] text-ink-3">
-        {user.screenSub} Move each task forward by its type: requests finish
-        with Done (no photo), repairs need a proof photo, cleaning needs a
-        photo and an AI check before a supervisor review.
-      </p>
+      <PageHeader title={user.screenTitle} sub={<>{user.screenSub} Move each task forward by its type: requests finish with Done (no photo), repairs need a proof photo, cleaning needs a photo and an AI check before a supervisor review.</>} />
 
       <div className="mt-5">
         <StaffBoard user={user} />

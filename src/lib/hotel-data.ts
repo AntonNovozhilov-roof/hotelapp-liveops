@@ -9,6 +9,43 @@ import { randomBytes, randomUUID } from "crypto";
  * only this file (same pattern as src/lib/store.ts for tasks).
  */
 
+export const REFERENCE_LABELS = ["Bed area", "Bathroom", "Other"] as const;
+export type ReferenceLabel = (typeof REFERENCE_LABELS)[number];
+
+export interface ReferencePhoto {
+  name: string;
+  url: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+  label: ReferenceLabel;
+}
+
+/** One cached SAM item result on a reference (system-only, never shown). */
+export interface ReferenceItem {
+  key: string;
+  label: string;
+  status: "found" | "not_found" | "unsure";
+  confidence: number | null;
+  count: number;
+}
+
+/**
+ * A perfect-room reference set (P1): 1–3 photos plus the cached AI result
+ * for them. The cached items are NOT re-run unless the photos change.
+ */
+export interface ReferenceRecord {
+  id: string;
+  photos: ReferencePhoto[];
+  items: ReferenceItem[];
+  itemSource: "vision" | "broad" | "mock";
+  checkedAt: string | null;
+  uploadedBy: string;
+  uploadedByRole: string;
+  uploadedAt: string;
+  reason: string | null;
+}
+
 export interface Room {
   id: string;
   number: string;
@@ -17,6 +54,12 @@ export interface Room {
   token: string;
   /** Booking IDs attach here later (manual bookings are LATER). */
   bookingIds: string[];
+  /** Active perfect-room reference, or null (P1). */
+  reference: ReferenceRecord | null;
+  /** Uploaded but not yet approved reference, or null (P1). */
+  pendingReference: ReferenceRecord | null;
+  /** Archived references, newest first (P1). Never deleted. */
+  referenceHistory: ReferenceRecord[];
   createdAt: string;
   updatedAt: string;
 }
@@ -44,6 +87,8 @@ export interface HotelInfo {
 export interface HotelSettings {
   /** Demo mode: /r/204 without ?t= still works. On by default. */
   allowLinksWithoutToken: boolean;
+  /** P1: auto-approve cleaning when the AI is sure. Off by default. */
+  autoApproveCleaning: boolean;
 }
 
 export interface HotelData {
@@ -84,7 +129,7 @@ function defaults(): HotelData {
   return {
     rooms: [],
     hotelInfo: { ...DEFAULT_HOTEL_INFO, faqs: [] },
-    settings: { allowLinksWithoutToken: true },
+    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false },
   };
 }
 
@@ -103,6 +148,9 @@ function normalize(raw: unknown): HotelData {
           floor: typeof room.floor === "number" ? room.floor : 1,
           token: room.token,
           bookingIds: Array.isArray(room.bookingIds) ? room.bookingIds.filter((b): b is string => typeof b === "string") : [],
+          reference: normalizeReference(room.reference),
+          pendingReference: normalizeReference(room.pendingReference),
+          referenceHistory: Array.isArray(room.referenceHistory) ? room.referenceHistory.flatMap((h) => { const n = normalizeReference(h); return n ? [n] : []; }) : [],
           createdAt: typeof room.createdAt === "string" ? room.createdAt : new Date().toISOString(),
           updatedAt: typeof room.updatedAt === "string" ? room.updatedAt : new Date().toISOString(),
         }];
@@ -134,7 +182,7 @@ function normalize(raw: unknown): HotelData {
       houseRules: str("houseRules", d.hotelInfo.houseRules),
       faqs,
     },
-    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false },
+    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true },
   };
 }
 
@@ -185,7 +233,7 @@ export async function addRoomsBulk(floor: number, from: number, to: number): Pro
     for (let n = from; n <= to; n++) {
       const number = String(n);
       if (existing.has(number)) { skipped.push(number); continue; }
-      const room: Room = { id: randomUUID(), number, floor, token: newToken(), bookingIds: [], createdAt: now, updatedAt: now };
+      const room: Room = { id: randomUUID(), number, floor, token: newToken(), bookingIds: [], reference: null, pendingReference: null, referenceHistory: [], createdAt: now, updatedAt: now };
       data.rooms.push(room); added.push(room); existing.add(number);
     }
     data.rooms.sort((a, b) => a.floor - b.floor || a.number.localeCompare(b.number, undefined, { numeric: true }));
@@ -199,7 +247,7 @@ export async function addSingleRoom(number: string, floor: number): Promise<{ ok
     const data = await readAll();
     if (data.rooms.some((r) => r.number === number)) return { ok: false as const, error: `Room ${number} already exists.` };
     const now = new Date().toISOString();
-    const room: Room = { id: randomUUID(), number, floor, token: newToken(), bookingIds: [], createdAt: now, updatedAt: now };
+    const room: Room = { id: randomUUID(), number, floor, token: newToken(), bookingIds: [], reference: null, pendingReference: null, referenceHistory: [], createdAt: now, updatedAt: now };
     data.rooms.push(room);
     data.rooms.sort((a, b) => a.floor - b.floor || a.number.localeCompare(b.number, undefined, { numeric: true }));
     await writeAll(data);
@@ -247,12 +295,76 @@ export async function regenerateRoomToken(id: string): Promise<Room | null> {
   });
 }
 
-export async function saveSettings(settings: HotelSettings): Promise<HotelSettings> {
+export async function saveSettings(settings: Partial<HotelSettings>): Promise<HotelSettings> {
   return withLock(async () => {
     const data = await readAll();
-    data.settings = { allowLinksWithoutToken: Boolean(settings.allowLinksWithoutToken) };
+    data.settings = {
+      allowLinksWithoutToken: settings.allowLinksWithoutToken !== undefined ? Boolean(settings.allowLinksWithoutToken) : data.settings.allowLinksWithoutToken,
+      autoApproveCleaning: settings.autoApproveCleaning !== undefined ? Boolean(settings.autoApproveCleaning) : data.settings.autoApproveCleaning,
+    };
     await writeAll(data);
     return data.settings;
+  });
+}
+
+function normalizeReference(raw: unknown): ReferenceRecord | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const photos: ReferencePhoto[] = Array.isArray(r.photos) ? (r.photos as unknown[]).flatMap((x) => {
+    if (!x || typeof x !== "object") return [];
+    const ph = x as Record<string, unknown>;
+    if (typeof ph.name !== "string" || typeof ph.url !== "string") return [];
+    return [{ name: ph.name, url: ph.url, contentType: typeof ph.contentType === "string" ? ph.contentType : "image/jpeg", size: typeof ph.size === "number" ? ph.size : 0, uploadedAt: typeof ph.uploadedAt === "string" ? ph.uploadedAt : new Date().toISOString(), label: (REFERENCE_LABELS as readonly string[]).includes(ph.label as string) ? (ph.label as ReferenceLabel) : "Other" }];
+  }) : [];
+  if (photos.length === 0) return null;
+  const items: ReferenceItem[] = Array.isArray(r.items) ? (r.items as unknown[]).flatMap((x) => {
+    if (!x || typeof x !== "object") return [];
+    const it = x as Record<string, unknown>;
+    if (typeof it.key !== "string") return [];
+    return [{ key: it.key, label: typeof it.label === "string" ? it.label : it.key, status: it.status === "found" || it.status === "not_found" ? it.status : "unsure", confidence: typeof it.confidence === "number" ? it.confidence : null, count: typeof it.count === "number" ? it.count : 0 }];
+  }) : [];
+  return {
+    id: typeof r.id === "string" ? r.id : randomUUID(),
+    photos, items,
+    itemSource: r.itemSource === "vision" || r.itemSource === "broad" ? r.itemSource : "mock",
+    checkedAt: typeof r.checkedAt === "string" ? r.checkedAt : null,
+    uploadedBy: typeof r.uploadedBy === "string" ? r.uploadedBy : "Unknown",
+    uploadedByRole: typeof r.uploadedByRole === "string" ? r.uploadedByRole : "",
+    uploadedAt: typeof r.uploadedAt === "string" ? r.uploadedAt : new Date().toISOString(),
+    reason: typeof r.reason === "string" && r.reason.trim() ? r.reason : null,
+  };
+}
+
+export async function setPendingReference(roomId: string, rec: ReferenceRecord): Promise<Room | null> {
+  return withLock(async () => {
+    const data = await readAll();
+    const room = data.rooms.find((r) => r.id === roomId);
+    if (!room) return null;
+    room.pendingReference = rec; room.updatedAt = new Date().toISOString();
+    await writeAll(data); return room;
+  });
+}
+
+export async function approvePendingReference(roomId: string, reason: string | null): Promise<{ room: Room; archived: ReferenceRecord | null } | null> {
+  return withLock(async () => {
+    const data = await readAll();
+    const room = data.rooms.find((r) => r.id === roomId);
+    if (!room || !room.pendingReference) return null;
+    const archived = room.reference;
+    if (archived) room.referenceHistory = [archived, ...room.referenceHistory];
+    room.reference = { ...room.pendingReference, reason };
+    room.pendingReference = null; room.updatedAt = new Date().toISOString();
+    await writeAll(data); return { room, archived };
+  });
+}
+
+export async function clearPendingReference(roomId: string): Promise<Room | null> {
+  return withLock(async () => {
+    const data = await readAll();
+    const room = data.rooms.find((r) => r.id === roomId);
+    if (!room) return null;
+    room.pendingReference = null; room.updatedAt = new Date().toISOString();
+    await writeAll(data); return room;
   });
 }
 
@@ -263,6 +375,21 @@ export async function saveHotelInfo(info: HotelInfo): Promise<HotelInfo> {
     await writeAll(data);
     return data.hotelInfo;
   });
+}
+
+/** Room shape for screens/APIs: reference item details stay system-only. */
+export function publicRoom(room: Room): Omit<Room, "reference" | "pendingReference" | "referenceHistory"> & {
+  reference: Omit<ReferenceRecord, "items"> | null;
+  pendingReference: Omit<ReferenceRecord, "items"> | null;
+  referenceHistory: Omit<ReferenceRecord, "items">[];
+} {
+  const strip = (r: ReferenceRecord | null) => (r ? { ...r, items: undefined, checked: Boolean(r.checkedAt) } : null);
+  return {
+    ...room,
+    reference: strip(room.reference) as never,
+    pendingReference: strip(room.pendingReference) as never,
+    referenceHistory: room.referenceHistory.map((r) => strip(r)) as never,
+  } as never;
 }
 
 export function guestLink(room: Room, base = ""): string {

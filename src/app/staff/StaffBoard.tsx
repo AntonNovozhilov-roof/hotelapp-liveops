@@ -54,6 +54,15 @@ function nextActionFor(
   return null;
 }
 
+function failedOnce(task: StoredTask): boolean {
+  return Boolean(
+    task.type === "cleaning" &&
+      task.status === "in_progress" &&
+      task.aiCheck?.verdict === "different" &&
+      (task.aiFailCount ?? 0) >= 1,
+  );
+}
+
 /** Why the final button is blocked, in plain words (null = not blocked). */
 function finishHint(task: StoredTask): string | null {
   if (task.status !== "in_progress") return null;
@@ -67,6 +76,9 @@ function finishHint(task: StoredTask): string | null {
   if (rule.aiCheckRequired && !task.aiCheck) {
     return "Run the AI photo check to send to review.";
   }
+  if (failedOnce(task)) {
+    return "Check the room and take new photos.";
+  }
   return task.type === "repair"
     ? "Proof photo added. Press Done when finished."
     : "AI check done. You can send to review.";
@@ -78,7 +90,25 @@ function finishBlocked(task: StoredTask): boolean {
   const rule = TASK_TYPE_RULES[task.type];
   if (rule.photoRequired && task.photos.length === 0) return true;
   if (rule.aiCheckRequired && !task.aiCheck) return true;
+  // P1: after a failed AI check the only way forward is Retake photos.
+  if (failedOnce(task)) return true;
   return false;
+}
+
+/** Simple AI words for the cleaner (P1) — never item names or counts. */
+function cleanerVerdict(task: StoredTask): { text: string; good: boolean } | null {
+  const check = task.aiCheck;
+  if (!check) return null;
+  if (check.verdict === "ready") return { text: "✓ Looks ready", good: true };
+  if (check.verdict === "different") {
+    return {
+      text: check.comparedToReference
+        ? "Not ready yet. The room looks different from the perfect photo. Check the room and take new photos."
+        : "Not ready yet. Something in the photo does not look right. Check the room and take new photos.",
+      good: false,
+    };
+  }
+  return { text: "AI not sure. A supervisor will look at the photos.", good: false };
 }
 
 export default function StaffBoard({ user }: { user: PublicUser }) {
@@ -448,54 +478,23 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                               AI photo check
                             </p>
                             {task.aiCheck ? (
-                              <div className="mt-2 rounded-xl bg-canvas px-3 py-2.5 text-[13px] text-ink-2">
-                                <p className="flex flex-wrap items-center gap-2">
-                                  <span className="font-display text-[20px] font-semibold text-ink">
-                                    {task.aiCheck.score}
-                                  </span>
-                                  <span className="text-ink-3">/ 100</span>
-                                  {task.aiCheck.mode === "MOCK" && (
-                                    <Badge tone="occ">MOCK</Badge>
-                                  )}
-                                </p>
-                                <p className="mt-0.5 text-[11.5px] text-ink-4">
-                                  Model: {task.aiCheck.model}. This check
-                                  only helps the supervisor — it never
-                                  approves the task.
-                                </p>
-                                <ul className="mt-2 space-y-1">
-                                  {task.aiCheck.checks.map((check) => (
-                                    <li key={check.key}>
-                                      {check.label}:{" "}
-                                      <span className="font-semibold text-ink">
-                                        {check.status === "found"
-                                          ? "Found"
-                                          : check.status === "not_found"
-                                            ? "Not found"
-                                            : "Not sure"}
-                                      </span>
-                                      {check.confidence !== null &&
-                                        ` (${Math.round(check.confidence * 100)}% sure)`}
-                                    </li>
-                                  ))}
-                                </ul>
-                                {task.aiCheck.issues.length > 0 ? (
-                                  <div className="mt-2.5 rounded-xl bg-dirty-soft px-3 py-2.5 text-dirty-deep">
-                                    <p className="flex items-center gap-1.5 text-[13px] font-semibold">
-                                      <TriangleAlert className="size-4" />
-                                      AI noticed:
+                              <div className="mt-2">
+                                {(() => {
+                                  const v = cleanerVerdict(task);
+                                  return v ? (
+                                    <p className={`rounded-xl px-3 py-2.5 text-[13.5px] font-semibold ${v.good ? "bg-ready-soft text-ready-deep" : task.aiCheck.verdict === "different" ? "bg-dirty-soft text-dirty-deep" : "bg-occ-soft text-occ-deep"}`}>
+                                      {v.text}
+                                      {task.aiCheck.mode === "MOCK" && <span className="ml-2"><Badge tone="occ">MOCK</Badge></span>}
                                     </p>
-                                    <ul className="mt-1 list-disc space-y-1 pl-5 text-[13px]">
-                                      {task.aiCheck.issues.map((issue) => (
-                                        <li key={issue}>{issue}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ) : (
-                                  <p className="mt-2.5 flex items-center gap-2 rounded-xl bg-ready-soft px-3 py-2.5 text-[13px] font-semibold text-ready-deep">
-                                    <Check className="size-4" />
-                                    No problems found in the photo.
+                                  ) : null;
+                                })()}
+                                {task.aiCheck.comparedToReference === false && (
+                                  <p className="mt-2 text-[12.5px] text-ink-4">
+                                    No perfect photo for room {task.room} yet. Ask the owner to add one.
                                   </p>
+                                )}
+                                {task.status === "done" && (
+                                  <p className="mt-2 text-[12.5px] text-ink-4">This task was finished automatically or approved by a supervisor.</p>
                                 )}
                               </div>
                             ) : (
@@ -503,7 +502,8 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                 Not checked yet.
                               </p>
                             )}
-                            {(task.status === "in_progress" ||
+                            {!failedOnce(task) &&
+                              (task.status === "in_progress" ||
                               task.status === "review") &&
                               task.photos.length > 0 && (
                                 <Button

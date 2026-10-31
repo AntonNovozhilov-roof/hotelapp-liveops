@@ -9,6 +9,129 @@ function linkFor(room: Room) {
   return `${base}/r/${encodeURIComponent(room.number)}?t=${encodeURIComponent(room.token)}`;
 }
 
+type RefRoom = Room & { reference?: unknown; pendingReference?: unknown; referenceHistory?: unknown[] };
+
+function ReferenceSection({ room, onChanged }: { room: Room; onChanged: () => Promise<void> }) {
+  const r = room as RefRoom;
+  const active = r.reference as { photos: { name: string; url: string; label: string }[]; uploadedBy: string; uploadedAt: string; reason: string | null } | null;
+  const pending = r.pendingReference as { photos: { name: string; url: string; label: string }[]; checked?: boolean } | null;
+  const history = (r.referenceHistory ?? []) as { id: string; photos: { name: string; url: string; label: string }[]; uploadedBy: string; uploadedAt: string; reason: string | null }[];
+  const [label, setLabel] = useState("Bed area");
+  const [reason, setReason] = useState("");
+  const [busyRef, setBusyRef] = useState(false);
+  const [refMsg, setRefMsg] = useState<string | null>(null);
+  const [refError, setRefError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+
+  async function upload(file: File) {
+    setBusyRef(true); setRefError(null); setRefMsg(null);
+    try {
+      const form = new FormData(); form.append("photo", file); form.append("label", label);
+      const res = await fetch(`/api/rooms/${room.id}/reference/photos`, { method: "POST", body: form });
+      const d = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(d.error || "Could not save the photo.");
+      setRefMsg("Photo added and checked by the AI. If it shows the room perfectly cleaned, set it as the perfect reference.");
+      await onChanged();
+    } catch (e) { setRefError(e instanceof Error ? e.message : "Could not save the photo."); }
+    finally { setBusyRef(false); }
+  }
+
+  async function approve() {
+    setBusyRef(true); setRefError(null); setRefMsg(null);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/reference`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason.trim() || undefined }) });
+      const d = (await res.json().catch(() => ({}))) as { error?: string; replaced?: boolean };
+      if (!res.ok) throw new Error(d.error || "Could not set the reference.");
+      setReason("");
+      setRefMsg(d.replaced ? "New perfect reference set. The old one is saved in the history below." : "Perfect reference set. The AI will compare cleaners' photos with it.");
+      await onChanged();
+    } catch (e) { setRefError(e instanceof Error ? e.message : "Could not set the reference."); }
+    finally { setBusyRef(false); }
+  }
+
+  async function removePending(name: string) {
+    setBusyRef(true); setRefError(null);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/reference/photos?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Could not remove the photo.");
+      await onChanged();
+    } catch (e) { setRefError(e instanceof Error ? e.message : "Could not remove the photo."); }
+    finally { setBusyRef(false); }
+  }
+
+  const thumbs = (photos: { name: string; url: string; label: string }[]) => (
+    <ul className="mt-2 grid grid-cols-3 gap-2">
+      {photos.map((ph) => (
+        <li key={ph.name} className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={ph.url} alt={`Perfect room photo (${ph.label})`} className="aspect-square w-full rounded-xl border border-line object-cover" />
+          <span className="absolute bottom-1 left-1 rounded bg-brand-950/80 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">{ph.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <p className="text-[13px] font-semibold text-ink-2">Perfect room photos</p>
+      {refMsg && <p className="mt-2 rounded-xl bg-ready-soft px-3 py-2 text-[12.5px] text-ready-deep" role="status">{refMsg}</p>}
+      {refError && <p className="mt-2 rounded-xl bg-dirty-soft px-3 py-2 text-[12.5px] text-dirty-deep" role="alert">{refError}</p>}
+      {active ? (
+        <div>
+          {thumbs(active.photos)}
+          <p className="mt-2 text-[12.5px] text-ink-3">Perfect reference · added by {active.uploadedBy} · {new Date(active.uploadedAt).toLocaleDateString()}{active.reason ? ` · ${active.reason}` : ""}</p>
+        </div>
+      ) : !pending ? (
+        <p className="mt-1.5 text-[12.5px] text-ink-3">No perfect photo yet. Add 1–3 photos of this room cleaned perfectly — the AI compares cleaners&apos; photos with them.</p>
+      ) : null}
+      {pending && (
+        <div className="mt-2 rounded-xl bg-brand-50 p-3">
+          <p className="text-[12.5px] font-semibold text-brand-800">{active ? "New photos — check them, then replace the reference:" : "New photos:"}</p>
+          <ul className="mt-2 grid grid-cols-3 gap-2">
+            {pending.photos.map((ph) => (
+              <li key={ph.name} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={ph.url} alt={`New perfect room photo (${ph.label})`} className="aspect-square w-full rounded-xl border border-line object-cover" />
+                <span className="absolute bottom-1 left-1 rounded bg-brand-950/80 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">{ph.label}</span>
+                <button type="button" disabled={busyRef} onClick={() => void removePending(ph.name)} aria-label="Remove photo" className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-sm font-bold text-white disabled:opacity-50">×</button>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[12.5px] text-ink-3">{pending.checked ? "AI check done. If the room looks perfect, set this as the reference." : "Checking the photos with the AI…"}</p>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why replace? (optional, e.g. new furniture)" aria-label="Reason for replacing the reference" className="mt-2" />
+          <Button size="sm" className="mt-2 w-full" disabled={busyRef || !pending.checked} loading={busyRef} onClick={() => void approve()}>Set as perfect reference</Button>
+        </div>
+      )}
+      {(!pending || pending.photos.length < 3) && (
+        <div className="mt-2 flex gap-1.5">
+          <select className="h-10 px-2 rounded-lg border border-line bg-white text-sm" value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Photo label">
+            <option>Bed area</option><option>Bathroom</option><option>Other</option>
+          </select>
+          <label className={`flex h-10 flex-1 cursor-pointer items-center justify-center rounded-lg border border-line bg-white px-3 text-sm font-semibold ${busyRef ? "pointer-events-none opacity-50" : ""}`}>
+            {busyRef ? "Saving…" : pending ? "Add another photo" : "Add perfect photo"}
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+          </label>
+        </div>
+      )}
+      {history.length > 0 && (
+        <div className="mt-2">
+          <button type="button" className="text-[12.5px] font-semibold text-brand-700 hover:underline" onClick={() => setShowHistory((v) => !v)}>{showHistory ? "Hide" : "Show"} reference history ({history.length})</button>
+          {showHistory && (
+            <ul className="mt-2 space-y-2">
+              {history.map((h) => (
+                <li key={h.id} className="rounded-xl bg-canvas p-2.5 text-[12.5px] text-ink-3">
+                  {thumbs(h.photos)}
+                  <p className="mt-1.5">Replaced · by {h.uploadedBy} · {new Date(h.uploadedAt).toLocaleString()}{h.reason ? ` · Reason: ${h.reason}` : ""}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RoomsBoard({ initialRooms, initialSettings, hotelName, canEdit }: { initialRooms: Room[]; initialSettings: HotelSettings; hotelName: string; canEdit: boolean }) {
   const [rooms, setRooms] = useState(initialRooms);
   const [settings, setSettings] = useState(initialSettings);
@@ -122,6 +245,10 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
             <input type="checkbox" className="mt-1" checked={settings.allowLinksWithoutToken} disabled={busy} onChange={(e) => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ allowLinksWithoutToken: e.target.checked }) }), "Saved."); if (d) await refresh(); })()} />
             <span><strong>Allow links without QR code (demo mode)</strong><br /><span className="text-ink-3">On: /r/204 works without the secret code. Off: guests must use the QR code.</span></span>
           </label>
+          <label className="mt-3 flex items-start gap-2 text-[13.5px]">
+            <input type="checkbox" className="mt-1" checked={settings.autoApproveCleaning} disabled={busy} onChange={(e) => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autoApproveCleaning: e.target.checked }) }), e.target.checked ? "Auto-approve is on. Sure AI passes now finish cleaning tasks automatically." : "Auto-approve is off."); if (d) await refresh(); })()} />
+            <span><strong>Auto-approve cleaning when the AI is sure</strong><br /><span className="text-ink-3">Off by default. When on, a cleaning photo that clearly matches the perfect room photo finishes the task without waiting for a supervisor. A supervisor can still reopen it.</span></span>
+          </label>
         </Card>
       )}
 
@@ -150,6 +277,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
                 <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(linkFor(room)).then(() => setMsg(`Link for room ${room.number} copied.`))}>Copy link</Button>
                 <Button size="sm" variant="secondary" onClick={() => setFullRoom(room)}>Show full screen</Button>
               </div>
+              <ReferenceSection room={room} onChanged={refresh} />
               {canEdit && (
                 <div className="mt-3 border-t border-line pt-3 space-y-2">
                   <div className="flex gap-1.5"><Input value={edit[room.id] ?? room.number} onChange={(e) => setEdit({ ...edit, [room.id]: e.target.value })} aria-label={`Fix room number for room ${room.number}`} /><Button size="sm" disabled={busy} onClick={() => void (async () => { const d = await act(() => fetch(`/api/rooms/${room.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: edit[room.id] ?? room.number }) }), "Room number saved."); if (d) await refresh(); })()}>Save number</Button></div>

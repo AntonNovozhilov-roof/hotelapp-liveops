@@ -182,6 +182,18 @@ restart.
   photo list on the task in `src/lib/tasks.ts` / `src/lib/store.ts`
 - Photo UI in `src/app/staff/StaffBoard.tsx` (or a per-task panel there)
 
+**P1 update (2026-10-31, ANT-45):** Rooms & QR holds per-room "Perfect room
+photos" (1–3, labels Bed area/Bathroom/Other; owner or supervisor). On upload,
+Muse Spark lists the objects in the perfect photo (Meta image-understanding
+docs) and SAM 3.1 finds/counts them (fallback: `BROAD_ROOM_ITEMS` in
+`src/lib/photo-check.ts`); the result is cached on the reference until a
+person presses "Set as perfect reference". Replacing archives the old
+reference (who/when/reason kept). Cleaning checks compare all cleaner photos
+with the active reference; screens show only a simple verdict (item names,
+counts and confidence stay system-only). 1st fail = retake only, 2nd fail =
+auto review flagged "Failed AI check twice", sure pass + the owner
+auto-approve setting (off by default) = Done (supervisor can reopen).
+
 ### 6. AI photo check (SAM 3.1)
 
 **Done**

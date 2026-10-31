@@ -19,10 +19,32 @@ import {
  * needs a short note staff will see. The Owner can use this page too —
  * the server checks the role on every action.
  */
+export type ReferenceByRoom = Record<
+  string,
+  { photos: { name: string; url: string; label: string }[] } | null
+>;
+
+/** Simple AI verdict words for the supervisor (P1) — no items or counts. */
+function supervisorVerdict(task: StoredTask): string {
+  const check = task.aiCheck;
+  if (!check) return "AI not sure";
+  if (check.verdict === "ready")
+    return check.comparedToReference
+      ? "✓ Looks like the perfect photo"
+      : "✓ Looks ready";
+  if (check.verdict === "different")
+    return check.comparedToReference
+      ? "Different from perfect photo"
+      : "Looks different — check the photos";
+  return "AI not sure";
+}
+
 export default function SupervisorBoard({
   tasks,
+  references = {},
 }: {
   tasks: StoredTask[];
+  references?: ReferenceByRoom;
 }) {
   const router = useRouter();
   const [items, setItems] = useState(tasks);
@@ -101,10 +123,8 @@ export default function SupervisorBoard({
               STAFF.find((person) => person.department === task.department)
                 ?.name ?? DEPARTMENT_LABELS[task.department];
             const needsAttention = aiNeedsAttention(task);
-            const oneLine = task.aiCheck
-              ? task.aiCheck.issues[0] ??
-                "No problems found in the photo."
-              : "No AI check saved for these photos.";
+            const verdict = supervisorVerdict(task);
+            const reference = references[task.room] ?? null;
             return (
               <li key={task.id}>
                 <Card className="h-full p-4">
@@ -117,11 +137,18 @@ export default function SupervisorBoard({
                         {task.title}
                       </p>
                     </div>
-                    {needsAttention && (
-                      <Badge tone="dirty" dot>
-                        AI: check this
-                      </Badge>
-                    )}
+                    <span className="flex flex-wrap gap-1.5">
+                      {task.flaggedTwice && (
+                        <Badge tone="dirty" dot>
+                          Failed AI check twice
+                        </Badge>
+                      )}
+                      {needsAttention && !task.flaggedTwice && (
+                        <Badge tone="dirty" dot>
+                          AI: check this
+                        </Badge>
+                      )}
+                    </span>
                   </div>
                   <p className="mt-1.5 text-[12.5px] text-ink-3">
                     Cleaned by {cleaner} ·{" "}
@@ -129,59 +156,47 @@ export default function SupervisorBoard({
                     {timeAgo(task.updatedAt)}
                   </p>
 
-                  {task.photos.length > 0 ? (
-                    <ul className="mt-3 grid grid-cols-3 gap-2">
-                      {task.photos.map((photo) => (
-                        <li key={photo.name}>
-                          <a
-                            href={photo.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label="Open photo full size"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={photo.url}
-                              alt="Cleaning photo"
-                              className="aspect-square w-full rounded-xl border border-line object-cover"
-                            />
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-[12.5px] text-ink-4">
-                      No photos saved.
-                    </p>
-                  )}
-
-                  <div className="mt-3 rounded-xl bg-canvas px-3 py-2.5 text-[13px] text-ink-2">
-                    <p className="flex flex-wrap items-center gap-2">
-                      <Sparkles className="size-4 text-brand-600" />
-                      <span className="font-semibold">AI photo check:</span>
-                      {task.aiCheck ? (
-                        <>
-                          <span className="font-display text-[18px] font-semibold text-ink">
-                            {task.aiCheck.score}
-                          </span>
-                          <span className="text-ink-3">/ 100</span>
-                          {task.aiCheck.mode === "MOCK" && (
-                            <Badge tone="occ">MOCK</Badge>
-                          )}
-                        </>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="text-[12px] font-semibold text-ink-3">Perfect photo</p>
+                      {reference && reference.photos.length > 0 ? (
+                        <ul className="mt-1.5 grid grid-cols-3 gap-2">
+                          {reference.photos.map((photo) => (
+                            <li key={photo.name}>
+                              <a href={photo.url} target="_blank" rel="noreferrer" aria-label="Open perfect photo full size">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={photo.url} alt="Perfect room photo" className="aspect-square w-full rounded-xl border border-line object-cover" />
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
-                        <span>not run</span>
+                        <p className="mt-1.5 text-[12.5px] text-ink-4">No perfect photo for room {task.room} yet. Ask the owner to add one.</p>
                       )}
-                    </p>
-                    <p className="mt-1 flex items-start gap-1.5">
-                      {needsAttention && task.aiCheck ? (
-                        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-dirty-deep" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-semibold text-ink-3">Latest photos</p>
+                      {task.photos.length > 0 ? (
+                        <ul className="mt-1.5 grid grid-cols-3 gap-2">
+                          {task.photos.map((photo) => (
+                            <li key={photo.name}>
+                              <a href={photo.url} target="_blank" rel="noreferrer" aria-label="Open photo full size">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={photo.url} alt="Cleaning photo" className="aspect-square w-full rounded-xl border border-line object-cover" />
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
-                        <Check className="mt-0.5 size-4 shrink-0 text-ready-deep" />
+                        <p className="mt-1.5 text-[12.5px] text-ink-4">No photos saved.</p>
                       )}
-                      <span>{oneLine}</span>
-                    </p>
+                    </div>
                   </div>
+
+                  <p className={`mt-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold ${task.aiCheck?.verdict === "ready" ? "bg-ready-soft text-ready-deep" : task.aiCheck?.verdict === "different" ? "bg-dirty-soft text-dirty-deep" : "bg-occ-soft text-occ-deep"}`}>
+                    {verdict}
+                    {task.aiCheck?.mode === "MOCK" && <span className="ml-2"><Badge tone="occ">MOCK</Badge></span>}
+                  </p>
 
                   <Button
                     size="lg"

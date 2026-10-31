@@ -7,6 +7,7 @@ import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { listStoredTasks } from "@/lib/store";
 import { sortReviewTasks } from "@/lib/tasks";
+import { getHotelData } from "@/lib/hotel-data";
 
 /**
  * Supervisor review page (M7 / ANT-23): cleaning tasks In review with
@@ -22,6 +23,13 @@ export default async function SupervisorPage() {
   }
 
   const tasks = await listStoredTasks();
+  const hotel = await getHotelData();
+  const references: Record<string, { photos: { name: string; url: string; label: string }[] } | null> = {};
+  for (const room of hotel.rooms) {
+    references[room.number] = room.reference
+      ? { photos: room.reference.photos.map((ph) => ({ name: ph.name, url: ph.url, label: ph.label })) }
+      : null;
+  }
   const reviewTasks = sortReviewTasks(
     tasks.filter(
       (task) => task.type === "cleaning" && task.status === "review",
@@ -68,10 +76,10 @@ export default async function SupervisorPage() {
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Review queue</h2>
         <p className="mt-1 text-[12.5px] text-ink-4">
-          AI &ldquo;not found&rdquo; or &ldquo;not sure&rdquo; first, then oldest first
+          Problems first, then oldest first
         </p>
         <div className="mt-3">
-          <SupervisorBoard tasks={reviewTasks} />
+          <SupervisorBoard tasks={reviewTasks} references={references} />
         </div>
       </Card>
 

@@ -95,6 +95,12 @@ export interface TaskAiCheck {
   model: string;
   mode: "LIVE" | "MOCK";
   checkedAt: string;
+  /** P1 simple verdict (system + simple UI words only). */
+  verdict?: "ready" | "different" | "unsure";
+  /** P1: true when compared with the room's perfect reference. */
+  comparedToReference?: boolean;
+  /** P1: pass with high confidence (for the owner auto-approve setting). */
+  highConfidence?: boolean;
 }
 
 /** A task saved on the server (in .data/tasks.json for now). */
@@ -107,6 +113,10 @@ export interface StoredTask extends Task {
   reviewNote: string | null;
   /** Last AI photo check, or null when no check ran on the current photos. */
   aiCheck: TaskAiCheck | null;
+  /** P1: how many times the AI check failed in this work cycle. */
+  aiFailCount: number;
+  /** P1: failed the AI check twice — supervisor sees this flag. */
+  flaggedTwice: boolean;
   createdAt: string;
   updatedAt: string;
 }

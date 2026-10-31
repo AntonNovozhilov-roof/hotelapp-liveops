@@ -151,6 +151,16 @@ export async function PATCH(
       { status: 409 },
     );
   }
+  if (!result.ok && result.reason === "ai_check_failed") {
+    return NextResponse.json(
+      {
+        error:
+          "Not ready yet. The room looks different from the perfect photo. Check the room and take new photos.",
+        task: result.task,
+      },
+      { status: 409 },
+    );
+  }
   if (!result.ok && result.reason === "note_required") {
     return NextResponse.json(
       {

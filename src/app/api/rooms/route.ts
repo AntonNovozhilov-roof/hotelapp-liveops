@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { addRoomsBulk, addSingleRoom, cleanRoomNumber, getHotelData, validRoomNumber } from "@/lib/hotel-data";
+import { addRoomsBulk, addSingleRoom, cleanRoomNumber, getHotelData, publicRoom, validRoomNumber } from "@/lib/hotel-data";
 
 async function guard(viewOnly = false) {
   const user = await getCurrentUser();
@@ -14,7 +14,7 @@ export async function GET() {
   const g = await guard(true);
   if (g.error) return g.error;
   const data = await getHotelData();
-  return NextResponse.json({ rooms: data.rooms, settings: data.settings, hotelInfo: { hotelName: data.hotelInfo.hotelName }, canEdit: g.user?.role === "owner" });
+  return NextResponse.json({ rooms: data.rooms.map(publicRoom), settings: data.settings, hotelInfo: { hotelName: data.hotelInfo.hotelName }, canEdit: g.user?.role === "owner", canReference: true });
 }
 
 export async function POST(request: Request) {
@@ -49,9 +49,15 @@ export async function PUT(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const r = (body ?? {}) as Record<string, unknown>;
-  if (typeof r.allowLinksWithoutToken === "boolean") {
+  if (typeof r.allowLinksWithoutToken === "boolean" || typeof r.autoApproveCleaning === "boolean") {
+    if (typeof r.autoApproveCleaning === "boolean" && g.user?.role !== "owner") {
+      return NextResponse.json({ error: "Only the Owner can change the auto-approve setting." }, { status: 403 });
+    }
     const { saveSettings } = await import("@/lib/hotel-data");
-    const settings = await saveSettings({ allowLinksWithoutToken: r.allowLinksWithoutToken });
+    const settings = await saveSettings({
+      ...(typeof r.allowLinksWithoutToken === "boolean" ? { allowLinksWithoutToken: r.allowLinksWithoutToken } : {}),
+      ...(typeof r.autoApproveCleaning === "boolean" ? { autoApproveCleaning: r.autoApproveCleaning } : {}),
+    });
     return NextResponse.json({ settings });
   }
   return NextResponse.json({ error: "Nothing to save." }, { status: 400 });

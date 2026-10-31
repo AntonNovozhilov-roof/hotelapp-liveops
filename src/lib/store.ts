@@ -96,6 +96,8 @@ function normalizeTask(task: StoredTask): StoredTask {
     photos: Array.isArray(raw) ? raw.filter(isTaskPhoto) : [],
     reviewNote: typeof note === "string" && note.trim() ? note : null,
     aiCheck: isTaskAiCheck(check) ? check : null,
+    aiFailCount: typeof (task as { aiFailCount?: unknown }).aiFailCount === "number" ? (task as unknown as StoredTask).aiFailCount : 0,
+    flaggedTwice: (task as { flaggedTwice?: unknown }).flaggedTwice === true,
   };
 }
 
@@ -162,6 +164,8 @@ export async function createStoredTasks(
       photos: [],
       reviewNote: null,
       aiCheck: null,
+      aiFailCount: 0,
+      flaggedTwice: false,
       createdAt: now,
       updatedAt: now,
     }));
@@ -204,7 +208,10 @@ function nextStatuses(task: StoredTask): TaskStatus[] {
     case "review":
       return ["done", "in_progress"];
     case "done":
-      return task.type === "repair" ? ["in_progress"] : [];
+      // Repair reopen (T1) and auto-approved cleaning reopen (P1).
+      return task.type === "repair" || task.type === "cleaning"
+        ? ["in_progress"]
+        : [];
   }
 }
 
@@ -266,6 +273,50 @@ export async function saveStoredTaskAiCheck(
     all[index] = updated;
     await writeAll(all);
     return updated;
+  });
+}
+
+/** Which way an AI check outcome moves the task (P1). */
+export type AiOutcome = "stay" | "review" | "done_auto";
+
+/**
+ * Save an AI check and apply the P1 retry rules in one locked step:
+ * "different" counts a fail; the 2nd fail moves a started cleaning task
+ * to review flagged; "ready" with high confidence + the owner setting
+ * (caller passes autoApprove) finishes the task. AI never rejects alone.
+ */
+export async function saveAiCheckOutcome(
+  id: string,
+  aiCheck: TaskAiCheck,
+  autoApprove: boolean,
+): Promise<{ task: StoredTask; outcome: AiOutcome } | null> {
+  return withLock(async () => {
+    const all = await readAll();
+    const index = all.findIndex((task) => task.id === id);
+    if (index === -1) return null;
+    const current = all[index];
+    let failCount = current.aiFailCount ?? 0;
+    let flagged = current.flaggedTwice ?? false;
+    let status = current.status;
+    let outcome: AiOutcome = "stay";
+    if (aiCheck.verdict === "different") {
+      failCount += 1;
+      if (failCount >= 2 && status === "in_progress") {
+        status = "review"; flagged = true; outcome = "review";
+      }
+    } else if (aiCheck.verdict === "ready") {
+      failCount = 0;
+      if (autoApprove && aiCheck.highConfidence && status === "in_progress") {
+        status = "done"; outcome = "done_auto";
+      }
+    }
+    const updated: StoredTask = {
+      ...current, aiCheck, aiFailCount: failCount, flaggedTwice: flagged,
+      status, updatedAt: new Date().toISOString(),
+    };
+    all[index] = updated;
+    await writeAll(all);
+    return { task: updated, outcome };
   });
 }
 
@@ -338,6 +389,7 @@ export type UpdateResult =
         | "invalid_transition"
         | "photo_required"
         | "ai_check_required"
+        | "ai_check_failed"
         | "note_required";
       task?: StoredTask;
     };
@@ -378,6 +430,19 @@ export async function updateStoredTaskStatus(
     if (isFinalStep && rule.photoRequired && current.photos.length < 1) {
       return { ok: false, reason: "photo_required", task: current } as const;
     }
+    // P1: a failed AI check blocks review — retake (1st) or the 2nd-fail
+    // auto-review in saveAiCheckOutcome are the only ways forward.
+    if (
+      current.status === "in_progress" &&
+      nextStatus === "review" &&
+      current.aiCheck?.verdict === "different"
+    ) {
+      return {
+        ok: false,
+        reason: "ai_check_failed",
+        task: current,
+      } as const;
+    }
     if (isFinalStep && rule.aiCheckRequired && !current.aiCheck) {
       return {
         ok: false,
@@ -396,6 +461,9 @@ export async function updateStoredTaskStatus(
       ...current,
       status: nextStatus,
       reviewNote: needsNote ? cleanNote : null,
+      // A supervisor decision starts a fresh AI retry cycle (P1).
+      aiFailCount: needsNote ? 0 : current.aiFailCount,
+      flaggedTwice: needsNote ? false : current.flaggedTwice,
       updatedAt: new Date().toISOString(),
     };
     all[index] = updated;

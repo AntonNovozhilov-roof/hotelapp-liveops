@@ -1,5 +1,38 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — P1: Perfect room reference photos (ANT-45)
+
+Meta docs checked first: Muse Spark image understanding (https://dev.meta.ai/docs/image-understanding) can describe/identify objects in photos, so the item list is built from the perfect photo by `muse-spark-1.3`, then SAM 3.1 (existing wire format in `src/lib/photo-check.ts`) finds and counts those items. Fallback when the vision list is unusable: `BROAD_ROOM_ITEMS` (bed, pillow, blanket, towel, lamp, chair, table, curtain, trash bin, bottle, cup, mirror, TV, rug, sink, toilet) — one place, easy to change, never only towels/pillows.
+
+What I built: In Rooms & QR each room has "Perfect room photos": owner or supervisor uploads 1–3 photos (labels Bed area / Bathroom / Other); the AI check runs right after upload and is cached on the pending set; only pressing "Set as perfect reference" makes it active. Replacing archives the old reference (never deleted) with optional reason; per-room history shows who, when, reason. When a cleaner runs the AI check, all cleaner photos are compared with the room's active reference: only a simple verdict is shown anywhere — cleaner "✓ Looks ready" / "Not ready yet. The room looks different from the perfect photo. Check the room and take new photos." / "AI not sure…", supervisor sees perfect + latest photos side by side with Looks ready / Different from perfect photo / AI not sure. Item names, counts, confidence and score are saved on the task for the system only and were removed from the staff and supervisor screens. Retry: 1st fail blocks Send to review (button + server 409), only Retake; 2nd fail moves the task to review automatically, flagged "Failed AI check twice". Pass goes to review for one-tap Approve. Owner setting "Auto-approve cleaning when the AI is sure" (off by default, in Rooms & QR): a sure pass finishes the task at once (history event in M8); a supervisor can reopen it. No reference for the room: the old simple check runs and the screens show "No perfect photo for room N yet. Ask the owner to add one." The AI never rejects alone.
+
+Files changed:
+- `src/lib/hotel-data.ts` — reference/pending/history on rooms, auto-approve setting, `publicRoom` (item details never leave the server)
+- `src/lib/photo-check.ts` — `BROAD_ROOM_ITEMS`, Muse Spark object listing, SAM over combined photos, reference check + comparison + verdicts
+- `src/app/api/rooms/[id]/reference/route.ts`, `.../reference/photos/route.ts` — new: upload+check, remove, approve (owner/supervisor server-checked)
+- `src/app/api/rooms/route.ts`, `src/app/api/rooms/[id]/route.ts` — public room shape, auto-approve setting (Owner only)
+- `src/app/api/tasks/[id]/ai-check/route.ts` — compare with reference (or simple check), retry/auto outcomes
+- `src/lib/tasks.ts`, `src/lib/store.ts` — verdict fields, `aiFailCount`/`flaggedTwice`, `saveAiCheckOutcome`, failed check blocks review, cleaning reopen allowed
+- `src/components/RoomsBoard.tsx` — perfect photos per room (upload → check → approve, replace + history, auto-approve toggle)
+- `src/app/staff/StaffBoard.tsx`, `src/app/supervisor/SupervisorBoard.tsx`, `src/app/supervisor/page.tsx` — simple verdicts only, side-by-side photos, flag badge; item lists/scores removed
+- `docs/PROJECT_MAP.md` — P1 written down
+
+How I checked it works (LIVE, port 3100):
+- Room 205: uploaded bed-with-towels as perfect photo → checked automatically → "Set as perfect reference" → active. Cleaning task with bed-without-towels: 1st check verdict "different" (score 45 system-only), Send to review 409 → retake → same photo → 2nd fail → task auto In review, `flaggedTwice=true` → supervisor approved → Done.
+- Same room, matching photo: verdict "ready", score 100, high confidence → Send to review → Approve → Done.
+- Auto-approve on: matching task became Done at check time (`outcome=done_auto`); supervisor reopened it; setting turned off again.
+- Replace: new reference replaced the old one — old in history with uploader + reason; restored the towels reference afterwards.
+- Room 204 (no reference): simple check ran (`comparedToReference=false`) with the hint path.
+- `npm run typecheck` ok, `npm run build` ok.
+
+NOT working / NOT checked yet:
+- Screens for the retry states and the supervisor side-by-side are exercised in the browser in the final session backtest (the API states above are what those screens render).
+- Test photos: free-license samples already in `.data/test-photos/` (CC BY 2.0 / CC BY-SA 4.0, see the M5 entry) — never committed.
+- History events for reference changes land with M8/M9 (next commit in this session).
+
+AI model that helped: Muse via opencode (Meta1). Vision listing: muse-spark-1.3; counts: sam-3.1 (both LIVE).
+Linear: ANT-45, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — F1: Print-all popup + Done newest first (ANT-44)
 
 What I built: "Print all" on Rooms & QR no longer opens a new page. It opens a popup "How do you want to download?" — (1) PDF for printing: A4 sheets, 6 QR cards per page, hotel name + room number + "Scan to message the hotel" on each card; (2) All as PNG: one ZIP, one image per room, file name = room number (e.g. `205.png`). You can pick all rooms or one floor. The file downloads directly, no new tab (PDF/ZIP are built in the browser with jspdf/jszip). Done column on every board is now newest first (`sortForColumn` in `src/lib/tasks.ts`, used by the staff board columns and Finished repairs); other columns stay urgent first, then oldest, and the Done column subtitle now says "Newest first".

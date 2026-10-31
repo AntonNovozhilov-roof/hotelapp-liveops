@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Camera, Check, Sparkles, TriangleAlert } from "lucide-react";
+import { Avatar, Badge, Button, Card } from "@/components/ui";
 import {
   DEPARTMENT_LABELS,
   STAFF,
@@ -17,10 +19,16 @@ import {
 const POLL_MS = 3000;
 const STORAGE_KEY = "hotelapp-staff-name";
 
-const PRIORITY_STYLES: Record<StoredTask["priority"], string> = {
-  high: "bg-red-100 text-red-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-slate-100 text-slate-700",
+const PRIORITY_TONES: Record<StoredTask["priority"], string> = {
+  high: "dirty",
+  medium: "occ",
+  low: "neutral",
+};
+
+const PRIORITY_LABELS: Record<StoredTask["priority"], string> = {
+  high: "Urgent",
+  medium: "Soon",
+  low: "When possible",
 };
 
 const NEXT_ACTION: Partial<
@@ -236,8 +244,8 @@ export default function StaffBoard() {
 
   return (
     <div>
-      <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="font-semibold">Who are you?</h2>
+      <Card className="p-5 sm:p-6">
+        <h2 className="text-[15px] font-semibold">Who are you?</h2>
         <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-4">
           {STAFF.map((person) => {
             const isActive = person.name === staffName;
@@ -253,22 +261,27 @@ export default function StaffBoard() {
                     ? `${person.name}, ${DEPARTMENT_LABELS[person.department]}, ${newCount} new tasks`
                     : `${person.name}, ${DEPARTMENT_LABELS[person.department]}`
                 }
-                className={`relative rounded-xl border px-4 py-3 text-left font-semibold ${
+                className={`relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
                   isActive
-                    ? "border-teal-700 bg-teal-700 text-white"
-                    : "border-slate-300 bg-white text-slate-800 hover:border-teal-600"
+                    ? "border-brand-700 bg-brand-700 text-white shadow-card"
+                    : "border-line bg-white text-ink hover:border-brand-500"
                 }`}
               >
-                {person.name}
-                <span
-                  className={`block text-sm font-normal ${
-                    isActive ? "text-teal-50" : "text-slate-500"
-                  }`}
-                >
-                  {DEPARTMENT_LABELS[person.department]}
+                <Avatar name={person.name} role={person.department} size={34} />
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold leading-tight">
+                    {person.name}
+                  </span>
+                  <span
+                    className={`block text-[12.5px] ${
+                      isActive ? "text-brand-100/80" : "text-ink-3"
+                    }`}
+                  >
+                    {DEPARTMENT_LABELS[person.department]}
+                  </span>
                 </span>
                 {newCount > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white shadow">
+                  <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-dirty px-1.5 text-xs font-bold text-white shadow-pop">
                     {newCount}
                   </span>
                 )}
@@ -276,16 +289,16 @@ export default function StaffBoard() {
             );
           })}
         </div>
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-[13px] text-ink-3">
           Showing only {DEPARTMENT_LABELS[member.department]} tasks for{" "}
           {member.name}. New tasks appear automatically.
         </p>
-      </section>
+      </Card>
 
       {error && (
         <div
           role="alert"
-          className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800"
+          className="mt-5 rounded-xl bg-dirty-soft px-3.5 py-3 text-[13.5px] text-dirty-deep"
         >
           {error}
         </div>
@@ -298,27 +311,27 @@ export default function StaffBoard() {
           return (
             <section
               key={status}
-              className={`rounded-3xl p-3 sm:p-4 ${
+              className={`rounded-xl2 border p-3 sm:p-3.5 ${
                 isReview
-                  ? "bg-amber-100 ring-2 ring-amber-400"
-                  : "bg-slate-200/60"
+                  ? "border-insp/40 bg-insp-soft ring-2 ring-insp/20"
+                  : "border-line bg-line-2/70"
               }`}
               aria-label={STATUS_LABELS[status]}
             >
-              <h3 className="flex items-center justify-between px-1 font-bold">
+              <h3 className="flex items-center justify-between px-1 text-[14px] font-semibold">
                 {STATUS_LABELS[status]}
-                <span className="rounded-full bg-white px-2.5 py-0.5 text-sm">
+                <span className="rounded-full bg-white px-2.5 py-0.5 text-[12.5px] font-semibold tabular-nums ring-1 ring-line">
                   {columnTasks.length}
                 </span>
               </h3>
               {isReview && (
-                <p className="mt-1 px-1 text-sm font-semibold text-amber-900">
+                <p className="mt-1 px-1 text-[12.5px] font-semibold text-insp-deep">
                   Waiting for supervisor
                 </p>
               )}
 
               {columnTasks.length === 0 ? (
-                <p className="mt-3 rounded-2xl bg-white/70 p-3 text-sm text-slate-500">
+                <p className="mt-3 rounded-xl bg-white/70 p-3 text-[13px] text-ink-4">
                   No tasks
                 </p>
               ) : (
@@ -326,33 +339,31 @@ export default function StaffBoard() {
                   {columnTasks.map((task) => {
                     const action = NEXT_ACTION[task.status];
                     return (
-                      <li
-                        key={task.id}
-                        className="rounded-2xl bg-white p-4 shadow-sm"
-                      >
-                        <p className="text-sm font-bold text-teal-800">
+                      <li key={task.id}>
+                        <Card className="p-4">
+                        <p className="font-display text-[13px] font-semibold text-brand-700">
                           Room {task.room}
                         </p>
-                        <p className="mt-1 font-semibold">{task.title}</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${PRIORITY_STYLES[task.priority]}`}
-                          >
-                            {task.priority}
-                          </span>
+                        <p className="mt-1 text-[14.5px] font-semibold leading-snug">
+                          {task.title}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-3">
+                          <Badge tone={PRIORITY_TONES[task.priority]} dot>
+                            {PRIORITY_LABELS[task.priority]}
+                          </Badge>
                           <span>{timeAgo(task.createdAt)}</span>
                         </div>
                         {task.status === "review" && (
-                          <p className="mt-3 rounded-xl bg-amber-100 px-3 py-2 text-sm font-bold text-amber-900">
+                          <p className="mt-3 rounded-xl bg-insp-soft px-3 py-2 text-[13px] font-semibold text-insp-deep">
                             In review — waiting for supervisor
                           </p>
                         )}
                         {task.reviewNote && task.status !== "review" && (
                           <div
                             role="note"
-                            className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                            className="mt-3 rounded-xl bg-occ-soft px-3 py-2 text-[13px] text-occ-deep"
                           >
-                            <span className="font-bold">
+                            <span className="font-semibold">
                               Sent back by supervisor:
                             </span>{" "}
                             {task.reviewNote}
@@ -360,8 +371,8 @@ export default function StaffBoard() {
                         )}
                         {(task.status === "in_progress" ||
                           task.photos.length > 0) && (
-                          <div className="mt-3 border-t border-slate-100 pt-3">
-                            <p className="text-sm font-semibold text-slate-700">
+                          <div className="mt-3 border-t border-line-2 pt-3">
+                            <p className="text-[13px] font-semibold text-ink-2">
                               Photos ({task.photos.length}/3)
                             </p>
                             {task.photos.length > 0 && (
@@ -378,7 +389,7 @@ export default function StaffBoard() {
                                       <img
                                         src={photo.url}
                                         alt="Task photo"
-                                        className="aspect-square w-full rounded-lg object-cover"
+                                        className="aspect-square w-full rounded-xl border border-line object-cover"
                                       />
                                     </a>
                                     {task.status === "in_progress" && (
@@ -389,7 +400,7 @@ export default function StaffBoard() {
                                         }
                                         disabled={photoBusyId === task.id}
                                         aria-label="Delete photo"
-                                        className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white shadow disabled:opacity-50"
+                                        className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-sm font-bold text-white shadow-pop disabled:opacity-50"
                                       >
                                         ×
                                       </button>
@@ -401,12 +412,13 @@ export default function StaffBoard() {
                             {task.status === "in_progress" &&
                               (task.photos.length < 3 ? (
                                 <label
-                                  className={`mt-2 block w-full cursor-pointer rounded-xl border border-teal-700 px-4 py-2.5 text-center font-semibold text-teal-800 hover:bg-teal-50 ${
+                                  className={`mt-2 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink transition hover:border-brand-500 hover:bg-brand-50 ${
                                     photoBusyId === task.id
                                       ? "pointer-events-none opacity-50"
                                       : ""
                                   }`}
                                 >
+                                  <Camera className="size-4 text-brand-700" />
                                   {photoBusyId === task.id
                                     ? "Saving photo..."
                                     : "Add photo"}
@@ -423,28 +435,30 @@ export default function StaffBoard() {
                                   />
                                 </label>
                               ) : (
-                                <p className="mt-2 text-sm text-slate-500">
+                                <p className="mt-2 text-[12.5px] text-ink-4">
                                   Max 3 photos. Delete one to add another.
                                 </p>
                               ))}
                           </div>
                         )}
                         {(task.photos.length > 0 || task.aiCheck) && (
-                          <div className="mt-3 border-t border-slate-100 pt-3">
-                            <p className="text-sm font-semibold text-slate-700">
+                          <div className="mt-3 border-t border-line-2 pt-3">
+                            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">
+                              <Sparkles className="size-4 text-brand-600" />
                               AI photo check
                             </p>
                             {task.aiCheck ? (
-                              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                                <p className="font-bold text-slate-800">
-                                  Score: {task.aiCheck.score}/100
+                              <div className="mt-2 rounded-xl bg-canvas px-3 py-2.5 text-[13px] text-ink-2">
+                                <p className="flex flex-wrap items-center gap-2">
+                                  <span className="font-display text-[20px] font-semibold text-ink">
+                                    {task.aiCheck.score}
+                                  </span>
+                                  <span className="text-ink-3">/ 100</span>
                                   {task.aiCheck.mode === "MOCK" && (
-                                    <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900">
-                                      MOCK
-                                    </span>
+                                    <Badge tone="occ">MOCK</Badge>
                                   )}
                                 </p>
-                                <p className="mt-0.5 text-xs text-slate-500">
+                                <p className="mt-0.5 text-[11.5px] text-ink-4">
                                   Model: {task.aiCheck.model}. This check
                                   only helps the supervisor — it never
                                   approves the task.
@@ -453,7 +467,7 @@ export default function StaffBoard() {
                                   {task.aiCheck.checks.map((check) => (
                                     <li key={check.key}>
                                       {check.label}:{" "}
-                                      <span className="font-semibold">
+                                      <span className="font-semibold text-ink">
                                         {check.status === "found"
                                           ? "Found"
                                           : check.status === "not_found"
@@ -466,70 +480,83 @@ export default function StaffBoard() {
                                   ))}
                                 </ul>
                                 {task.aiCheck.issues.length > 0 ? (
-                                  <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
-                                    {task.aiCheck.issues.map((issue) => (
-                                      <li key={issue}>{issue}</li>
-                                    ))}
-                                  </ul>
+                                  <div className="mt-2.5 rounded-xl bg-dirty-soft px-3 py-2.5 text-dirty-deep">
+                                    <p className="flex items-center gap-1.5 text-[13px] font-semibold">
+                                      <TriangleAlert className="size-4" />
+                                      AI noticed:
+                                    </p>
+                                    <ul className="mt-1 list-disc space-y-1 pl-5 text-[13px]">
+                                      {task.aiCheck.issues.map((issue) => (
+                                        <li key={issue}>{issue}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
                                 ) : (
-                                  <p className="mt-2 text-emerald-800">
+                                  <p className="mt-2.5 flex items-center gap-2 rounded-xl bg-ready-soft px-3 py-2.5 text-[13px] font-semibold text-ready-deep">
+                                    <Check className="size-4" />
                                     No problems found in the photo.
                                   </p>
                                 )}
                               </div>
                             ) : (
-                              <p className="mt-1 text-sm text-slate-500">
+                              <p className="mt-1 text-[12.5px] text-ink-4">
                                 Not checked yet.
                               </p>
                             )}
                             {(task.status === "in_progress" ||
                               task.status === "review") &&
                               task.photos.length > 0 && (
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="secondary"
+                                  loading={aiBusyId === task.id}
+                                  icon={
+                                    aiBusyId === task.id ? undefined : (
+                                      <Sparkles className="size-4 text-brand-700" />
+                                    )
+                                  }
                                   onClick={() => void runAiCheck(task)}
-                                  disabled={aiBusyId === task.id}
-                                  className="mt-2 w-full rounded-xl border border-teal-700 px-4 py-2.5 font-semibold text-teal-800 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="mt-2 w-full"
                                 >
                                   {aiBusyId === task.id
                                     ? "Checking photo..."
                                     : task.aiCheck
                                       ? "Run AI photo check again"
                                       : "Run AI photo check"}
-                                </button>
+                                </Button>
                               )}
                           </div>
                         )}
                         {action ? (
                           <>
-                            <button
-                              type="button"
+                            <Button
+                              size="lg"
+                              loading={busyId === task.id}
                               onClick={() => void moveTask(task)}
                               disabled={
-                                busyId === task.id ||
-                                (task.status === "in_progress" &&
-                                  task.photos.length === 0)
+                                task.status === "in_progress" &&
+                                task.photos.length === 0
                               }
-                              className="mt-3 w-full rounded-xl bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="mt-3 w-full"
                             >
                               {busyId === task.id ? "Saving..." : action.label}
-                            </button>
+                            </Button>
                             {task.status === "in_progress" &&
                               task.photos.length === 0 && (
-                                <p className="mt-2 text-sm text-slate-500">
+                                <p className="mt-2 text-[12.5px] text-ink-4">
                                   Add at least 1 photo to send to review.
                                 </p>
                               )}
                           </>
                         ) : task.status === "review" ? (
-                          <p className="mt-3 text-sm font-semibold text-amber-800">
+                          <p className="mt-3 text-[13px] font-semibold text-insp-deep">
                             Waiting for supervisor
                           </p>
                         ) : (
-                          <p className="mt-3 text-sm font-semibold text-emerald-700">
-                            Done ✓
+                          <p className="mt-3 flex items-center gap-1.5 text-[13px] font-semibold text-ready-deep">
+                            <Check className="size-4" /> Done
                           </p>
                         )}
+                        </Card>
                       </li>
                     );
                   })}
@@ -544,7 +571,7 @@ export default function StaffBoard() {
         <button
           type="button"
           onClick={() => void resetDemoData()}
-          className="text-sm text-slate-500 underline underline-offset-4 hover:text-red-700"
+          className="text-[13px] text-ink-4 underline underline-offset-4 hover:text-dirty-deep"
         >
           Reset demo data
         </button>

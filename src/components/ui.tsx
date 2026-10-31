@@ -1,0 +1,298 @@
+"use client";
+
+import React, { useState } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+
+/**
+ * Shared UI ported from our earlier v1.2 prototype
+ * (hotelapp-v1.2/src/components/ui/index.tsx) — D1 / ANT-37.
+ * Same look (colors, sizes, radii, shadows); only the pieces this app
+ * uses, without the v1.2 fake-data store. Icons: lucide-react, as in v1.2.
+ */
+
+export function cx(...parts: Array<string | false | null | undefined>): string {
+  return parts.filter(Boolean).join(" ");
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+// ---------- Button ----------
+type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "dark";
+  size?: "sm" | "md" | "lg";
+  loading?: boolean;
+  icon?: React.ReactNode;
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  loading,
+  icon,
+  className,
+  children,
+  disabled,
+  ...rest
+}: BtnProps) {
+  const v = {
+    primary:
+      "bg-brand-700 text-white hover:bg-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,.12)]",
+    dark: "bg-ink text-white hover:bg-ink-2",
+    secondary: "bg-white text-ink border border-line hover:border-ink-4 hover:bg-canvas",
+    ghost: "text-ink-2 hover:bg-ink/5",
+    danger: "bg-white text-dirty-deep border border-dirty/30 hover:bg-dirty-soft",
+  }[variant];
+  const s = {
+    sm: "h-8 px-3 text-[13px] gap-1.5 rounded-lg",
+    md: "h-10 px-4 text-sm gap-2 rounded-lg",
+    lg: "h-12 px-5 text-[15px] gap-2 rounded-xl",
+  }[size];
+  return (
+    <button
+      {...rest}
+      disabled={disabled || loading}
+      className={cx(
+        "inline-flex items-center justify-center font-semibold whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:shadow-ring",
+        v,
+        s,
+        className,
+      )}
+    >
+      {loading ? <Loader2 className="size-4 animate-spin" /> : icon}
+      {children}
+    </button>
+  );
+}
+
+// ---------- Form ----------
+export function Field({
+  label,
+  hint,
+  error,
+  children,
+  className,
+}: {
+  label: string;
+  hint?: React.ReactNode;
+  error?: string | null;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cx("block", className)}>
+      <span className="block text-[13px] font-semibold text-ink-2 mb-1.5">{label}</span>
+      {children}
+      {error ? (
+        <span className="block text-[12.5px] text-dirty-deep mt-1.5">{error}</span>
+      ) : hint ? (
+        <span className="block text-[12.5px] text-ink-3 mt-1.5">{hint}</span>
+      ) : null}
+    </label>
+  );
+}
+
+const inputCls =
+  "w-full h-10 px-3 rounded-lg border border-line bg-white text-sm text-ink placeholder:text-ink-4 transition focus:outline-none focus:border-brand-500 focus:shadow-ring aria-[invalid=true]:border-dirty";
+
+export const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, ...p }, ref) => (
+  <input ref={ref} {...p} className={cx(inputCls, className)} />
+));
+Input.displayName = "Input";
+
+export function PasswordInput(p: React.InputHTMLAttributes<HTMLInputElement>) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input {...p} type={show ? "text" : "password"} className={cx(inputCls, "pr-10", p.className)} />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-7 grid place-items-center rounded-md text-ink-4 hover:text-ink"
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
+  );
+}
+
+export const Textarea = ({
+  className,
+  ...p
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+  <textarea {...p} className={cx(inputCls, "h-auto py-2.5 min-h-[88px] resize-y", className)} />
+);
+
+// ---------- Display ----------
+export function Card({
+  className,
+  children,
+  ...p
+}: React.HTMLAttributes<HTMLDivElement>) {
+  const c = className || "";
+  const bg = /(^|\s)bg-/.test(c) ? "" : "bg-white";
+  return (
+    <div {...p} className={cx(bg, "border border-line rounded-xl2 shadow-card", c)}>
+      {children}
+    </div>
+  );
+}
+
+export function CardHead({
+  title,
+  sub,
+  action,
+  className,
+}: {
+  title: React.ReactNode;
+  sub?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cx("flex items-start justify-between gap-3 px-5 pt-4 pb-3", className)}>
+      <div className="min-w-0">
+        <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+        {sub && <p className="text-[13px] text-ink-3 mt-0.5">{sub}</p>}
+      </div>
+      {action && <div className="shrink-0 flex items-center gap-2">{action}</div>}
+    </div>
+  );
+}
+
+const TONES: Record<string, string> = {
+  neutral: "bg-canvas text-ink-2 ring-line",
+  brand: "bg-brand-50 text-brand-700 ring-brand-100",
+  brass: "bg-brass-soft text-brass-deep ring-brass/25",
+  occ: "bg-occ-soft text-occ-deep ring-occ/25",
+  ready: "bg-ready-soft text-ready-deep ring-ready/25",
+  dirty: "bg-dirty-soft text-dirty-deep ring-dirty/25",
+  clean: "bg-clean-soft text-clean-deep ring-clean/25",
+  insp: "bg-insp-soft text-insp-deep ring-insp/25",
+  ooo: "bg-ooo-soft text-ooo-deep ring-ooo/25",
+};
+
+export type BadgeTone = keyof typeof TONES;
+
+export function Badge({
+  tone = "neutral",
+  dot,
+  children,
+  className,
+}: {
+  tone?: string;
+  dot?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center gap-1.5 h-[22px] px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap",
+        TONES[tone] || TONES.neutral,
+        className,
+      )}
+    >
+      {dot && <span className="size-1.5 rounded-full bg-current" />}
+      {children}
+    </span>
+  );
+}
+
+/** Role colors from the v1.2 prototype (ROLE_HUE), keyed by our role/department names. */
+const ROLE_HUE: Record<string, string> = {
+  owner: "#0B434C",
+  supervisor: "#5A3DB8",
+  housekeeping: "#12704A",
+  cleaner: "#12704A",
+  maintenance: "#A9253D",
+  front_desk: "#14808F",
+  frontdesk: "#14808F",
+  room_service: "#B4436B",
+  roomservice: "#B4436B",
+};
+
+export const roleHue = (role: string) => ROLE_HUE[role] || "#465160";
+
+export function Avatar({
+  name,
+  role,
+  size = 32,
+  className,
+}: {
+  name: string;
+  role?: string;
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cx("inline-grid place-items-center shrink-0 rounded-full text-white font-semibold", className)}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.38,
+        background: role ? roleHue(role) : "#465160",
+      }}
+      aria-hidden
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+export function Empty({
+  title,
+  text,
+  action,
+}: {
+  title: string;
+  text?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center text-center px-6 py-10">
+      <p className="font-semibold text-ink">{title}</p>
+      {text && <p className="text-sm text-ink-3 mt-1 max-w-sm">{text}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+// ---------- Brand (same mark as the v1.2 prototype) ----------
+export function Logo({ light, small }: { light?: boolean; small?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <svg width={small ? 26 : 30} height={small ? 26 : 30} viewBox="0 0 32 32" aria-hidden>
+        <rect width="32" height="32" rx="8" fill={light ? "#fff" : "#0B434C"} />
+        <path
+          d="M9 24V11l7-4 7 4v13"
+          fill="none"
+          stroke={light ? "#0B434C" : "#fff"}
+          strokeWidth="2.2"
+          strokeLinejoin="round"
+        />
+        <rect x="13.5" y="16" width="5" height="8" rx="1.5" fill="#E5A00D" />
+      </svg>
+      <span
+        className={cx(
+          "font-display font-semibold tracking-[-0.01em]",
+          small ? "text-[16px]" : "text-[18px]",
+          light ? "text-white" : "text-ink",
+        )}
+      >
+        HotelApp
+      </span>
+    </span>
+  );
+}

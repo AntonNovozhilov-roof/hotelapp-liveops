@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/instrument-sans";
+import "@fontsource-variable/bricolage-grotesque";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +13,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-slate-100 font-sans text-slate-900 antialiased">
+      <body className="min-h-screen bg-canvas font-sans text-ink antialiased">
         {children}
       </body>
     </html>

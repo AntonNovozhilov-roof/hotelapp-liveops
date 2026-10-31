@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Mic, Send } from "lucide-react";
+import { Badge, Button, Card, Textarea } from "@/components/ui";
 import {
   DEPARTMENT_LABELS,
   type MessageMode,
@@ -12,15 +14,12 @@ const POLL_MS = 3000;
 const MAX_RECORD_SECONDS = 45;
 
 /** Simple words for the guest. In review still shows "On the way": Done only after supervisor approval. */
-const GUEST_STATUS: Record<
-  TaskStatus,
-  { label: string; style: string }
-> = {
-  new: { label: "Received", style: "bg-sky-100 text-sky-800" },
-  accepted: { label: "Received", style: "bg-sky-100 text-sky-800" },
-  in_progress: { label: "On the way", style: "bg-amber-100 text-amber-900" },
-  review: { label: "On the way", style: "bg-amber-100 text-amber-900" },
-  done: { label: "Done", style: "bg-emerald-100 text-emerald-800" },
+const GUEST_STATUS: Record<TaskStatus, { label: string; tone: string }> = {
+  new: { label: "Received", tone: "brand" },
+  accepted: { label: "Received", tone: "brand" },
+  in_progress: { label: "On the way", tone: "occ" },
+  review: { label: "On the way", tone: "occ" },
+  done: { label: "Done", tone: "ready" },
 };
 
 interface Heard {
@@ -331,76 +330,79 @@ export default function GuestForm({ room }: { room: string }) {
 
   return (
     <div>
-      <form onSubmit={handleSend} className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
-        <label htmlFor="guest-message" className="font-semibold">
-          What do you need?
-        </label>
-        {voiceReady && (
-          <p className="mt-3 rounded-xl bg-teal-50 px-4 py-3 font-semibold text-teal-900">
-            Check the text and fix it if needed, then press Send.
+      <Card className="p-5">
+        <form onSubmit={handleSend}>
+          <label htmlFor="guest-message" className="text-[15px] font-semibold text-ink">
+            What do you need?
+          </label>
+          {voiceReady && (
+            <p className="mt-3 rounded-xl bg-brand-50 px-3.5 py-3 text-[13.5px] font-semibold text-brand-800">
+              Check the text and fix it if needed, then press Send.
+            </p>
+          )}
+          <Textarea
+            id="guest-message"
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            rows={4}
+            maxLength={2000}
+            placeholder="Example: There is a leak in the bathroom and please bring towels"
+            className="mt-3 text-[15px]"
+          />
+          <div className="mt-4 flex gap-2">
+            <Button
+              type="button"
+              size="lg"
+              variant={isRecording ? "danger" : "dark"}
+              onClick={() => void toggleRecording()}
+              disabled={isTranscribing || isSending}
+              aria-pressed={isRecording}
+              icon={<Mic className="size-4" />}
+            >
+              {isRecording ? "Stop" : isTranscribing ? "Listening..." : "Mic"}
+            </Button>
+            <Button
+              type="submit"
+              size="lg"
+              loading={isSending}
+              disabled={isRecording || !message.trim()}
+              icon={isSending ? undefined : <Send className="size-4" />}
+              className="flex-1"
+            >
+              {isSending ? "Sending..." : "Send"}
+            </Button>
+          </div>
+          {isRecording && (
+            <p aria-live="polite" className="mt-3 text-center text-[13.5px] font-semibold text-dirty-deep">
+              Recording… {formatSeconds(recordingSeconds)} /{" "}
+              {formatSeconds(MAX_RECORD_SECONDS)}
+            </p>
+          )}
+          {isTranscribing && (
+            <p aria-live="polite" className="mt-3 text-center text-[13.5px] text-ink-3">
+              Turning your voice into text...
+            </p>
+          )}
+          <p className="mt-3 text-center text-[12.5px] text-ink-4">
+            Press Mic, speak, press Stop. Or type. One message can create more
+            than one task.
           </p>
-        )}
-        <textarea
-          id="guest-message"
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          rows={4}
-          maxLength={2000}
-          placeholder="Example: There is a leak in the bathroom and please bring towels"
-          className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-base outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-        />
-        <div className="mt-4 flex gap-3">
-          <button
-            type="button"
-            onClick={() => void toggleRecording()}
-            disabled={isTranscribing || isSending}
-            aria-pressed={isRecording}
-            className={`shrink-0 rounded-xl px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
-              isRecording
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-slate-700 hover:bg-slate-800"
-            }`}
-          >
-            {isRecording ? "Stop" : isTranscribing ? "Listening..." : "Mic"}
-          </button>
-          <button
-            type="submit"
-            disabled={isSending || isRecording || !message.trim()}
-            className="flex-1 rounded-xl bg-teal-700 px-6 py-3 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSending ? "Sending..." : "Send"}
-          </button>
-        </div>
-        {isRecording && (
-          <p aria-live="polite" className="mt-3 text-center font-semibold text-red-700">
-            Recording… {formatSeconds(recordingSeconds)} /{" "}
-            {formatSeconds(MAX_RECORD_SECONDS)}
-          </p>
-        )}
-        {isTranscribing && (
-          <p aria-live="polite" className="mt-3 text-center text-slate-600">
-            Turning your voice into text...
-          </p>
-        )}
-        <p className="mt-3 text-center text-sm text-slate-500">
-          Press Mic, speak, press Stop. Or type. One message can create more
-          than one task.
-        </p>
-      </form>
+        </form>
+      </Card>
 
       {voiceError && (
         <div
           role="alert"
-          className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900"
+          className="mt-4 rounded-xl bg-occ-soft px-3.5 py-3 text-[13.5px] text-occ-deep"
         >
           {voiceError}
         </div>
       )}
 
       {heard && (
-        <div className="mt-5 rounded-2xl border border-teal-200 bg-teal-50 p-4">
-          <p className="font-semibold">We heard: {heard.transcript}</p>
-          <p className="mt-1 text-sm text-slate-600">
+        <div className="mt-4 rounded-xl bg-brand-50 ring-1 ring-brand-100 px-3.5 py-3">
+          <p className="text-[14px] font-semibold text-ink">We heard: {heard.transcript}</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">
             Language: {heard.language}
           </p>
         </div>
@@ -409,7 +411,7 @@ export default function GuestForm({ room }: { room: string }) {
       {error && (
         <div
           role="alert"
-          className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800"
+          className="mt-4 rounded-xl bg-dirty-soft px-3.5 py-3 text-[13.5px] text-dirty-deep"
         >
           {error}
         </div>
@@ -417,46 +419,35 @@ export default function GuestForm({ room }: { room: string }) {
 
       {sentTasks.length > 0 && (
         <section aria-live="polite" className="mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold">Sent</h2>
-            {lastMode === "MOCK" && (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
-                MOCK
-              </span>
-            )}
-            {lastMode === "LIVE" && (
-              <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-bold text-teal-900">
-                LIVE AI
-              </span>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <h2 className="font-display text-[17px] font-semibold">Sent</h2>
+            {lastMode === "MOCK" && <Badge tone="occ">MOCK</Badge>}
+            {lastMode === "LIVE" && <Badge tone="brand">LIVE AI</Badge>}
           </div>
 
           {lastMode === "MOCK" && (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 px-1 text-[12.5px] text-ink-3">
               MOCK means: no AI key is set on the server, so these are fake
               example tasks. Tasks are still saved and staff can work on
               them.
             </p>
           )}
 
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-3 space-y-2">
             {sentTasks.map((task) => (
-              <li
-                key={task.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white p-4 shadow-sm"
-              >
-                <p className="font-semibold">
-                  Sent to {DEPARTMENT_LABELS[task.department]}: {task.title}
-                </p>
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${GUEST_STATUS[task.status].style}`}
-                >
-                  {GUEST_STATUS[task.status].label}
-                </span>
+              <li key={task.id}>
+                <Card className="flex flex-wrap items-center justify-between gap-2 p-4">
+                  <p className="text-[14px] font-semibold">
+                    Sent to {DEPARTMENT_LABELS[task.department]}: {task.title}
+                  </p>
+                  <Badge tone={GUEST_STATUS[task.status].tone} dot>
+                    {GUEST_STATUS[task.status].label}
+                  </Badge>
+                </Card>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-center text-xs text-slate-500">
+          <p className="mt-3 text-center text-[11.5px] text-ink-4">
             Status updates automatically every few seconds.
           </p>
         </section>

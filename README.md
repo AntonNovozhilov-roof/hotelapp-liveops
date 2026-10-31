@@ -2,6 +2,10 @@
 
 AI operations layer for hotels: guest voice messages and staff photos become routed, verified tasks. And More. Meta AI Hackathon 2026.
 
+> Look and feel: the design (colors, fonts, buttons, cards, badges) is
+> ported from our earlier v1.2 prototype. Shared pieces live in
+> `src/components/ui.tsx`; color/font tokens live in `src/app/globals.css`.
+
 ## What works today
 
 - `/r/204` — guest page for room 204: write a request, press Send.

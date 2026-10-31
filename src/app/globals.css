@@ -1,1 +1,102 @@
 @import "tailwindcss";
+
+/**
+ * Design tokens ported from our earlier v1.2 prototype
+ * (hotelapp-v1.2/tailwind.config.js + src/index.css) — D1 / ANT-37.
+ * Same colors, fonts, shadows and card radius; expressed as Tailwind v4
+ * @theme tokens because this app stays on Next.js + Tailwind v4.
+ */
+@theme {
+  --font-sans: "Instrument Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Instrument Sans Variable", system-ui, sans-serif;
+
+  --color-canvas: #f4f5f7;
+  --color-ink: #0f1b2a;
+  --color-ink-2: #334155;
+  --color-ink-3: #5b6676;
+  --color-ink-4: #8d97a5;
+  --color-line: #e3e6eb;
+  --color-line-2: #eef0f3;
+
+  --color-brand-50: #eaf5f6;
+  --color-brand-100: #cde8eb;
+  --color-brand-200: #9fd1d8;
+  --color-brand-400: #2e9aa8;
+  --color-brand-500: #14808f;
+  --color-brand-600: #0f6b78;
+  --color-brand-700: #0c5560;
+  --color-brand-800: #0b434c;
+  --color-brand-900: #0a2e36;
+  --color-brand-950: #071f25;
+
+  --color-brass: #c8862a;
+  --color-brass-soft: #fbf1e1;
+  --color-brass-deep: #8f5e17;
+
+  --color-occ: #e5a00d;
+  --color-occ-soft: #fdf3da;
+  --color-occ-deep: #8a5d00;
+  --color-ready: #1e9e6a;
+  --color-ready-soft: #e2f4eb;
+  --color-ready-deep: #12704a;
+  --color-dirty: #df4560;
+  --color-dirty-soft: #fce8ec;
+  --color-dirty-deep: #a9253d;
+  --color-clean: #2f7fd8;
+  --color-clean-soft: #e4effc;
+  --color-clean-deep: #1e5ca3;
+  --color-insp: #7c5ce0;
+  --color-insp-soft: #eee9fc;
+  --color-insp-deep: #5a3db8;
+  --color-ooo: #6b7684;
+  --color-ooo-soft: #eceef1;
+  --color-ooo-deep: #465160;
+
+  --shadow-card: 0 1px 2px rgba(15, 27, 42, 0.04), 0 1px 1px rgba(15, 27, 42, 0.03);
+  --shadow-pop: 0 12px 32px -8px rgba(15, 27, 42, 0.22), 0 2px 6px rgba(15, 27, 42, 0.08);
+  --shadow-ring: 0 0 0 4px rgba(20, 128, 143, 0.15);
+
+  --radius-xl2: 14px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-size: 14px;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    background: #cde8eb;
+  }
+  :focus-visible {
+    outline: none;
+  }
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:focus-visible {
+    box-shadow: 0 0 0 3px rgba(20, 128, 143, 0.35);
+    border-radius: 8px;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

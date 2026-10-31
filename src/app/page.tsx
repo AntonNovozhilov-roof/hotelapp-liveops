@@ -1,32 +1,33 @@
 import Link from "next/link";
+import { Button, Card, Logo } from "@/components/ui";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center px-5 py-10">
-      <div className="w-full rounded-3xl bg-white p-8 text-center shadow-sm">
-        <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">
-          HotelApp LiveOps
-        </p>
-        <h1 className="mt-3 text-3xl font-bold">Guest requests, routed by AI</h1>
-        <p className="mt-3 text-slate-600">
+    <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center px-4 py-10">
+      <Card className="w-full p-6 text-center sm:p-8">
+        <div className="flex justify-center">
+          <Logo />
+        </div>
+        <h1 className="mt-4 font-display text-[28px] font-semibold leading-tight tracking-[-0.01em]">
+          Guest requests, routed by AI
+        </h1>
+        <p className="mt-2 text-[14px] text-ink-3">
           Demo start page. In the hotel, each room has a QR code that opens its
           own guest page.
         </p>
-        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-          <Link
-            href="/r/204"
-            className="inline-block rounded-xl bg-teal-700 px-6 py-3 font-semibold text-white hover:bg-teal-800"
-          >
-            Open Room 204 guest page
+        <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+          <Link href="/r/204">
+            <Button size="lg" className="w-full sm:w-auto">
+              Open Room 204 guest page
+            </Button>
           </Link>
-          <Link
-            href="/staff"
-            className="inline-block rounded-xl border border-teal-700 px-6 py-3 font-semibold text-teal-800 hover:bg-teal-50"
-          >
-            Open staff screen
+          <Link href="/staff">
+            <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+              Open staff screen
+            </Button>
           </Link>
         </div>
-      </div>
+      </Card>
     </main>
   );
 }

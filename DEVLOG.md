@@ -1,5 +1,44 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — v1.2 look for guest and staff screens (ANT-37 / D1)
+
+The design is ported from our earlier v1.2 prototype (`/Users/batyr/Documents/hotelapp/hotelapp-v1.2`, read only — nothing changed there). Plan change first: Linear D1 (ANT-37) and D2 (ANT-38) were created as High-priority sub-issues of ANT-5, and `docs/PROJECT_MAP.md` now orders M5 → D1 → D2 → M6 → M7 → M8 → M9 → M10 (then M2 → M11 → M12).
+
+What I built (simple words): The app now looks like the v1.2 design. Deep-teal brand color, brass/amber accent, one color per status, Instrument Sans for text and Bricolage Grotesque for headings (the same bundled font packages the v1.2 prototype uses), and the same buttons, cards, badges, avatars and logo. The guest page got the v1.2 phone look: dark-teal header with "Welcome / Room 204 / How can we help?" and a white card over it; on desktop it sits in a centered phone-width frame. The staff board uses the same cards, badges (Urgent/Soon/When possible, status colors), avatars with the v1.2 role colors, the dark AI-issues box and green "no problems" box from the v1.2 cleaner screen. Same features as before — nothing removed: guest text + voice, task confirmations, staff picker, photos, AI photo check, Send to review all work exactly as before. This app stays Next.js; no v1.2 pages with fake data were copied.
+
+Files changed:
+- `docs/PROJECT_MAP.md` — new order M5 → D1 → D2 → M6… with D1/D2 rows (ANT-37/ANT-38)
+- `src/app/globals.css` — v1.2 design tokens as Tailwind v4 `@theme` (brand/ink/line/status colors, fonts, card/pop/ring shadows, 14px card radius) + base styles from v1.2 `src/index.css`
+- `src/components/ui.tsx` — new: shared components ported from v1.2 `src/components/ui/index.tsx` (Button, Field/Input/PasswordInput/Textarea, Card/CardHead, Badge with the v1.2 tones, Avatar with v1.2 role colors, Logo — the same logo mark)
+- `src/app/layout.tsx` — loads the two bundled variable fonts, canvas/ink body colors
+- `package.json`, `package-lock.json` — `@fontsource-variable/instrument-sans`, `@fontsource-variable/bricolage-grotesque`, `lucide-react` (same packages as v1.2)
+- `src/app/r/[room]/page.tsx` — v1.2 guest frame + brand-950 header
+- `src/app/r/[room]/GuestForm.tsx` — form in a v1.2 Card, shared Textarea/Button (Mic dark button with icon, Send primary), status Badges, soft alert boxes
+- `src/app/staff/page.tsx` — Logo header in the v1.2 style
+- `src/app/staff/StaffBoard.tsx` — picker Cards with Avatars + red new-task badges, status columns (review column in the v1.2 inspection purple), task Cards with priority Badges, photo/AI blocks in v1.2 tones, shared Buttons
+- `src/app/page.tsx` — home page uses Logo/Card/Buttons
+- `README.md` — design-port note
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-37 (D1) — taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment. ANT-38 (D2) created Todo for the next step.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok.
+- Browser on /r/204 (production server, port 3100): page text shows the v1.2 header; computed styles prove the fonts really load (body "Instrument Sans Variable", heading "Bricolage Grotesque Variable") and Send uses brand-700 `#0C5560`. Sent "There is a leak in the bathroom and please bring towels" through the page: LIVE AI created both tasks, confirmations show "Received" badges, no console errors. (One first load hit a stale-server chunk error because an old server from the previous session still held port 3100; after restarting on the new build everything loads clean.)
+- Browser on /staff: picker shows Avatars/role colors, the active person (Aigerim, from the saved picker choice) has the brand-700 background, red new-task badges show, the started housekeeping task still shows Photos (1/3), "AI photo check / Not checked yet / Run AI photo check" and "Send to review" — photos, AI check and review features intact in the new look. No console errors.
+- Responsive: at a true 375px and 1440px width (measured in frames) both /r/204 and /staff have no sideways scroll (`scrollWidth` = width). Guest screenshot at phone width and staff screenshot look like the v1.2 design.
+- Test data cleaned up afterwards: the 2 tasks created by the browser test were removed and the pre-existing saved tasks restored untouched (`.data` is git-ignored).
+
+NOT working / NOT checked yet:
+- D2 (sign-in and role screens) is not built yet — /staff still uses the "Who are you?" picker in this commit. That is the next step (ANT-38), a separate commit.
+- Voice was not re-recorded in this step (the Mic button and flow are unchanged code, only restyled); a real-phone check is still open from before.
+- Only English, as planned. The v1.2 guest tiles (food, items, problem types, chat, info) are LATER screens and were not copied, on purpose.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-37, sub-issue of ANT-5 (follow-up D2 = ANT-38)
+
 ## Meta1 — 2026-10-31 — SAM 3.1 photo check API (ANT-21 / M5)
 
 **Did the real sam-3.1 call work? YES.** With the key in `.env.local` (value never printed), `POST /api/tasks/<id>/ai-check` called the real Meta Model API and saved LIVE results (about 5 seconds per task, 3 SAM requests per photo). What it returned for each test photo:

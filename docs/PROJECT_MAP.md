@@ -53,7 +53,7 @@ History
 **Plan change, 2026-10-31 (owner): build the full app locally first;
 database and going online come last.** Everything in the loop is built and
 checked on the Mac against the local `.data` storage, in the order
-M3 → M4 → M5 → M6 → M7 → M8 → M9 → M10. Only then M2 (real database) →
+M3 → M4 → M5 → D1 → D2 → M6 → M7 → M8 → M9 → M10. Only then M2 (real database) →
 M11 (online over HTTPS) → M12 (full loop test online). M2 and M11 start
 on **Nov 3 morning at the latest**. In the end, everything in the loop must
 work online over HTTPS, and saved tasks and photos must survive a server
@@ -296,9 +296,9 @@ Small tasks, about 1–2 hours each. MUST = needed for one full working loop
 by Nov 4. SHOULD = if time. LATER = only in this map, no Linear issues.
 Linear issues exist for every MUST and SHOULD task; shared task titles have
 no agent name. Linear numbers: M1=ANT-17, M2=ANT-18, M3=ANT-19, M4=ANT-20,
-M5=ANT-21, M6=ANT-22, M7=ANT-23, M8=ANT-24, M9=ANT-25, M10=ANT-26,
-M11=ANT-27, M12=ANT-28, S1=ANT-29, S2=ANT-30, S3=ANT-31, S4=ANT-32,
-S5=ANT-33, S6=ANT-34. This map itself is ANT-16.
+M5=ANT-21, D1=ANT-37, D2=ANT-38, M6=ANT-22, M7=ANT-23, M8=ANT-24,
+M9=ANT-25, M10=ANT-26, M11=ANT-27, M12=ANT-28, S1=ANT-29, S2=ANT-30,
+S3=ANT-31, S4=ANT-32, S5=ANT-33, S6=ANT-34. This map itself is ANT-16.
 
 **Build order (changed again 2026-10-31, owner: build the full app locally
 first; database and going online come last): M3 → M4 → M5 → M6 → M7 → M8 →
@@ -308,6 +308,17 @@ the local `.data` storage for now (photos in `.data/photos`, behind one
 helper file). **M2 and M11 stay Todo and start on Nov 3 morning at the
 latest.** (M1 is already Done.)
 
+**Plan change, 2026-10-31 (owner): v1.2 look + demo sign-in before M6.**
+The new order is **M5 → D1 → D2 → M6 → M7 → M8 → M9 → M10** (then M2 →
+M11 → M12 as before). D1 ports the design basics of our earlier v1.2
+prototype (`/Users/batyr/Documents/hotelapp/hotelapp-v1.2`, read only:
+colors, fonts, button/card/badge/page-shell) into this Next.js app and
+restyles the guest and staff screens — same features, nothing removed.
+D2 adds a demo sign-in (accounts + simple demo password shown on the
+login page; real sign-up comes with the database in M2) and one screen
+per role; the server checks roles (only a supervisor approves / sends
+back; Reset demo data is Owner-only; the guest page stays open).
+
 ### MUST
 
 | # | Task | Depends on | Done when |
@@ -315,6 +326,8 @@ latest.** (M1 is already Done.)
 | M3 | Photo upload on staff tasks | — | Staff adds 1–3 photos to a started task on `/staff`; photos show on the task and are still there after a server restart. Photos are saved locally in `.data/photos` (git-ignored) and all photo saving/reading lives in one small helper file, so it can later switch to cloud storage by changing only that file. |
 | M4 | Add "review" status end to end | — | Flow New -> Accepted -> In progress -> In review -> Done/Sent back works via API and `/staff`; guest still sees Received / On the way / Done correctly. Uses the local `.data` storage (no database yet). |
 | M5 | SAM 3.1 photo check API | M3 | `POST /api/tasks/[id]/ai-check` saves `{score, issues, model}` on the task (or a clearly marked MOCK when no key). curl test shows the saved result. |
+| D1 | v1.2 look for guest and staff screens | M5 | Guest page and staff screens use the ported v1.2 design (colors, fonts, shared button/card/badge/page shell); same features (voice, photos, AI check, review), English only, checked at 375px and 1440px. |
+| D2 | Demo sign-in and role screens | D1 | `/login` with the demo accounts lands each person on their own v1.2-style screen (staff see only their department); the server refuses approve/send-back without a supervisor and Reset without the Owner; guest page stays open; sign out works. |
 | M6 | AI result + retake on staff board | M4, M5 | Staff sees the score and issues; "Retake photos" clears photos + AI result; staff can only send to review after a photo check ran. |
 | M7 | Supervisor page: approve / send back | M4 | On `/supervisor`, a review task can be approved (-> Done) or sent back with a note (-> staff sees it and can fix). Guest status follows. |
 | M8 | History events + history API | — | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. Uses the local `.data` storage (no database yet). |
@@ -329,6 +342,9 @@ Files per MUST task (short): M1 `docs/DEPLOY.md`, `.env.example` ·
 M2 `src/lib/store.ts`, `src/app/api/tasks/*` · M3 `src/lib/photos.ts` + photo routes + `StaffBoard.tsx` ·
 M4 `src/lib/tasks.ts`, `src/lib/store.ts`, `src/app/api/tasks/[id]/route.ts`,
 `StaffBoard.tsx`, `GuestForm.tsx` · M5 ai-check route + `src/lib/tasks.ts` ·
+D1 `src/components/ui.tsx`, `globals.css`, guest + staff screens ·
+D2 `src/lib/auth.ts`, `src/app/login/*`, `src/app/api/auth/*`, role screens,
+tasks/photo/ai-check APIs (server role checks) ·
 M6 `StaffBoard.tsx` · M7 `src/app/supervisor/*`, tasks API · M8 `src/lib/history.ts`
 (or store), tasks/photo/ai-check routes · M9 supervisor or owner page ·
 M10 `src/app/owner/*`, `src/app/api/report/morning/route.ts` · M11 store,

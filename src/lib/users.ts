@@ -49,8 +49,8 @@ export const DEMO_USERS: DemoUser[] = [
     roleLabel: "Supervisor",
     department: null,
     home: "/supervisor",
-    screenTitle: "Supervisor home",
-    screenSub: "Approving and sending back work lands here in M7.",
+    screenTitle: "Supervisor review",
+    screenSub: "Approve or send back cleaning work waiting in review.",
   },
   {
     username: "aigerim",

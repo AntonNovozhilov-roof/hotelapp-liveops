@@ -146,6 +146,25 @@ export function sortTasks(tasks: StoredTask[]): StoredTask[] {
   });
 }
 
+/** True when the AI check has a "not found" / "not sure" item (or none saved). */
+export function aiNeedsAttention(task: StoredTask): boolean {
+  if (!task.aiCheck) return true;
+  return task.aiCheck.checks.some((check) => check.status !== "found");
+}
+
+/**
+ * Supervisor review queue order (M7): tasks where the AI said "not found"
+ * or "not sure" first, then oldest first (first in, first out).
+ */
+export function sortReviewTasks(tasks: StoredTask[]): StoredTask[] {
+  return [...tasks].sort((a, b) => {
+    const byAttention =
+      Number(aiNeedsAttention(b)) - Number(aiNeedsAttention(a));
+    if (byAttention !== 0) return byAttention;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}
+
 /** "just now", "5 min ago", "2 h ago", "3 d ago" */
 export function timeAgo(isoDate: string, now = new Date()): string {
   const seconds = Math.floor(

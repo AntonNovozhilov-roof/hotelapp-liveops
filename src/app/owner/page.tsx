@@ -52,6 +52,19 @@ export default async function OwnerPage() {
       </div>
 
       <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">Review cleaning work</h2>
+        <p className="mt-1.5 text-[13.5px] text-ink-3">
+          In a small hotel the owner is often the supervisor: you can open
+          the supervisor page and approve or send back cleaning tasks there.
+        </p>
+        <p className="mt-3 text-[13.5px]">
+          <Link href="/supervisor" className="font-semibold text-brand-700 hover:underline">
+            Open the supervisor review page
+          </Link>
+        </p>
+      </Card>
+
+      <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">New cleaning task</h2>
         <div className="mt-3">
           <CleanRoomForm />

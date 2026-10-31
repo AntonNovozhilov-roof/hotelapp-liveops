@@ -1,23 +1,32 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import SupervisorBoard from "./SupervisorBoard";
 import CleanRoomForm from "@/components/CleanRoomForm";
 import DoneRepairs from "@/components/DoneRepairs";
 import SessionBar from "@/components/SessionBar";
 import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { listStoredTasks } from "@/lib/store";
+import { sortReviewTasks } from "@/lib/tasks";
 
 /**
- * Supervisor home — simple for now (D2 / ANT-38). The real review page
- * (approve / send back with photos and AI results) is M7 / ANT-23.
+ * Supervisor review page (M7 / ANT-23): cleaning tasks In review with
+ * photos and the AI result, Approve / Send back. The Owner can open and
+ * use this page too (in a small hotel the owner is often the supervisor)
+ * — the server enforces the same rule on the task API.
  */
 export default async function SupervisorPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "supervisor") redirect(user.home);
+  if (user.role !== "supervisor" && user.role !== "owner") {
+    redirect(user.home);
+  }
 
   const tasks = await listStoredTasks();
-  const inReview = tasks.filter((task) => task.status === "review").length;
+  const reviewTasks = sortReviewTasks(
+    tasks.filter(
+      (task) => task.type === "cleaning" && task.status === "review",
+    ),
+  );
   const open = tasks.filter((task) => task.status !== "done").length;
   const done = tasks.filter((task) => task.status === "done").length;
   const doneRepairs = tasks.filter(
@@ -25,18 +34,24 @@ export default async function SupervisorPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <h1 className="mt-5 font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight">
-        {user.screenTitle}
+        Supervisor review
       </h1>
-      <p className="mt-1 text-[13.5px] text-ink-3">{user.screenSub}</p>
+      <p className="mt-1 text-[13.5px] text-ink-3">
+        Cleaning work waiting for your check. Approve it, or send it back
+        with a short note. AI problems come first, then the oldest task.
+        {user.role === "owner"
+          ? " You are signed in as the Owner — you can review here too."
+          : ""}
+      </p>
 
       <div className="mt-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
         <Card className="p-4">
           <p className="text-[12.5px] font-medium text-ink-3">In review</p>
-          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{inReview}</p>
-          <p className="text-[12.5px] text-ink-3">waiting for you</p>
+          <p className="mt-1 font-display text-[26px] font-semibold tabular-nums">{reviewTasks.length}</p>
+          <p className="text-[12.5px] text-ink-3">cleaning tasks waiting for you</p>
         </Card>
         <Card className="p-4">
           <p className="text-[12.5px] font-medium text-ink-3">Open tasks</p>
@@ -49,6 +64,16 @@ export default async function SupervisorPage() {
           <p className="text-[12.5px] text-ink-3">approved and finished</p>
         </Card>
       </div>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">Review queue</h2>
+        <p className="mt-1 text-[12.5px] text-ink-4">
+          AI &ldquo;not found&rdquo; or &ldquo;not sure&rdquo; first, then oldest first
+        </p>
+        <div className="mt-3">
+          <SupervisorBoard tasks={reviewTasks} />
+        </div>
+      </Card>
 
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">New cleaning task</h2>
@@ -69,23 +94,6 @@ export default async function SupervisorPage() {
         <div className="mt-3">
           <DoneRepairs tasks={doneRepairs} canReopen />
         </div>
-      </Card>
-
-      <Card className="mt-4 p-5">
-        <h2 className="text-[15px] font-semibold">Reviewing work (coming in M7)</h2>
-        <p className="mt-1.5 text-[13.5px] text-ink-3">
-          Soon this page will list every task waiting in review with its
-          photos and AI photo check, with Approve and Send back buttons. The
-          rule is already enforced on the server today: only a supervisor
-          (you) can approve or send a task back — staff accounts get a
-          refusal from the API.
-        </p>
-        <p className="mt-3 text-[13.5px]">
-          <Link href="/r/204" className="font-semibold text-brand-700 hover:underline">
-            Open the guest page (room 204)
-          </Link>{" "}
-          to create a test task.
-        </p>
       </Card>
     </main>
   );

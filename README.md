@@ -22,8 +22,9 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   to sign in as them). Real sign-up comes later with the database.
   After sign-in each person lands on their own screen: staff on their
   role screen (`My rooms`, `Repairs`, `Front desk`, `Room service
-  orders`), the Supervisor and Owner on simple home pages for now (their
-  real pages are M7 and M10). Sign out is in the top bar.
+  orders`), the Supervisor on the review page (M7), and the Owner on a
+  home page (the real morning report is M10). The Owner can also open
+  and use the supervisor review page. Sign out is in the top bar.
 - Task types (T1): the AI picks a **type** as well as the department, and
   the type is shown on every task card. The rules live in one place,
   `src/lib/task-types.ts`:
@@ -38,6 +39,14 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
     a repair with a note and Ruslan fixes it again.
   Old saved tasks without a type get one guessed from their title
   (otherwise "request").
+- `/supervisor` — the review page (M7): cleaning tasks In review with
+  room, who cleaned, photos (tap to enlarge), AI score and the one-line
+  AI result. Order: AI "not found" / "not sure" first, then oldest.
+  **Approve** is one tap (task Done, guest sees Done); **Send back**
+  needs a short note (staff see it, task back to In progress). The
+  Supervisor and the Owner can use it (server-checked). The page also
+  keeps the **New cleaning task** form and **Finished repairs** with
+  Reopen below the queue.
 - Supervisor and Owner homes have a simple **New cleaning task** form:
   write a room number and it creates a "Clean room \<number\>" cleaning
   task for Housekeeping (for example after check-out). Guests can also
@@ -49,7 +58,7 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   for their type (see above). **The server checks the role:**
   `PATCH /api/tasks/<id>` with `{"action":"approve"}` or
   `{"action":"send_back","note":"..."}` only works with a supervisor
-  sign-in (staff get HTTP 403); the staff steps, photo upload and the AI
+  (or Owner) sign-in (staff get HTTP 403); the staff steps, photo upload and the AI
   check only work for the task's own team; **Reset demo data**
   (`DELETE /api/tasks`, button on the Owner home) only works for the
   Owner. The guest page and guest APIs stay open without sign-in.
@@ -119,9 +128,12 @@ Ruslan and press Accept -> Start on the leak task, add a proof photo,
 then Done — no AI check, no review; the guest page then shows "Done".
 To try cleaning: sign in as the Supervisor or Owner, use **New cleaning
 task** with a room number, then as Aigerim press Accept -> Start, add a
-photo, Run AI photo check, Send to review — and as the Supervisor
-approve it with the API above (`{"action":"approve"}`) until the real
-supervisor screen comes in M7.
+photo, Run AI photo check, Send to review. Then open `/supervisor` (as
+the Supervisor or the Owner): the task is in the **Review queue** with
+its photos, AI score and one-line AI result. **Approve** finishes it
+(the guest sees Done); **Send back** with a short note returns it to
+Aigerim In progress with your note. Tasks where the AI said "not found"
+or "not sure" come first, then the oldest.
 
 ## Try voice input
 

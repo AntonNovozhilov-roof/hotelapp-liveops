@@ -205,17 +205,18 @@ restart.
 ### 7. Supervisor
 
 **Done**
-- Nothing yet. Today staff press Done themselves — there is no check by a
-  second person.
+- Page `/supervisor` (M7 / ANT-23): review queue of cleaning tasks in
+  **review**, each with room, title, who cleaned, photo(s) (tap to
+  enlarge), AI score and the one-line AI result. Order: AI "not found"
+  or "not sure" first, then oldest first. **Approve** (task -> done;
+  guest sees Done) and **Send back** (task -> in_progress, short note
+  staff can see) — server-checked for supervisor **or Owner** (the
+  Owner can open and use the page too). The "New cleaning task" form
+  and "Finished repairs" with Reopen stay on the page. Sign-in (D2)
+  replaced the old person-picker idea.
 
-**Left (all MUST)**
-- New page `/supervisor`: tasks in **review**, with photo(s), AI score and
-  issues, room, title, who did it.
-- Two buttons: **Approve** (task -> done; guest sees Done) and
-  **Send back** (task -> in_progress, with a short note staff can see;
-  guest stays "On the way").
-- Simple person picker at the top, same style as staff (no login in the
-  MVP). Queue sorted with the lowest AI score first (like v1.2 Review).
+**Left**
+- Nothing for the MVP loop here. (History view M9 may add a section.)
 
 **Files (new)**
 - `src/app/supervisor/page.tsx`, `src/app/supervisor/SupervisorBoard.tsx`

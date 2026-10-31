@@ -51,9 +51,10 @@ export async function PATCH(
     );
   }
 
-  // Server role check (D2 + T1): who is signed in decides what is allowed,
-  // never the page. Approve / send back / reopen = supervisor only. The
-  // staff steps (accept, start, finish, send to review) = own team only.
+  // Server role check (D2 + T1 + M7): who is signed in decides what is
+  // allowed, never the page. Approve / send back / reopen = supervisor, or
+  // the Owner acting as supervisor (small hotels). The staff steps
+  // (accept, start, finish, send to review) = own team only.
   // A staff "done" from in_progress (request/repair) is NOT supervisor work;
   // only "done" from review (approve) is.
   const user = await getCurrentUser();
@@ -74,14 +75,18 @@ export async function PATCH(
     (task.status === "review" &&
       (requested === "done" || requested === "in_progress")) ||
     (task.status === "done" && requested === "in_progress");
-  if (isSupervisorAction && user.role !== "supervisor") {
+  if (
+    isSupervisorAction &&
+    user.role !== "supervisor" &&
+    user.role !== "owner"
+  ) {
     return NextResponse.json(
       {
         error:
           action === "reopen" ||
           (task.status === "done" && requested === "in_progress")
-            ? "Only a supervisor can reopen a task."
-            : "Only a supervisor can approve or send back a task.",
+            ? "Only a supervisor or the Owner can reopen a task."
+            : "Only a supervisor or the Owner can approve or send back a task.",
         task,
       },
       { status: 403 },

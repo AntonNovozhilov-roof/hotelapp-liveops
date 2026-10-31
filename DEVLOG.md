@@ -1,5 +1,36 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Supervisor page: approve / send back (ANT-23 / M7)
+
+What I built (simple words): `/supervisor` is now the real review page. The **Review queue** lists cleaning tasks In review — each shows the room, the title, who cleaned it (for example "Cleaned by Aigerim · Housekeeping"), the photos (tap one to open it full size), the AI score and the one-line AI result (for example "Not found: towels. Fix the room and take a new photo."), with an "AI: check this" badge when the AI said not found / not sure. Order: AI "not found" or "not sure" first, then oldest first. **Approve** is one tap (task Done, the guest sees Done); **Send back** needs a short note — the button stays off without one, staff see the note and the task goes back to In progress. The **Owner can open and use this page too** (in a small hotel the owner is often the supervisor): the page allows supervisor or owner, the server allows the same two roles to approve / send back / reopen (staff still get 403), and the Owner home links here. The page keeps the counts, the **New cleaning task** form and **Finished repairs** with Reopen. v1.2 style, phone and desktop.
+
+Files changed:
+- `src/app/supervisor/SupervisorBoard.tsx` — new: the review queue cards (room, who cleaned, photos, AI score + one line, Approve, Send back with note)
+- `src/app/supervisor/page.tsx` — real review page: supervisor **or owner**, queue + counts + New cleaning task + Finished repairs (placeholder card removed)
+- `src/lib/tasks.ts` — `aiNeedsAttention` + `sortReviewTasks` (AI not found/not sure first, then oldest)
+- `src/app/api/tasks/[id]/route.ts` — approve / send back / reopen allowed for supervisor or Owner on the server
+- `src/app/owner/page.tsx` — "Review cleaning work" card linking to `/supervisor`
+- `src/lib/users.ts` — supervisor screen text now describes the review page
+- `README.md`, `docs/PROJECT_MAP.md` — supervisor page written down (map block 7 updated)
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-23 (M7) — shared task, taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok (new `/supervisor` board built).
+- API test (LIVE AI, port 3100): three cleaning tasks sent to review (rooms 881/883 with the no-towels photo, score 67; room 882 with towels, score 100). Staff approve refused (403); Send back without a note refused (400); supervisor Send back with a note worked (task In progress, note saved, staff resubmitted it); the **Owner approved** a task to Done; the supervisor approved the rest. Page checks: supervisor and owner both open `/supervisor` (200), staff are redirected to their own screen; the page keeps "New cleaning task" and "Finished repairs".
+- Queue order proven on the page HTML with a second set (rooms 884 clean/oldest, 885 AI-problem/newer, 886 clean): order was 885, 884, 886 — AI problem first even though newer, then oldest first. "Cleaned by Aigerim" and the attention badge show.
+- Browser (port 3100, no console errors): signed in as Supervisor, room 887 (score 67, "Not found: towels…") showed in the queue with photos and one-line AI result; clicking **Approve** removed it with "Approved: Clean room 887 (room 887). The guest now sees Done." As Aigerim, `/staff` shows "Urgent first, then oldest" under all 5 columns, a started cleaning task shows **Retake photos**, **Send to review** is disabled before an AI check, and clicking Retake (confirm accepted) cleared it to "Photos (0/3)".
+
+NOT working / NOT checked yet:
+- Guest "sees Done" is the existing guest polling (approval sets the real `done` status, checked in M4 and by the Approve message/flow here); no separate guest-device check in this task.
+- A real phone is not checked — responsive layout is checked again on the final restart in this session (375px frame + desktop, see the last DEVLOG entry of the session).
+- History (M8/M9) and the owner morning report (M10) are still Todo. Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1). Photo check tested LIVE with sam-3.1.
+Linear: ANT-23, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — AI result + retake on staff board, cleaning only (ANT-22 / M6)
 
 What I built (simple words): Cleaning tasks only — staff now have a red **Retake photos** button on a started cleaning task with photos. It asks "Retake photos? This clears all photos and the AI result for this task." first, then clears every photo (files deleted too) and the AI result in one server step, so staff can shoot a fresh set. "Send to review" stays blocked until an AI check has run on the current photos: adding, deleting or retaking photos clears the old AI result on the server, and the server refuses review without a check (409). Request and repair tasks show no Retake button and no AI gating (their T1 rules are unchanged).

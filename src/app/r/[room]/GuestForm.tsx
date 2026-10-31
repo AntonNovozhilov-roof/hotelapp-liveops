@@ -11,7 +11,7 @@ import {
 const POLL_MS = 3000;
 const MAX_RECORD_SECONDS = 45;
 
-/** Simple words for the guest. Staff flow: New -> Accepted -> In progress -> Done. */
+/** Simple words for the guest. In review still shows "On the way": Done only after supervisor approval. */
 const GUEST_STATUS: Record<
   TaskStatus,
   { label: string; style: string }
@@ -19,6 +19,7 @@ const GUEST_STATUS: Record<
   new: { label: "Received", style: "bg-sky-100 text-sky-800" },
   accepted: { label: "Received", style: "bg-sky-100 text-sky-800" },
   in_progress: { label: "On the way", style: "bg-amber-100 text-amber-900" },
+  review: { label: "On the way", style: "bg-amber-100 text-amber-900" },
   done: { label: "Done", style: "bg-emerald-100 text-emerald-800" },
 };
 

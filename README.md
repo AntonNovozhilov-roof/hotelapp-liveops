@@ -14,7 +14,13 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
 - `/staff` — staff screen. Choose who you are (Ruslan - Maintenance,
   Aigerim - Housekeeping, Daniyar - Front desk, Madina - Room service).
   You see only your team tasks, most urgent and newest first, and move them
-  with buttons: Accept -> Start -> Done.
+  with buttons: Accept -> Start -> Send to review. Staff cannot finish a
+  task themselves: **Send to review** needs at least 1 photo. A supervisor
+  then approves it (Done) or sends it back to In progress with a short note
+  that staff see on the task. The supervisor page comes later; for now use
+  the API: `PATCH /api/tasks/<id>` with `{"action":"approve"}` or
+  `{"action":"send_back","note":"..."}` (or `{"status":"done"}` /
+  `{"status":"in_progress","note":"..."}` from In review).
 - After Send, the guest page shows only the tasks created by that one
   message, like "Sent to Maintenance: Fix leak", with a simple live status
   (Received / On the way / Done) that refreshes every few seconds.
@@ -58,8 +64,9 @@ Try this text:
 > There is a leak in the bathroom and please bring towels
 
 Then go to the staff page, choose Ruslan (Maintenance), and press
-Accept -> Start -> Done on the leak task. Watch the guest page: its status
-updates by itself in a few seconds.
+Accept -> Start, add a photo, then Send to review on the leak task. The
+guest page still shows "On the way" while it waits for a supervisor.
+Approve it with the API above to see the guest status become "Done".
 
 ## Try voice input
 

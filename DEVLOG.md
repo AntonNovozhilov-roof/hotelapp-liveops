@@ -1,5 +1,39 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Review status end to end (ANT-20 / M4)
+
+What I built (simple words): Staff can no longer finish a task by themselves. After Start and at least 1 photo, the button is now "Send to review" (it stays greyed out with the hint "Add at least 1 photo to send to review." until a photo exists). The task then sits in a new, clearly marked "In review" column — "Waiting for supervisor". A supervisor approves it to Done or sends it back to In progress with a short note; staff see that note on the task ("Sent back by supervisor: ..."), can fix the work and send it to review again. The supervisor page itself comes in M7 — for now approve / send back works through the API: `PATCH /api/tasks/<id>` with `{"action":"approve"}` or `{"action":"send_back","note":"..."}`, also as `{"status":"review"|"done"|"in_progress","note":"..."}`. The guest still sees only simple words: Received → On the way (also while In review, and after a send-back) → Done only after approval.
+
+Files changed:
+- `src/lib/tasks.ts` — new `review` status ("In review"), flow text, `reviewNote` (supervisor note, null otherwise) on the saved task
+- `src/lib/store.ts` — allowed moves are now New → Accepted → In progress → In review → Done, plus In review → In progress (send back); sending to review needs at least 1 photo (else `photo_required`), sending back needs a short note (else `note_required`, max 500 chars), note is saved on send-back and cleared on resubmit/approve; old saved tasks without `reviewNote` load with null
+- `src/app/api/tasks/[id]/route.ts` — actions `accept`, `start`, `send_to_review`, `approve`, `send_back`; friendly errors: 409 "Add at least 1 photo before sending this task to review.", 400 "Please add a short note when sending a task back.", 409 for wrong steps (direct Done from In progress is refused)
+- `src/app/staff/StaffBoard.tsx` — 5 status columns; "Send to review" button (disabled with no photo + hint), highlighted In review column with "Waiting for supervisor" on the column and the task, supervisor note box on sent-back tasks, Done stays a plain "Done ✓" label
+- `src/app/staff/page.tsx` — header text now says Accept, Start, add a photo, Send to review; a supervisor approves it to Done
+- `src/app/r/[room]/GuestForm.tsx` — guest wording: `review` shows as "On the way" (same as In progress); Done only from the real `done` status
+- `README.md` — review flow and the approve/send-back API explained
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-20 (M4) — shared task, taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok.
+- API test on a fresh server (port 3100): created tasks through the real guest API; Done straight from New and from In progress returned 409; Send to review with no photo returned 409; with a photo it moved to `review`; `send_back` with no note returned 400, with a note it returned to `in_progress` with the note saved; `approve` from In progress returned 409; resubmit cleared the note, `approve` from In review moved it to `done`. Old saved tasks (no `reviewNote` in the file) loaded fine with `reviewNote: null`.
+- Browser test on /staff: In review column (amber, "Waiting for supervisor") held the review task, the sent-back task showed "Sent back by supervisor: Photo is blurry, please retake closer.", clicking its "Send to review" button moved it to In review and cleared the note, and a started task with no photo had "Send to review" disabled with the hint. No console errors, no "Done" button anywhere.
+- Browser test on /r/204: sent a message ("Received"), moved its task through Accept → Start → photo → Send to review via API — guest page changed to "On the way" and stayed there in review; after API `approve` it changed to "Done" by itself. No console errors.
+- Responsive: 1440px screenshot — 5 columns side by side, review column clearly highlighted, note and photos visible. At a true 375px width (measured in a 375px frame) staff and guest pages have no sideways scroll (`scrollWidth` = 375); headless-Chrome 375px screenshots looked clipped due to window sizing, so the frame measurement is the reliable check.
+- Test data cleaned up afterwards: the tasks/photos created for these tests were removed and the pre-existing saved tasks restored untouched (`.data` is git-ignored).
+
+NOT working / NOT checked yet:
+- No supervisor page yet (that is M7 / ANT-23) — approve / send back was tested through the API only, as planned for this task.
+- AI photo check gating (M6) is not in yet: sending to review needs a photo, not an AI check.
+- A real phone is not checked — layout was checked at 375px width in the browser as above.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-20, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Photo upload on staff tasks (ANT-19 / M3)
 
 What I built (simple words): Staff can now prove finished work with photos. On /staff, after pressing Start on a task, an "Add photo" button appears: on a phone it opens the camera, on a desktop it opens a file picker. A task takes 1–3 photos. Photos show as small pictures on the task, a click opens them full size, and the × on a photo deletes it. The photo files are saved on this Mac in `.data/photos` (never in git) and are still there after the server restarts. All photo saving and reading lives in one small file, `src/lib/photos.ts` — when photos move to cloud storage later (M11), only that file changes.

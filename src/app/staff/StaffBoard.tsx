@@ -28,7 +28,7 @@ const NEXT_ACTION: Partial<
 > = {
   new: { label: "Accept", next: "accepted" },
   accepted: { label: "Start", next: "in_progress" },
-  in_progress: { label: "Done", next: "done" },
+  in_progress: { label: "Send to review", next: "review" },
 };
 
 export default function StaffBoard() {
@@ -266,13 +266,18 @@ export default function StaffBoard() {
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {TASK_STATUSES.map((status) => {
           const columnTasks = tasks.filter((task) => task.status === status);
+          const isReview = status === "review";
           return (
             <section
               key={status}
-              className="rounded-3xl bg-slate-200/60 p-3 sm:p-4"
+              className={`rounded-3xl p-3 sm:p-4 ${
+                isReview
+                  ? "bg-amber-100 ring-2 ring-amber-400"
+                  : "bg-slate-200/60"
+              }`}
               aria-label={STATUS_LABELS[status]}
             >
               <h3 className="flex items-center justify-between px-1 font-bold">
@@ -281,6 +286,11 @@ export default function StaffBoard() {
                   {columnTasks.length}
                 </span>
               </h3>
+              {isReview && (
+                <p className="mt-1 px-1 text-sm font-semibold text-amber-900">
+                  Waiting for supervisor
+                </p>
+              )}
 
               {columnTasks.length === 0 ? (
                 <p className="mt-3 rounded-2xl bg-white/70 p-3 text-sm text-slate-500">
@@ -307,6 +317,22 @@ export default function StaffBoard() {
                           </span>
                           <span>{timeAgo(task.createdAt)}</span>
                         </div>
+                        {task.status === "review" && (
+                          <p className="mt-3 rounded-xl bg-amber-100 px-3 py-2 text-sm font-bold text-amber-900">
+                            In review — waiting for supervisor
+                          </p>
+                        )}
+                        {task.reviewNote && task.status !== "review" && (
+                          <div
+                            role="note"
+                            className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                          >
+                            <span className="font-bold">
+                              Sent back by supervisor:
+                            </span>{" "}
+                            {task.reviewNote}
+                          </div>
+                        )}
                         {(task.status === "in_progress" ||
                           task.photos.length > 0) && (
                           <div className="mt-3 border-t border-slate-100 pt-3">
@@ -379,14 +405,30 @@ export default function StaffBoard() {
                           </div>
                         )}
                         {action ? (
-                          <button
-                            type="button"
-                            onClick={() => void moveTask(task)}
-                            disabled={busyId === task.id}
-                            className="mt-3 w-full rounded-xl bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {busyId === task.id ? "Saving..." : action.label}
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void moveTask(task)}
+                              disabled={
+                                busyId === task.id ||
+                                (task.status === "in_progress" &&
+                                  task.photos.length === 0)
+                              }
+                              className="mt-3 w-full rounded-xl bg-teal-700 px-4 py-2.5 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {busyId === task.id ? "Saving..." : action.label}
+                            </button>
+                            {task.status === "in_progress" &&
+                              task.photos.length === 0 && (
+                                <p className="mt-2 text-sm text-slate-500">
+                                  Add at least 1 photo to send to review.
+                                </p>
+                              )}
+                          </>
+                        ) : task.status === "review" ? (
+                          <p className="mt-3 text-sm font-semibold text-amber-800">
+                            Waiting for supervisor
+                          </p>
                         ) : (
                           <p className="mt-3 text-sm font-semibold text-emerald-700">
                             Done ✓

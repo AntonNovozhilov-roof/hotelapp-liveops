@@ -50,12 +50,14 @@ function isTaskPhoto(value: unknown): value is TaskPhoto {
   );
 }
 
-/** Tasks saved before photos existed have no photo list: give them []. */
+/** Tasks saved before photos/review existed get empty photos and no note. */
 function normalizeTask(task: StoredTask): StoredTask {
   const raw = (task as { photos?: unknown }).photos;
+  const note = (task as { reviewNote?: unknown }).reviewNote;
   return {
     ...task,
     photos: Array.isArray(raw) ? raw.filter(isTaskPhoto) : [],
+    reviewNote: typeof note === "string" && note.trim() ? note : null,
   };
 }
 
@@ -120,6 +122,7 @@ export async function createStoredTasks(
       room,
       status: "new",
       photos: [],
+      reviewNote: null,
       createdAt: now,
       updatedAt: now,
     }));
@@ -129,11 +132,16 @@ export async function createStoredTasks(
   });
 }
 
-const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
-  new: "accepted",
-  accepted: "in_progress",
-  in_progress: "done",
+/** Allowed next statuses. Staff never go straight to `done`: only review -> done (approve). */
+const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {
+  new: ["accepted"],
+  accepted: ["in_progress"],
+  in_progress: ["review"],
+  review: ["done", "in_progress"],
+  done: [],
 };
+
+export const MAX_REVIEW_NOTE_LENGTH = 500;
 
 export type PhotoUpdateResult =
   | { ok: true; task: StoredTask }
@@ -200,11 +208,26 @@ export async function removeStoredTaskPhoto(
 
 export type UpdateResult =
   | { ok: true; task: StoredTask }
-  | { ok: false; reason: "not_found" | "invalid_transition"; task?: StoredTask };
+  | {
+      ok: false;
+      reason:
+        | "not_found"
+        | "invalid_transition"
+        | "photo_required"
+        | "note_required";
+      task?: StoredTask;
+    };
 
+/**
+ * Move a task one step in the flow.
+ * - in_progress -> review ("Send to review"): needs at least 1 photo; clears any old send-back note.
+ * - review -> done (approve): clears the note.
+ * - review -> in_progress (send back): needs a short supervisor `note`, saved as `reviewNote` for staff.
+ */
 export async function updateStoredTaskStatus(
   id: string,
   nextStatus: TaskStatus,
+  note?: string,
 ): Promise<UpdateResult> {
   return withLock(async () => {
     const all = await readAll();
@@ -212,7 +235,8 @@ export async function updateStoredTaskStatus(
     if (index === -1) return { ok: false, reason: "not_found" } as const;
 
     const current = all[index];
-    if (NEXT_STATUS[current.status] !== nextStatus) {
+    const allowed = NEXT_STATUSES[current.status] ?? [];
+    if (!allowed.includes(nextStatus)) {
       return {
         ok: false,
         reason: "invalid_transition",
@@ -220,9 +244,26 @@ export async function updateStoredTaskStatus(
       } as const;
     }
 
+    const cleanNote = typeof note === "string" ? note.trim().slice(0, MAX_REVIEW_NOTE_LENGTH) : "";
+
+    if (current.status === "in_progress" && nextStatus === "review") {
+      if (current.photos.length < 1) {
+        return { ok: false, reason: "photo_required", task: current } as const;
+      }
+    }
+    if (current.status === "review" && nextStatus === "in_progress") {
+      if (!cleanNote) {
+        return { ok: false, reason: "note_required", task: current } as const;
+      }
+    }
+
     const updated: StoredTask = {
       ...current,
       status: nextStatus,
+      reviewNote:
+        current.status === "review" && nextStatus === "in_progress"
+          ? cleanNote
+          : null,
       updatedAt: new Date().toISOString(),
     };
     all[index] = updated;

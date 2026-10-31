@@ -19,7 +19,7 @@ export default function StaffPage() {
         </div>
         <p className="mt-2 text-slate-600">
           Choose your name, then move your team tasks forward: Accept, Start,
-          Done.
+          add a photo, Send to review. A supervisor approves it to Done.
         </p>
       </header>
 

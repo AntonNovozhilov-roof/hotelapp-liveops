@@ -20,7 +20,13 @@ export interface Task {
 
 export type MessageMode = "MOCK" | "LIVE";
 
-export const TASK_STATUSES = ["new", "accepted", "in_progress", "done"] as const;
+export const TASK_STATUSES = [
+  "new",
+  "accepted",
+  "in_progress",
+  "review",
+  "done",
+] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
@@ -28,8 +34,13 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   new: "New",
   accepted: "Accepted",
   in_progress: "In progress",
+  review: "In review",
   done: "Done",
 };
+
+/** The one staff -> supervisor -> staff flow. `done` is only reached from `review` (approval). */
+export const FLOW_TEXT =
+  "New -> Accepted -> In progress -> In review -> Done (approved), or In review -> In progress (sent back with a note)";
 
 /**
  * One saved photo proof on a task. The photo bytes live in photo storage
@@ -50,6 +61,8 @@ export interface StoredTask extends Task {
   room: string;
   status: TaskStatus;
   photos: TaskPhoto[];
+  /** Supervisor note when a task is sent back from review. Null otherwise. */
+  reviewNote: string | null;
   createdAt: string;
   updatedAt: string;
 }

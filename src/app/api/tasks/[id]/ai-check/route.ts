@@ -41,6 +41,16 @@ export async function POST(
       { status: 403 },
     );
   }
+  // Type rules (T1, src/lib/task-types.ts): the AI check is cleaning only.
+  if (task.type !== "cleaning") {
+    return NextResponse.json(
+      {
+        error: `The AI photo check is only for cleaning tasks. This is a ${task.type} task, so no AI check is needed.`,
+        task,
+      },
+      { status: 409 },
+    );
+  }
   if (task.photos.length === 0) {
     return NextResponse.json(
       {

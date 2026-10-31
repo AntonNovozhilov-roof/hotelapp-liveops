@@ -20,8 +20,9 @@ export default async function StaffPage() {
         {user.screenTitle}
       </h1>
       <p className="mt-1 text-[13.5px] text-ink-3">
-        {user.screenSub} Move each task forward: Accept, Start, add a photo,
-        Send to review. A supervisor approves it to Done.
+        {user.screenSub} Move each task forward by its type: requests finish
+        with Done (no photo), repairs need a proof photo, cleaning needs a
+        photo and an AI check before a supervisor review.
       </p>
 
       <div className="mt-5">

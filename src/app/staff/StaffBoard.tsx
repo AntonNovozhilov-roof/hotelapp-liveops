@@ -6,12 +6,14 @@ import { Badge, Button, Card } from "@/components/ui";
 import {
   STATUS_LABELS,
   TASK_STATUSES,
+  TASK_TYPE_LABELS,
+  TASK_TYPE_RULES,
   sortTasks,
   timeAgo,
-  type Department,
   type StoredTask,
   type TaskPhoto,
   type TaskStatus,
+  type TaskType,
 } from "@/lib/tasks";
 
 import type { PublicUser } from "@/lib/users";
@@ -30,13 +32,53 @@ const PRIORITY_LABELS: Record<StoredTask["priority"], string> = {
   low: "When possible",
 };
 
-const NEXT_ACTION: Partial<
-  Record<TaskStatus, { label: string; next: TaskStatus }>
-> = {
-  new: { label: "Accept", next: "accepted" },
-  accepted: { label: "Start", next: "in_progress" },
-  in_progress: { label: "Send to review", next: "review" },
+const TYPE_TONES: Record<TaskType, string> = {
+  request: "brand",
+  cleaning: "clean",
+  repair: "dirty",
 };
+
+/** Next button by task type (rules in src/lib/task-types.ts). */
+function nextActionFor(
+  task: StoredTask,
+): { label: string; next: TaskStatus } | null {
+  if (task.status === "new") return { label: "Accept", next: "accepted" };
+  if (task.status === "accepted")
+    return { label: "Start", next: "in_progress" };
+  if (task.status === "in_progress") {
+    return TASK_TYPE_RULES[task.type].goesToReview
+      ? { label: "Send to review", next: "review" }
+      : { label: "Done", next: "done" };
+  }
+  return null;
+}
+
+/** Why the final button is blocked, in plain words (null = not blocked). */
+function finishHint(task: StoredTask): string | null {
+  if (task.status !== "in_progress") return null;
+  const rule = TASK_TYPE_RULES[task.type];
+  if (!rule.photoRequired) return "No photo needed. Press Done when finished.";
+  if (task.photos.length === 0) {
+    return task.type === "repair"
+      ? "Add a proof photo to finish. No AI check needed."
+      : "Add at least 1 photo, then run the AI photo check.";
+  }
+  if (rule.aiCheckRequired && !task.aiCheck) {
+    return "Run the AI photo check to send to review.";
+  }
+  return task.type === "repair"
+    ? "Proof photo added. Press Done when finished."
+    : "AI check done. You can send to review.";
+}
+
+/** The final button stays disabled until the type rules are met. */
+function finishBlocked(task: StoredTask): boolean {
+  if (task.status !== "in_progress") return false;
+  const rule = TASK_TYPE_RULES[task.type];
+  if (rule.photoRequired && task.photos.length === 0) return true;
+  if (rule.aiCheckRequired && !task.aiCheck) return true;
+  return false;
+}
 
 export default function StaffBoard({ user }: { user: PublicUser }) {
   const [tasks, setTasks] = useState<StoredTask[]>([]);
@@ -151,7 +193,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
   }
 
   async function moveTask(task: StoredTask) {
-    const action = NEXT_ACTION[task.status];
+    const action = nextActionFor(task);
     if (!action || busyId) return;
     setBusyId(task.id);
     setError(null);
@@ -242,7 +284,9 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
               ) : (
                 <ul className="mt-3 space-y-3">
                   {columnTasks.map((task) => {
-                    const action = NEXT_ACTION[task.status];
+                    const action = nextActionFor(task);
+                    const hint = finishHint(task);
+                    const rule = TASK_TYPE_RULES[task.type];
                     return (
                       <li key={task.id}>
                         <Card className="p-4">
@@ -253,6 +297,9 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                           {task.title}
                         </p>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-3">
+                          <Badge tone={TYPE_TONES[task.type]} dot>
+                            {TASK_TYPE_LABELS[task.type]}
+                          </Badge>
                           <Badge tone={PRIORITY_TONES[task.priority]} dot>
                             {PRIORITY_LABELS[task.priority]}
                           </Badge>
@@ -269,16 +316,22 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                             className="mt-3 rounded-xl bg-occ-soft px-3 py-2 text-[13px] text-occ-deep"
                           >
                             <span className="font-semibold">
-                              Sent back by supervisor:
+                              {task.type === "repair"
+                                ? "Reopened by supervisor:"
+                                : "Sent back by supervisor:"}
                             </span>{" "}
                             {task.reviewNote}
                           </div>
                         )}
-                        {(task.status === "in_progress" ||
-                          task.photos.length > 0) && (
+                        {rule.photoRequired &&
+                          (task.status === "in_progress" ||
+                            task.photos.length > 0) && (
                           <div className="mt-3 border-t border-line-2 pt-3">
                             <p className="text-[13px] font-semibold text-ink-2">
-                              Photos ({task.photos.length}/3)
+                              {task.type === "repair"
+                                ? "Proof photo"
+                                : "Photos"}{" "}
+                              ({task.photos.length}/3)
                             </p>
                             {task.photos.length > 0 && (
                               <ul className="mt-2 grid grid-cols-3 gap-2">
@@ -346,7 +399,8 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                               ))}
                           </div>
                         )}
-                        {(task.photos.length > 0 || task.aiCheck) && (
+                        {rule.aiCheckRequired &&
+                          (task.photos.length > 0 || task.aiCheck) && (
                           <div className="mt-3 border-t border-line-2 pt-3">
                             <p className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">
                               <Sparkles className="size-4 text-brand-600" />
@@ -437,20 +491,16 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                               size="lg"
                               loading={busyId === task.id}
                               onClick={() => void moveTask(task)}
-                              disabled={
-                                task.status === "in_progress" &&
-                                task.photos.length === 0
-                              }
+                              disabled={finishBlocked(task)}
                               className="mt-3 w-full"
                             >
                               {busyId === task.id ? "Saving..." : action.label}
                             </Button>
-                            {task.status === "in_progress" &&
-                              task.photos.length === 0 && (
-                                <p className="mt-2 text-[12.5px] text-ink-4">
-                                  Add at least 1 photo to send to review.
-                                </p>
-                              )}
+                            {hint && (
+                              <p className="mt-2 text-[12.5px] text-ink-4">
+                                {hint}
+                              </p>
+                            )}
                           </>
                         ) : task.status === "review" ? (
                           <p className="mt-3 text-[13px] font-semibold text-insp-deep">

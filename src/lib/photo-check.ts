@@ -169,17 +169,28 @@ export function buildAiCheck(
   const score =
     checks.length === 0 ? 0 : Math.round((points / checks.length) * 100);
 
+  // One short line, e.g. "Not found: bed, towels, pillow. Fix the room
+  // and take a new photo." (T1) — not one sentence per missing item.
   const issues = [...extraIssues];
-  for (const check of checks) {
-    if (check.status === "not_found") {
-      issues.push(
-        `No ${check.label.toLowerCase()} found in the photo. Please check the work and take a new photo if needed.`,
-      );
-    } else if (check.status === "unsure" && mode === "LIVE") {
-      issues.push(
-        `Not sure about ${check.label.toLowerCase()} — the AI confidence is low, so a person should look at the photo.`,
-      );
-    }
+  const notFound = checks
+    .filter((check) => check.status === "not_found")
+    .map((check) => check.label.toLowerCase());
+  const unsure =
+    mode === "LIVE"
+      ? checks
+          .filter((check) => check.status === "unsure")
+          .map((check) => check.label.toLowerCase())
+      : [];
+  if (notFound.length > 0) {
+    const unsurePart =
+      unsure.length > 0 ? ` Not sure: ${unsure.join(", ")}.` : "";
+    issues.push(
+      `Not found: ${notFound.join(", ")}.${unsurePart} Fix the room and take a new photo.`,
+    );
+  } else if (unsure.length > 0) {
+    issues.push(
+      `Not sure: ${unsure.join(", ")}. A person should look at the photo.`,
+    );
   }
 
   return {

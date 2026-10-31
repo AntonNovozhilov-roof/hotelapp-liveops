@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import CleanRoomForm from "@/components/CleanRoomForm";
+import DoneRepairs from "@/components/DoneRepairs";
 import SessionBar from "@/components/SessionBar";
 import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
@@ -18,6 +20,9 @@ export default async function SupervisorPage() {
   const inReview = tasks.filter((task) => task.status === "review").length;
   const open = tasks.filter((task) => task.status !== "done").length;
   const done = tasks.filter((task) => task.status === "done").length;
+  const doneRepairs = tasks.filter(
+    (task) => task.type === "repair" && task.status === "done",
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -44,6 +49,27 @@ export default async function SupervisorPage() {
           <p className="text-[12.5px] text-ink-3">approved and finished</p>
         </Card>
       </div>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">New cleaning task</h2>
+        <div className="mt-3">
+          <CleanRoomForm />
+        </div>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">
+          Finished repairs — proof photos
+        </h2>
+        <p className="mt-1.5 text-[13.5px] text-ink-3">
+          A repair finishes with a proof photo and no AI check. If the work
+          is not right, reopen it with a note — Ruslan sees the note and
+          fixes it.
+        </p>
+        <div className="mt-3">
+          <DoneRepairs tasks={doneRepairs} canReopen />
+        </div>
+      </Card>
 
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Reviewing work (coming in M7)</h2>

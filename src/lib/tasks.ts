@@ -1,3 +1,12 @@
+import {
+  guessTaskType,
+  isTaskType,
+  type TaskType,
+} from "./task-types";
+
+export { TASK_TYPES, TASK_TYPE_LABELS, TASK_TYPE_RULES } from "./task-types";
+export type { TaskType } from "./task-types";
+
 export const DEPARTMENTS = [
   "maintenance",
   "housekeeping",
@@ -13,6 +22,8 @@ export type Priority = (typeof PRIORITIES)[number];
 
 export interface Task {
   department: Department;
+  /** Task type (request/cleaning/repair) — rules in src/lib/task-types.ts. */
+  type: TaskType;
   title: string;
   priority: Priority;
   confidence: number;
@@ -38,9 +49,9 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   done: "Done",
 };
 
-/** The one staff -> supervisor -> staff flow. `done` is only reached from `review` (approval). */
+/** Flows by task type (rules in src/lib/task-types.ts). */
 export const FLOW_TEXT =
-  "New -> Accepted -> In progress -> In review -> Done (approved), or In review -> In progress (sent back with a note)";
+  "Request: New -> Accepted -> In progress -> Done. Cleaning: New -> Accepted -> In progress -> In review -> Done (approved), or In review -> In progress (sent back with a note). Repair: New -> Accepted -> In progress -> Done (proof photo needed), and a supervisor can reopen a done repair to In progress with a note";
 
 /**
  * One saved photo proof on a task. The photo bytes live in photo storage
@@ -182,9 +193,14 @@ export function validateTasks(raw: unknown): Task[] {
       record.title.trim().length > 0 &&
       confidence !== null
     ) {
+      const title = record.title.trim().slice(0, 200);
       tasks.push({
         department: record.department,
-        title: record.title.trim().slice(0, 200),
+        // AI type wins; no/invalid type -> guess from the title.
+        type: isTaskType(record.type)
+          ? record.type
+          : guessTaskType(title),
+        title,
         priority: record.priority,
         confidence,
       });
@@ -196,6 +212,7 @@ export function validateTasks(raw: unknown): Task[] {
 interface MockRule {
   pattern: RegExp;
   department: Department;
+  type: TaskType;
   title: string;
   priority: Priority;
   confidence: number;
@@ -203,8 +220,9 @@ interface MockRule {
 
 const MOCK_RULES: MockRule[] = [
   {
-    pattern: /leak|dripping|flood|plumb|no (hot )?water|water/i,
+    pattern: /leak|dripping|flood|plumb|no (hot )?water/i,
     department: "maintenance",
+    type: "repair",
     title: "Fix water leak",
     priority: "high",
     confidence: 0.92,
@@ -212,27 +230,39 @@ const MOCK_RULES: MockRule[] = [
   {
     pattern: /toilet|shower|sink|tap|bathroom/i,
     department: "maintenance",
+    type: "repair",
     title: "Check bathroom issue",
     priority: "high",
     confidence: 0.85,
   },
   {
-    pattern: /air.?condition|\bac\b|heating|light|tv|power|electric|door lock|safe/i,
+    pattern: /air.?condition|\bac\b|heating|light|tv|power|electric|door lock|safe|broken/i,
     department: "maintenance",
+    type: "repair",
     title: "Fix room equipment issue",
     priority: "medium",
     confidence: 0.86,
   },
   {
+    pattern: /\bclean(ing)?\b/i,
+    department: "housekeeping",
+    type: "cleaning",
+    title: "Clean the room",
+    priority: "medium",
+    confidence: 0.9,
+  },
+  {
     pattern: /towel/i,
     department: "housekeeping",
+    type: "request",
     title: "Bring towels",
     priority: "medium",
     confidence: 0.94,
   },
   {
-    pattern: /clean|pillow|blanket|sheet|soap|shampoo|tooth|trash|tissue/i,
+    pattern: /pillow|blanket|sheet|soap|shampoo|tooth|trash|tissue|water/i,
     department: "housekeeping",
+    type: "request",
     title: "Housekeeping request",
     priority: "medium",
     confidence: 0.88,
@@ -240,6 +270,7 @@ const MOCK_RULES: MockRule[] = [
   {
     pattern: /breakfast|food|coffee|tea|wine|beer|burger|pizza|order|hungry|menu|restaurant/i,
     department: "room_service",
+    type: "request",
     title: "Room service order",
     priority: "medium",
     confidence: 0.87,
@@ -247,6 +278,7 @@ const MOCK_RULES: MockRule[] = [
   {
     pattern: /check.?in|check.?out|taxi|bill|invoice|key|wake|reservation|book|late/i,
     department: "front_desk",
+    type: "request",
     title: "Front desk request",
     priority: "medium",
     confidence: 0.84,
@@ -271,17 +303,19 @@ export function mockTasks(message: string): Task[] {
     const task: Task = rule
       ? {
           department: rule.department,
+          type: rule.type,
           title: rule.title,
           priority: rule.priority,
           confidence: rule.confidence,
         }
       : {
           department: "front_desk",
+          type: "request",
           title: `Guest request: ${clause.slice(0, 80)}`,
           priority: "low",
           confidence: 0.5,
         };
-    const key = `${task.department}:${task.title}`;
+    const key = `${task.department}:${task.type}:${task.title}`;
     if (!seen.has(key)) {
       seen.add(key);
       tasks.push(task);

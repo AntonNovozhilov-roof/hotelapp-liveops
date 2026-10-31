@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import OwnerReset from "./OwnerReset";
+import CleanRoomForm from "@/components/CleanRoomForm";
+import DoneRepairs from "@/components/DoneRepairs";
 import SessionBar from "@/components/SessionBar";
 import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
@@ -19,6 +21,9 @@ export default async function OwnerPage() {
   const open = tasks.filter((task) => task.status !== "done").length;
   const inReview = tasks.filter((task) => task.status === "review").length;
   const done = tasks.filter((task) => task.status === "done").length;
+  const doneRepairs = tasks.filter(
+    (task) => task.type === "repair" && task.status === "done",
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -45,6 +50,26 @@ export default async function OwnerPage() {
           <p className="text-[12.5px] text-ink-3">approved and finished</p>
         </Card>
       </div>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">New cleaning task</h2>
+        <div className="mt-3">
+          <CleanRoomForm />
+        </div>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">
+          Finished repairs — proof photos
+        </h2>
+        <p className="mt-1.5 text-[13.5px] text-ink-3">
+          Repairs finish with a proof photo (no AI check, no review). The
+          photo stays here so you can see the finished work.
+        </p>
+        <div className="mt-3">
+          <DoneRepairs tasks={doneRepairs} canReopen={false} />
+        </div>
+      </Card>
 
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Morning report (coming in M10)</h2>

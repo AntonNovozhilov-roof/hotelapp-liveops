@@ -17,6 +17,12 @@ and when.
 ## The full path (one working loop)
 
 ```text
+Product change, 2026-10-31 (owner, T1 / ANT-39, before M6): not every task
+needs a photo. The AI picks a task type as well as the department —
+request (no photo, no review), cleaning (photo + AI check, then review),
+repair (proof photo, no AI check, straight to Done; supervisor can reopen).
+The type rules live in one place (`src/lib/task-types.ts`).
+
 Guest request
   (room QR page, typed text or voice)
         |
@@ -296,7 +302,7 @@ Small tasks, about 1–2 hours each. MUST = needed for one full working loop
 by Nov 4. SHOULD = if time. LATER = only in this map, no Linear issues.
 Linear issues exist for every MUST and SHOULD task; shared task titles have
 no agent name. Linear numbers: M1=ANT-17, M2=ANT-18, M3=ANT-19, M4=ANT-20,
-M5=ANT-21, D1=ANT-37, D2=ANT-38, M6=ANT-22, M7=ANT-23, M8=ANT-24,
+M5=ANT-21, D1=ANT-37, D2=ANT-38, T1=ANT-39, M6=ANT-22, M7=ANT-23, M8=ANT-24,
 M9=ANT-25, M10=ANT-26, M11=ANT-27, M12=ANT-28, S1=ANT-29, S2=ANT-30,
 S3=ANT-31, S4=ANT-32, S5=ANT-33, S6=ANT-34. This map itself is ANT-16.
 
@@ -309,7 +315,7 @@ helper file). **M2 and M11 stay Todo and start on Nov 3 morning at the
 latest.** (M1 is already Done.)
 
 **Plan change, 2026-10-31 (owner): v1.2 look + demo sign-in before M6.**
-The new order is **M5 → D1 → D2 → M6 → M7 → M8 → M9 → M10** (then M2 →
+The new order is **M5 → D1 → D2 → T1 → M6 → M7 → M8 → M9 → M10** (then M2 →
 M11 → M12 as before). D1 ports the design basics of our earlier v1.2
 prototype (`/Users/batyr/Documents/hotelapp/hotelapp-v1.2`, read only:
 colors, fonts, button/card/badge/page-shell) into this Next.js app and
@@ -328,7 +334,8 @@ back; Reset demo data is Owner-only; the guest page stays open).
 | M5 | SAM 3.1 photo check API | M3 | `POST /api/tasks/[id]/ai-check` saves `{score, issues, model}` on the task (or a clearly marked MOCK when no key). curl test shows the saved result. |
 | D1 | v1.2 look for guest and staff screens | M5 | Guest page and staff screens use the ported v1.2 design (colors, fonts, shared button/card/badge/page shell); same features (voice, photos, AI check, review), English only, checked at 375px and 1440px. |
 | D2 | Demo sign-in and role screens | D1 | `/login` with the demo accounts lands each person on their own v1.2-style screen (staff see only their department); the server refuses approve/send-back without a supervisor and Reset without the Owner; guest page stays open; sign out works. |
-| M6 | AI result + retake on staff board | M4, M5 | Staff sees the score and issues; "Retake photos" clears photos + AI result; staff can only send to review after a photo check ran. |
+| T1 | Task types and photo rules | — | AI also picks a task type: request (Accept → Start → Done, no photo/review), cleaning (photo + AI check → review), repair (proof photo, no AI check → Done; supervisor can reopen). Type rules in one place; type shown on each task card; supervisor/owner can create "Clean room <number>"; old tasks guess type from title, else request; short one-line AI check text. |
+| M6 | AI result + retake on staff board (cleaning tasks only) | M4, M5, T1 | Cleaning tasks only: staff sees the score and issues; "Retake photos" clears photos + AI result; a cleaning task can only be sent to review after a photo check ran. Request and repair tasks do not use this. |
 | M7 | Supervisor page: approve / send back | M4 | On `/supervisor`, a review task can be approved (-> Done) or sent back with a note (-> staff sees it and can fix). Guest status follows. |
 | M8 | History events + history API | — | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. Uses the local `.data` storage (no database yet). |
 | M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. |
@@ -345,7 +352,10 @@ M4 `src/lib/tasks.ts`, `src/lib/store.ts`, `src/app/api/tasks/[id]/route.ts`,
 D1 `src/components/ui.tsx`, `globals.css`, guest + staff screens ·
 D2 `src/lib/auth.ts`, `src/app/login/*`, `src/app/api/auth/*`, role screens,
 tasks/photo/ai-check APIs (server role checks) ·
-M6 `StaffBoard.tsx` · M7 `src/app/supervisor/*`, tasks API · M8 `src/lib/history.ts`
+T1 `src/lib/task-types.ts` (the one type-rules place), `src/lib/tasks.ts`,
+`src/lib/store.ts`, guest message + tasks APIs, `StaffBoard.tsx`,
+supervisor/owner homes · M6 `StaffBoard.tsx` (cleaning tasks only) ·
+M7 `src/app/supervisor/*`, tasks API · M8 `src/lib/history.ts`
 (or store), tasks/photo/ai-check routes · M9 supervisor or owner page ·
 M10 `src/app/owner/*`, `src/app/api/report/morning/route.ts` · M11 store,
 hosting config, `README.md` · M12 `README.md` only (test + fixes in the files above).

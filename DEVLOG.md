@@ -1,5 +1,54 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Task types and photo rules (ANT-39 / T1)
+
+Product change from the owner: not every task needs a photo. Before building: created Linear ANT-39 "T1: Task types and photo rules" (High, sub-issue of ANT-5), added T1 to `docs/PROJECT_MAP.md` before M6 (new order M5 → D1 → D2 → T1 → M6 → …), and updated M6 (ANT-22, title + description) to say it now applies to cleaning tasks only. Then took T1 ("Meta1: taking this", In Progress).
+
+What I built (simple words): The AI now picks a task type as well as the department, and the type is shown on every task card (Request / Cleaning / Repair on staff cards and on the guest confirmation). All type rules live in one new file, `src/lib/task-types.ts` (`TASK_TYPE_RULES`: photo needed? AI check needed? goes to review?) — change that one table to change the rules; the store, the APIs and the staff board all read from it.
+
+- **Request** (towels, water, pillow, taxi, food, info): Accept → Start → Done. No photo area, no AI check, no review.
+- **Cleaning** (clean a room, Housekeeping): Accept → Start → photo required → AI photo check required → Send to review → supervisor. The server refuses review without a photo (409) and without an AI check (409).
+- **Repair** (fix something, Maintenance): Accept → Start → proof photo required → Done, no AI check (the server refuses the AI check for non-cleaning tasks). The photo stays on the done task; the Supervisor and Owner home pages now list finished repairs with their proof photos, and the Supervisor can Reopen one with a note (staff reopen = 403, no note = 400) — Ruslan sees "Reopened by supervisor: …" and can finish it again (the photo is still there).
+
+Also: Supervisor and Owner homes have a simple "New cleaning task" form (room number → creates "Clean room <number>", a housekeeping cleaning task, e.g. after check-out; `POST /api/tasks`, supervisor/owner only on the server). Guests can also ask for cleaning — the AI makes a cleaning task. Old saved tasks without a type get one guessed from the title (`src/lib/task-types.ts`: clean → cleaning, leak/fix/broken/toilet… → repair, otherwise request); the 9 saved demo tasks read back correctly (towels → request, leak/AC → repair, taxi → request). The AI check text is now one short line: the LIVE test gave exactly "Not found: towels. Fix the room and take a new photo." instead of one sentence per item.
+
+Files changed:
+- `src/lib/task-types.ts` — new: TASK_TYPES, TASK_TYPE_RULES (the one rules place), type guessing for old/AI-less tasks
+- `src/lib/tasks.ts` — `type` on tasks, AI validation falls back to a title guess, MOCK routing sets types, per-type flow text
+- `src/lib/store.ts` — old tasks normalized with a guessed type; next steps, photo and AI-check gating all read TASK_TYPE_RULES; done repairs can reopen to In progress with a note; `createCleaningTask`
+- `src/app/api/guest/message/route.ts` — AI prompt now also returns `type` (with the request/cleaning/repair definitions)
+- `src/app/api/tasks/[id]/route.ts` — new actions `finish` (staff Done for request/repair) and `reopen` (supervisor only, note needed); a staff Done from In progress is no longer treated as supervisor work, Done from review still is; friendly 409s for missing proof photo / missing AI check
+- `src/app/api/tasks/[id]/ai-check/route.ts` — refused (409) for non-cleaning tasks
+- `src/app/api/tasks/route.ts` — new POST: create "Clean room <number>" (supervisor/owner only)
+- `src/lib/photo-check.ts` — issues are one short line ("Not found: bed, towels, pillow. Fix the room and take a new photo.")
+- `src/app/staff/StaffBoard.tsx` — type badge on each card; next button, disabled state, hints, photo block ("Proof photo" for repairs) and AI block all follow the type rules
+- `src/app/staff/page.tsx`, `src/app/r/[room]/GuestForm.tsx` — per-type wording; guest confirmation also shows the type
+- `src/components/CleanRoomForm.tsx`, `src/components/DoneRepairs.tsx` — new: the cleaning form and the finished-repairs proof-photo list (with the supervisor Reopen form)
+- `src/app/supervisor/page.tsx`, `src/app/owner/page.tsx` — New cleaning task form + Finished repairs section
+- `docs/PROJECT_MAP.md` — T1 (ANT-39) before M6; M6 row/title now "cleaning tasks only" (Linear ANT-22 updated the same way, with a comment)
+- `README.md` — task types, cleaning form, reopen and the new try-it steps
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-39 (T1) — created High as a sub-issue of ANT-5, taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment.
+- ANT-22 (M6) — title and description updated: cleaning tasks only; comment added. Left Todo for whoever takes it next.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok.
+- API test (30/30 checks passed, LIVE AI, server on port 3100): "leak in the bathroom and bring two towels" → repair for Maintenance/Ruslan + request for Housekeeping/Aigerim. Towels: Accept → Start → Done with no photo (AI check on it refused, 409). Leak: finish without a photo refused (409 "Add a proof photo…"), photo uploaded, AI check refused (409, repair needs none), Done with the photo saved; staff reopen refused (403), supervisor reopen without a note refused (400), with a note → In progress with the note, finished again with the photo still on it. Cleaning: staff creating one refused (403); supervisor created "Clean room 777" and the owner "Clean room 778"; Aigerim Accept → Start, Send to review without photo refused (409), with photo but no AI check refused (409), AI check ran LIVE (score 67, one-line issue "Not found: towels. Fix the room and take a new photo."), Send to review worked, supervisor approved → Done. Guest "please clean my room" → a cleaning task. The 9 pre-existing saved tasks (no type in the file) read back with guessed types.
+- Browser (port 3100, no console errors): Aigerim's board shows Request/Cleaning badges, a started request with a Done button and "No photo needed", and the done cleaning task with the one-line AI issue; Ruslan's board shows Repair badges, "Proof photo (0/3) / Add a proof photo to finish. No AI check needed." with Done disabled until a photo exists, and the finished repair keeping its proof photo; Supervisor home shows the New cleaning task form and the finished repair with its photo and Reopen form; Owner home shows the form and the same repair photos (no Reopen).
+- Responsive: at a true 375px and 1440px width (measured in frames) the guest, staff and owner pages have no sideways scroll (`scrollWidth` = width).
+- Test data cleaned up afterwards: the tasks/photos created by the tests were removed and the 9 pre-existing saved tasks restored untouched (`.data` is git-ignored).
+
+NOT working / NOT checked yet:
+- M6 (ANT-22, cleaning-only retake button + AI result polish) and M7 (the real supervisor review page) are still Todo — approving a cleaning task from a page is still done through the API, as before. The Reopen form above is only for finished repairs, as T1 asked.
+- The AI type comes from the live model (or the MOCK word rules with no key); a wrong AI type is not corrected by a human anywhere yet.
+- A real phone is not checked — layout was checked at 375px width in the browser as above.
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1). Triage tested LIVE with muse-spark-1.3, photo check LIVE with sam-3.1.
+Linear: ANT-39, sub-issue of ANT-5 (M6 = ANT-22 updated, still Todo)
+
 ## Meta1 — 2026-10-31 — Demo sign-in and role screens (ANT-38 / D2)
 
 What I built (simple words): There is now a sign-in page at `/login` in the v1.2 style. Six demo accounts — Owner, Supervisor, Aigerim (Housekeeping / cleaner), Ruslan (Maintenance), Daniyar (Front desk), Madina (Room service) — all with the demo password `demo1234`, shown on the login page; tap a person to sign in as them. Real sign-up comes later with the database (M2). After sign-in each person lands on their own screen in the v1.2 style: Aigerim gets "My rooms" (cleaner), Ruslan "Repairs", Daniyar "Front desk", Madina "Room service orders" — each sees only the tasks the AI sent to their department. The Supervisor and Owner get simple home pages with live task counts for now (their real pages are M7 and M10). Every signed-in screen has your name, role and a Sign out button. The guest page stays open without sign-in (QR link), and guests still create tasks without any account.

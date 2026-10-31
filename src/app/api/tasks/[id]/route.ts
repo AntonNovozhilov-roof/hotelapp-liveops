@@ -8,8 +8,10 @@ const ACTION_TO_STATUS: Record<string, TaskStatus> = {
   start: "in_progress",
   send_to_review: "review",
   review: "review",
+  finish: "done",
   approve: "done",
   send_back: "in_progress",
+  reopen: "in_progress",
 };
 
 export async function PATCH(
@@ -43,15 +45,17 @@ export async function PATCH(
   if (!requested || !TASK_STATUSES.includes(requested as TaskStatus)) {
     return NextResponse.json(
       {
-        error: `Please send the next status or action. Flow: ${FLOW_TEXT}. Actions: accept, start, send_to_review, approve, send_back (send_back needs {"note":"..."}).`,
+        error: `Please send the next status or action. Flow: ${FLOW_TEXT}. Actions: accept, start, finish, send_to_review, approve, send_back, reopen (send_back/reopen need {"note":"..."}).`,
       },
       { status: 400 },
     );
   }
 
-  // Server role check (D2): who is signed in decides what is allowed,
-  // never the page. Approve / send back = supervisor only. The staff
-  // steps (accept, start, send to review) = the task's own team only.
+  // Server role check (D2 + T1): who is signed in decides what is allowed,
+  // never the page. Approve / send back / reopen = supervisor only. The
+  // staff steps (accept, start, finish, send to review) = own team only.
+  // A staff "done" from in_progress (request/repair) is NOT supervisor work;
+  // only "done" from review (approve) is.
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json(
@@ -66,12 +70,18 @@ export async function PATCH(
   const isSupervisorAction =
     action === "approve" ||
     action === "send_back" ||
-    requested === "done" ||
-    (task.status === "review" && requested === "in_progress");
+    action === "reopen" ||
+    (task.status === "review" &&
+      (requested === "done" || requested === "in_progress")) ||
+    (task.status === "done" && requested === "in_progress");
   if (isSupervisorAction && user.role !== "supervisor") {
     return NextResponse.json(
       {
-        error: "Only a supervisor can approve or send back a task.",
+        error:
+          action === "reopen" ||
+          (task.status === "done" && requested === "in_progress")
+            ? "Only a supervisor can reopen a task."
+            : "Only a supervisor can approve or send back a task.",
         task,
       },
       { status: 403 },
@@ -90,9 +100,17 @@ export async function PATCH(
     );
   }
 
-  if (action === "send_back" && !(note && note.trim())) {
+  if (
+    (action === "send_back" || action === "reopen") &&
+    !(note && note.trim())
+  ) {
     return NextResponse.json(
-      { error: "Please add a short note when sending a task back." },
+      {
+        error:
+          action === "reopen"
+            ? "Please add a short note when reopening a task."
+            : "Please add a short note when sending a task back.",
+      },
       { status: 400 },
     );
   }
@@ -109,7 +127,20 @@ export async function PATCH(
   if (!result.ok && result.reason === "photo_required") {
     return NextResponse.json(
       {
-        error: "Add at least 1 photo before sending this task to review.",
+        error:
+          result.task?.type === "repair"
+            ? "Add a proof photo before finishing this repair."
+            : "Add at least 1 photo before sending this task to review.",
+        task: result.task,
+      },
+      { status: 409 },
+    );
+  }
+  if (!result.ok && result.reason === "ai_check_required") {
+    return NextResponse.json(
+      {
+        error:
+          "Run the AI photo check before sending this cleaning task to review.",
         task: result.task,
       },
       { status: 409 },
@@ -118,7 +149,10 @@ export async function PATCH(
   if (!result.ok && result.reason === "note_required") {
     return NextResponse.json(
       {
-        error: "Please add a short note when sending a task back.",
+        error:
+          action === "reopen"
+            ? "Please add a short note when reopening a task."
+            : "Please add a short note when sending a task back.",
         task: result.task,
       },
       { status: 400 },

@@ -24,12 +24,28 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   role screen (`My rooms`, `Repairs`, `Front desk`, `Room service
   orders`), the Supervisor and Owner on simple home pages for now (their
   real pages are M7 and M10). Sign out is in the top bar.
+- Task types (T1): the AI picks a **type** as well as the department, and
+  the type is shown on every task card. The rules live in one place,
+  `src/lib/task-types.ts`:
+  - **Request** (towels, water, pillow, taxi, food, info): Accept ->
+    Start -> Done. No photo, no review.
+  - **Cleaning** (clean a room): Accept -> Start -> photo -> AI photo
+    check -> Send to review -> supervisor approves (Done) or sends it
+    back with a note.
+  - **Repair** (fix something): Accept -> Start -> proof photo -> Done.
+    No AI check. The photo stays on the done task so the Supervisor and
+    Owner can see it on their home pages; the Supervisor can **Reopen**
+    a repair with a note and Ruslan fixes it again.
+  Old saved tasks without a type get one guessed from their title
+  (otherwise "request").
+- Supervisor and Owner homes have a simple **New cleaning task** form:
+  write a room number and it creates a "Clean room \<number\>" cleaning
+  task for Housekeeping (for example after check-out). Guests can also
+  ask for cleaning on the guest page. `POST /api/tasks` with
+  `{"room":"204"}` does this (supervisor/owner only, server-checked).
 - `/staff` — the signed-in staff member's screen. You see only your team
-  tasks, most urgent and newest first, and move them with buttons:
-  Accept -> Start -> Send to review. Staff cannot finish a task
-  themselves: **Send to review** needs at least 1 photo. A supervisor
-  then approves it (Done) or sends it back to In progress with a short
-  note that staff see on the task. **The server checks the role:**
+  tasks, most urgent and newest first, and move them with the buttons
+  for their type (see above). **The server checks the role:**
   `PATCH /api/tasks/<id>` with `{"action":"approve"}` or
   `{"action":"send_back","note":"..."}` only works with a supervisor
   sign-in (staff get HTTP 403); the staff steps, photo upload and the AI
@@ -49,17 +65,20 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   photo link is saved on the task. All photo saving/reading lives in
   `src/lib/photos.ts`, so it can switch to cloud storage later by changing
   only that file.
-- AI photo check on staff tasks (SAM 3.1): on a started task with photos,
-  press **Run AI photo check**. The server sends the photo(s) to Meta's
-  `sam-3.1` (one short object search per check — e.g. housekeeping looks
-  for bed, towels, pillow; the list lives in `src/lib/photo-check.ts`)
-  and saves the result on the task: a score (0–100), each check as Found /
-  Not found / Not sure (with the AI confidence; low confidence is always
-  "Not sure", never pass or fail), problems in plain words, and the model
-  name. The AI only helps the supervisor — it never approves a task, and
-  the task status does not change. With no API key, or when the model
-  errors, the saved result is clearly marked **MOCK** and the flow still
-  works. API: `POST /api/tasks/<id>/ai-check`.
+- AI photo check on **cleaning tasks only** (SAM 3.1): on a started
+  cleaning task with photos, press **Run AI photo check**. The server
+  sends the photo(s) to Meta's `sam-3.1` (one short object search per
+  check — housekeeping looks for bed, towels, pillow; the list lives in
+  `src/lib/photo-check.ts`) and saves the result on the task: a score
+  (0–100), each check as Found / Not found / Not sure (with the AI
+  confidence; low confidence is always "Not sure", never pass or fail),
+  one short problem line (e.g. "Not found: towels. Fix the room and take
+  a new photo."), and the model name. The AI only helps the supervisor —
+  it never approves a task, and the task status does not change. A
+  cleaning task can only be sent to review after this check ran. With no
+  API key, or when the model errors, the saved result is clearly marked
+  **MOCK** and the flow still works. API: `POST /api/tasks/<id>/ai-check`
+  (refused for request/repair tasks).
 - The Owner home has a "Reset demo data" button that deletes all saved
   tasks and their photos (it asks "Are you sure?" first). Owner only.
 - Voice input on the guest page: press **Mic**, speak (up to 45 seconds),
@@ -89,11 +108,16 @@ Try this text:
 
 > There is a leak in the bathroom and please bring towels
 
-Then sign in as Ruslan (Maintenance) and press Accept -> Start, add a
-photo, then Send to review on the leak task. The guest page still shows
-"On the way" while it waits for a supervisor. Sign in as the Supervisor
-and approve it with the API above (`{"action":"approve"}`) to see the
-guest status become "Done" — the real supervisor screen comes in M7.
+That message makes 2 tasks: a **Repair** for Ruslan (Maintenance) and a
+**Request** for Aigerim (Housekeeping). Sign in as Aigerim and press
+Accept -> Start -> Done on the towels task — no photo needed. Sign in as
+Ruslan and press Accept -> Start on the leak task, add a proof photo,
+then Done — no AI check, no review; the guest page then shows "Done".
+To try cleaning: sign in as the Supervisor or Owner, use **New cleaning
+task** with a room number, then as Aigerim press Accept -> Start, add a
+photo, Run AI photo check, Send to review — and as the Supervisor
+approve it with the API above (`{"action":"approve"}`) until the real
+supervisor screen comes in M7.
 
 ## Try voice input
 

@@ -5,6 +5,7 @@ import { Mic, Send } from "lucide-react";
 import { Badge, Button, Card, Textarea } from "@/components/ui";
 import {
   DEPARTMENT_LABELS,
+  TASK_TYPE_LABELS,
   type MessageMode,
   type StoredTask,
   type TaskStatus,
@@ -440,9 +441,14 @@ export default function GuestForm({ room }: { room: string }) {
                   <p className="text-[14px] font-semibold">
                     Sent to {DEPARTMENT_LABELS[task.department]}: {task.title}
                   </p>
-                  <Badge tone={GUEST_STATUS[task.status].tone} dot>
-                    {GUEST_STATUS[task.status].label}
-                  </Badge>
+                  <span className="flex flex-wrap gap-1.5">
+                    <Badge tone="neutral">
+                      {TASK_TYPE_LABELS[task.type]}
+                    </Badge>
+                    <Badge tone={GUEST_STATUS[task.status].tone} dot>
+                      {GUEST_STATUS[task.status].label}
+                    </Badge>
+                  </span>
                 </Card>
               </li>
             ))}

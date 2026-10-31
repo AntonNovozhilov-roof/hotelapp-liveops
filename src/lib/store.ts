@@ -11,6 +11,7 @@ import {
   type TaskStatus,
 } from "./tasks";
 import { MAX_PHOTOS_PER_TASK, deleteAllPhotos } from "./photos";
+import { TASK_TYPE_RULES, resolveTaskType } from "./task-types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
@@ -81,13 +82,17 @@ function isTaskAiCheck(value: unknown): value is TaskAiCheck {
   );
 }
 
-/** Tasks saved before photos/review/AI-check existed get empty photos, no note, no check. */
+/**
+ * Old saved tasks get defaults: no photos/note/check, and a type guessed
+ * from the title (otherwise "request") — see src/lib/task-types.ts.
+ */
 function normalizeTask(task: StoredTask): StoredTask {
   const raw = (task as { photos?: unknown }).photos;
   const note = (task as { reviewNote?: unknown }).reviewNote;
   const check = (task as { aiCheck?: unknown }).aiCheck;
   return {
     ...task,
+    type: resolveTaskType((task as { type?: unknown }).type, task.title),
     photos: Array.isArray(raw) ? raw.filter(isTaskPhoto) : [],
     reviewNote: typeof note === "string" && note.trim() ? note : null,
     aiCheck: isTaskAiCheck(check) ? check : null,
@@ -166,14 +171,42 @@ export async function createStoredTasks(
   });
 }
 
-/** Allowed next statuses. Staff never go straight to `done`: only review -> done (approve). */
-const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {
-  new: ["accepted"],
-  accepted: ["in_progress"],
-  in_progress: ["review"],
-  review: ["done", "in_progress"],
-  done: [],
-};
+/** A "Clean room <number>" cleaning task (supervisor/owner form, T1). */
+export async function createCleaningTask(
+  room: string,
+): Promise<StoredTask> {
+  const [task] = await createStoredTasks(room, [
+    {
+      department: "housekeeping",
+      type: "cleaning",
+      title: `Clean room ${room}`,
+      priority: "medium",
+      confidence: 1,
+    },
+  ]);
+  return task;
+}
+
+/**
+ * Allowed next statuses, by task type (rules in src/lib/task-types.ts):
+ * request/repair finish from in_progress; cleaning goes to review first.
+ * A done repair can be reopened by a supervisor (role checked in the API).
+ */
+function nextStatuses(task: StoredTask): TaskStatus[] {
+  const rule = TASK_TYPE_RULES[task.type];
+  switch (task.status) {
+    case "new":
+      return ["accepted"];
+    case "accepted":
+      return ["in_progress"];
+    case "in_progress":
+      return [rule.goesToReview ? "review" : "done"];
+    case "review":
+      return ["done", "in_progress"];
+    case "done":
+      return task.type === "repair" ? ["in_progress"] : [];
+  }
+}
 
 export const MAX_REVIEW_NOTE_LENGTH = 500;
 
@@ -272,15 +305,18 @@ export type UpdateResult =
         | "not_found"
         | "invalid_transition"
         | "photo_required"
+        | "ai_check_required"
         | "note_required";
       task?: StoredTask;
     };
 
 /**
- * Move a task one step in the flow.
- * - in_progress -> review ("Send to review"): needs at least 1 photo; clears any old send-back note.
- * - review -> done (approve): clears the note.
- * - review -> in_progress (send back): needs a short supervisor `note`, saved as `reviewNote` for staff.
+ * Move a task one step in its type flow (TASK_TYPE_RULES):
+ * - cleaning in_progress -> review: needs a photo AND an AI check.
+ * - repair in_progress -> done: needs a proof photo (no AI check).
+ * - request in_progress -> done: no photo needed.
+ * - review -> in_progress (send back) and done repair -> in_progress
+ *   (reopen): need a short supervisor `note`, saved as `reviewNote`.
  */
 export async function updateStoredTaskStatus(
   id: string,
@@ -293,8 +329,7 @@ export async function updateStoredTaskStatus(
     if (index === -1) return { ok: false, reason: "not_found" } as const;
 
     const current = all[index];
-    const allowed = NEXT_STATUSES[current.status] ?? [];
-    if (!allowed.includes(nextStatus)) {
+    if (!nextStatuses(current).includes(nextStatus)) {
       return {
         ok: false,
         reason: "invalid_transition",
@@ -303,25 +338,32 @@ export async function updateStoredTaskStatus(
     }
 
     const cleanNote = typeof note === "string" ? note.trim().slice(0, MAX_REVIEW_NOTE_LENGTH) : "";
+    const rule = TASK_TYPE_RULES[current.type];
+    const isFinalStep =
+      current.status === "in_progress" &&
+      nextStatus === (rule.goesToReview ? "review" : "done");
 
-    if (current.status === "in_progress" && nextStatus === "review") {
-      if (current.photos.length < 1) {
-        return { ok: false, reason: "photo_required", task: current } as const;
-      }
+    if (isFinalStep && rule.photoRequired && current.photos.length < 1) {
+      return { ok: false, reason: "photo_required", task: current } as const;
     }
-    if (current.status === "review" && nextStatus === "in_progress") {
-      if (!cleanNote) {
-        return { ok: false, reason: "note_required", task: current } as const;
-      }
+    if (isFinalStep && rule.aiCheckRequired && !current.aiCheck) {
+      return {
+        ok: false,
+        reason: "ai_check_required",
+        task: current,
+      } as const;
+    }
+    const needsNote =
+      (current.status === "review" && nextStatus === "in_progress") ||
+      (current.status === "done" && nextStatus === "in_progress");
+    if (needsNote && !cleanNote) {
+      return { ok: false, reason: "note_required", task: current } as const;
     }
 
     const updated: StoredTask = {
       ...current,
       status: nextStatus,
-      reviewNote:
-        current.status === "review" && nextStatus === "in_progress"
-          ? cleanNote
-          : null,
+      reviewNote: needsNote ? cleanNote : null,
       updatedAt: new Date().toISOString(),
     };
     all[index] = updated;

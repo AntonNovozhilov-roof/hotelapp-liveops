@@ -7,15 +7,19 @@ const MODEL_NAME = "muse-spark-1.3";
 
 const SYSTEM_PROMPT = `You route hotel guest requests to hotel teams.
 Read the guest message and return ONLY JSON, no markdown, no extra text:
-{"tasks":[{"department":"maintenance","title":"Fix leak in the bathroom","priority":"high","confidence":0.95}]}
+{"tasks":[{"department":"maintenance","type":"repair","title":"Fix leak in the bathroom","priority":"high","confidence":0.95}]}
 
 Rules:
 - department must be one of: maintenance, housekeeping, front_desk, room_service
+- type must be one of: request, cleaning, repair
+  - request: bring or deliver something, info, taxi, food (towels, water, pillow, room service order)
+  - cleaning: clean a room (housekeeping)
+  - repair: fix something that is broken (maintenance)
 - priority must be one of: high, medium, low
 - confidence must be a number from 0 to 1
 - title must be a short task title in English for hotel staff
-- create one task per separate request in the message. Example: "leak in the bathroom and bring towels" makes 2 tasks.
-- if the message is unclear, make one front_desk task with low confidence.`;
+- create one task per separate request in the message. Example: "leak in the bathroom and bring towels" makes 2 tasks: a repair for maintenance and a request for housekeeping.
+- if the message is unclear, make one front_desk request task with low confidence.`;
 
 function extractJson(text: string): unknown {
   const cleaned = text

@@ -1,5 +1,27 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — F1: Print-all popup + Done newest first (ANT-44)
+
+What I built: "Print all" on Rooms & QR no longer opens a new page. It opens a popup "How do you want to download?" — (1) PDF for printing: A4 sheets, 6 QR cards per page, hotel name + room number + "Scan to message the hotel" on each card; (2) All as PNG: one ZIP, one image per room, file name = room number (e.g. `205.png`). You can pick all rooms or one floor. The file downloads directly, no new tab (PDF/ZIP are built in the browser with jspdf/jszip). Done column on every board is now newest first (`sortForColumn` in `src/lib/tasks.ts`, used by the staff board columns and Finished repairs); other columns stay urgent first, then oldest, and the Done column subtitle now says "Newest first".
+
+Files changed:
+- `src/components/RoomsBoard.tsx` — download popup (format + all/floor choice, direct blob download)
+- `src/lib/tasks.ts` — `sortForColumn`: Done newest first, others urgent→oldest
+- `src/app/staff/StaffBoard.tsx`, `src/components/DoneRepairs.tsx` — use the column sort; Done subtitle "Newest first"
+- `docs/PROJECT_MAP.md` — F1 (ANT-44) and P1 (ANT-45) rows added
+- `package.json`/`package-lock.json` — jspdf + jszip
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok.
+- Browser (owner, port 3100): Print all opens the popup on the same page; PDF download produced `room-qr-codes.pdf` (3 A4 pages for 11 rooms, "Scan to message the hotel" + "Room" text present), no new tab, no console errors. ZIP with "Floor 1 only" produced `room-qr-codes.zip` containing exactly `101A.png`, `102.png`, `103.png`.
+
+NOT working / NOT checked yet:
+- A real printer is not checked; the PDF is standard A4 from jsPDF.
+- Full-session backtest (incl. Done order on the staff board with fresh tasks) runs at the end of the F1→P1→M8+M9 session.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-44, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Guest AI assistant (ANT-43 / G1)
 
 What I built: The guest page is now a simple chat: guest bubbles on the right, assistant replies on the left, voice exactly as before (Mic → transcript lands in the box → guest can fix it → Send). One `muse-spark-1.3` call returns JSON `{reply, tasks}` (same task format and `validateTasks` validation as before), with the last 6 chat messages sent so follow-ups work. Reply rules live in one place, `src/lib/guest-ai.ts` — in the model prompt, in the MOCK replies, and as server guardrails on the LIVE answer, so they hold even if the model slips: reply in the guest's language, short/warm/honest, never promise a time, confirm which team got a request; hotel questions answered only from the G2 info sheet (deterministic sheet lookup for Wi-Fi/breakfast/times/phones/address/rules/FAQs), unknown questions get "I'll ask the front desk for you" + a front desk task with the question; emergencies (fire, gas smell, someone hurt/ill, flooding) tell the guest to call the reception/emergency numbers from the sheet now + an urgent (high) task; no invented prices, no other guests' info, chit-chat = short friendly reply, no task. Live status lines appear in the chat when staff move a task ("Housekeeping is on the way", "Done ✓ — …"). Chat lives only in this browser tab (state only, refresh starts clean) with the line "Your requests go to hotel staff." MOCK mode (no key) gives the same sensible replies via the same rules, clearly marked (MOCK badge + "MOCK reply").

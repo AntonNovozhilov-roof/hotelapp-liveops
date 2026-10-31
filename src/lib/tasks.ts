@@ -146,6 +146,23 @@ export function sortTasks(tasks: StoredTask[]): StoredTask[] {
   });
 }
 
+/**
+ * Board column order (F1): Done is newest first (most recently finished on
+ * top); every other column stays urgent first, then oldest first.
+ */
+export function sortForColumn(
+  tasks: StoredTask[],
+  status: TaskStatus,
+): StoredTask[] {
+  if (status === "done") {
+    return [...tasks].sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+  }
+  return sortTasks(tasks);
+}
+
 /** True when the AI check has a "not found" / "not sure" item (or none saved). */
 export function aiNeedsAttention(task: StoredTask): boolean {
   if (!task.aiCheck) return true;

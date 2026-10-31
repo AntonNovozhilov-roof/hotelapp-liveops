@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, Input } from "@/components/ui";
-import type { StoredTask } from "@/lib/tasks";
+import { sortForColumn, type StoredTask } from "@/lib/tasks";
 
 /**
  * Finished repairs with their proof photos (T1 / ANT-39).
@@ -16,7 +16,7 @@ export default function DoneRepairs({
   tasks: StoredTask[];
   canReopen: boolean;
 }) {
-  const [items, setItems] = useState(tasks);
+  const [items, setItems] = useState(() => sortForColumn(tasks, "done"));
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);

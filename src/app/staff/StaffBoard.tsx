@@ -8,6 +8,7 @@ import {
   TASK_STATUSES,
   TASK_TYPE_LABELS,
   TASK_TYPE_RULES,
+  sortForColumn,
   sortTasks,
   timeAgo,
   type StoredTask,
@@ -285,7 +286,10 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {TASK_STATUSES.map((status) => {
-          const columnTasks = tasks.filter((task) => task.status === status);
+          const columnTasks = sortForColumn(
+            tasks.filter((task) => task.status === status),
+            status,
+          );
           const isReview = status === "review";
           return (
             <section
@@ -304,7 +308,9 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                 </span>
               </h3>
               <p className="mt-1 px-1 text-[12px] text-ink-4">
-                Urgent first, then oldest
+                {status === "done"
+                  ? "Newest first"
+                  : "Urgent first, then oldest"}
               </p>
               {isReview && (
                 <p className="mt-1 px-1 text-[12.5px] font-semibold text-insp-deep">

@@ -22,6 +22,10 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
   const [edit, setEdit] = useState<Record<string, string>>({});
   const [fullRoom, setFullRoom] = useState<Room | null>(null);
   const [busy, setBusy] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [dlFormat, setDlFormat] = useState<"pdf" | "zip">("pdf");
+  const [dlScope, setDlScope] = useState("all");
+  const [downloading, setDownloading] = useState(false);
 
   const floors = useMemo(() => [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b), [rooms]);
   const visible = rooms.filter((r) => (floorFilter === "all" || r.floor === Number(floorFilter)) && r.number.toLowerCase().includes(search.trim().toLowerCase()));
@@ -44,6 +48,48 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
       setMsg(okMsg); return data;
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong."); return null; }
     finally { setBusy(false); }
+  }
+
+  async function downloadAll() {
+    const chosen = dlScope === "all" ? rooms : rooms.filter((r) => r.floor === Number(dlScope));
+    if (chosen.length === 0) { setError("No rooms to download. Pick another floor."); return; }
+    setDownloading(true); setError(null); setMsg(null);
+    try {
+      // Make sure every chosen room has a QR image first.
+      const images: Record<string, string> = { ...qr };
+      for (const room of chosen) {
+        if (!images[room.id]) images[room.id] = await QRCode.toDataURL(linkFor(room), { width: 640, margin: 1 });
+      }
+      if (dlFormat === "zip") {
+        const { default: JSZip } = await import("jszip");
+        const zip = new JSZip();
+        for (const room of chosen) zip.file(`${room.number}.png`, images[room.id].split(",")[1], { base64: true });
+        const blob = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = "room-qr-codes.zip"; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        setMsg(`Downloaded ${chosen.length} QR image${chosen.length === 1 ? "" : "s"} in one ZIP file.`);
+      } else {
+        const { jsPDF } = await import("jspdf");
+        const doc = new jsPDF({ unit: "mm", format: "a4" });
+        const cols = 2, rows = 3, cardW = 88, cardH = 84, gapX = 10, gapY = 8, startX = 12, startY = 12;
+        chosen.forEach((room, i) => {
+          const slot = i % (cols * rows);
+          if (i > 0 && slot === 0) doc.addPage();
+          const x = startX + (slot % cols) * (cardW + gapX);
+          const y = startY + Math.floor(slot / cols) * (cardH + gapY);
+          doc.setDrawColor(210); doc.roundedRect(x, y, cardW, cardH, 3, 3, "S");
+          doc.setFontSize(9); doc.setTextColor(110); doc.text(hotelName, x + cardW / 2, y + 8, { align: "center" });
+          doc.setFontSize(16); doc.setTextColor(20); doc.text(`Room ${room.number}`, x + cardW / 2, y + 15, { align: "center" });
+          doc.addImage(images[room.id], "PNG", x + cardW / 2 - 24, y + 19, 48, 48);
+          doc.setFontSize(10); doc.text("Scan to message the hotel", x + cardW / 2, y + 74, { align: "center" });
+        });
+        doc.save("room-qr-codes.pdf");
+        setMsg(`Downloaded a PDF with ${chosen.length} QR card${chosen.length === 1 ? "" : "s"} — ready to print on A4.`);
+      }
+      setPrintOpen(false);
+    } catch { setError("The download did not work. Please try again."); }
+    finally { setDownloading(false); }
   }
 
   async function refresh() {
@@ -84,7 +130,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
         <select className="h-10 px-3 rounded-lg border border-line bg-white text-sm" value={floorFilter} onChange={(e) => setFloorFilter(e.target.value)} aria-label="Filter by floor">
           <option value="all">All floors</option>{floors.map((f) => <option key={f} value={f}>Floor {f}</option>)}
         </select>
-        <a href="/owner/rooms/print" target="_blank" rel="noreferrer"><Button variant="secondary">Print all</Button></a>
+        <Button variant="secondary" onClick={() => { setDlScope(floorFilter); setPrintOpen(true); }}>Print all</Button>
         <Badge tone="brand">{visible.length} room{visible.length === 1 ? "" : "s"}</Badge>
       </div>
 
@@ -115,6 +161,35 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
               )}
             </Card>
           ))}
+        </div>
+      )}
+
+      {printOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-brand-950/60 p-3" role="dialog" aria-modal="true" aria-label="How do you want to download?">
+          <Card className="w-full max-w-md p-5">
+            <h2 className="font-display text-[19px] font-semibold">How do you want to download?</h2>
+            <p className="mt-1 text-[13px] text-ink-3">The file downloads straight to this device — no new page opens.</p>
+            <div className="mt-4 space-y-2" role="radiogroup" aria-label="Download format">
+              <label className="flex gap-2.5 rounded-xl border border-line p-3 cursor-pointer has-checked:border-brand-600 has-checked:bg-brand-50">
+                <input type="radio" name="dl-format" checked={dlFormat === "pdf"} onChange={() => setDlFormat("pdf")} className="mt-1" />
+                <span><strong className="text-[14px]">PDF for printing</strong><br /><span className="text-[12.5px] text-ink-3">A4 sheets, several QR cards per page — hotel name, room number and &ldquo;Scan to message the hotel&rdquo; on every card.</span></span>
+              </label>
+              <label className="flex gap-2.5 rounded-xl border border-line p-3 cursor-pointer has-checked:border-brand-600 has-checked:bg-brand-50">
+                <input type="radio" name="dl-format" checked={dlFormat === "zip"} onChange={() => setDlFormat("zip")} className="mt-1" />
+                <span><strong className="text-[14px]">All as PNG (one ZIP file)</strong><br /><span className="text-[12.5px] text-ink-3">One image per room, each file named by its room number.</span></span>
+              </label>
+            </div>
+            <label className="mt-4 block"><span className="block text-[12.5px] font-semibold mb-1">Which rooms?</span>
+              <select className="h-10 w-full px-3 rounded-lg border border-line bg-white text-sm" value={dlScope} onChange={(e) => setDlScope(e.target.value)} aria-label="Rooms to download">
+                <option value="all">All rooms ({rooms.length})</option>
+                {floors.map((f) => <option key={f} value={f}>Floor {f} only ({rooms.filter((r) => r.floor === f).length})</option>)}
+              </select>
+            </label>
+            <div className="mt-5 flex gap-2">
+              <Button className="flex-1" loading={downloading} onClick={() => void downloadAll()}>{downloading ? "Preparing…" : "Download"}</Button>
+              <Button variant="secondary" disabled={downloading} onClick={() => setPrintOpen(false)}>Cancel</Button>
+            </div>
+          </Card>
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   addStoredTaskPhoto,
+  clearStoredTaskPhotos,
   getStoredTask,
   removeStoredTaskPhoto,
 } from "@/lib/store";
@@ -133,6 +134,22 @@ export async function DELETE(
   }
   const guard = await photoGuard(existing.department);
   if ("response" in guard) return guard.response;
+
+  // No name = retake (M6): clear every photo and the AI result at once.
+  if (!name) {
+    const cleared = await clearStoredTaskPhotos(id);
+    if (!cleared.ok && cleared.reason === "not_found") {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+    if (!cleared.ok) {
+      return NextResponse.json(
+        { error: NOT_STARTED_MESSAGE, task: cleared.task },
+        { status: 409 },
+      );
+    }
+    await Promise.all(cleared.removedNames.map((n) => deletePhoto(n)));
+    return NextResponse.json({ task: cleared.task });
+  }
 
   const result = await removeStoredTaskPhoto(id, name);
   if (!result.ok && result.reason === "not_found") {

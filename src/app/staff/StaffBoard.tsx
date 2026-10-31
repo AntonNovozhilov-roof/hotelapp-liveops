@@ -168,6 +168,38 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
     }
   }
 
+  /** Retake (cleaning only, M6): clear all photos + the AI result at once. */
+  async function retakePhotos(task: StoredTask) {
+    if (photoBusyId) return;
+    if (
+      !window.confirm(
+        "Retake photos? This clears all photos and the AI result for this task.",
+      )
+    ) {
+      return;
+    }
+    setPhotoBusyId(task.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/photos`, {
+        method: "DELETE",
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Could not clear the photos.");
+      }
+      await loadTasks();
+    } catch (retakeError) {
+      setError(
+        retakeError instanceof Error
+          ? retakeError.message
+          : "Could not clear the photos.",
+      );
+    } finally {
+      setPhotoBusyId(null);
+    }
+  }
+
   async function runAiCheck(task: StoredTask) {
     if (aiBusyId) return;
     setAiBusyId(task.id);
@@ -484,6 +516,20 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                     : task.aiCheck
                                       ? "Run AI photo check again"
                                       : "Run AI photo check"}
+                                </Button>
+                              )}
+                            {task.type === "cleaning" &&
+                              task.status === "in_progress" &&
+                              task.photos.length > 0 && (
+                                <Button
+                                  variant="danger"
+                                  loading={photoBusyId === task.id}
+                                  onClick={() => void retakePhotos(task)}
+                                  className="mt-2 w-full"
+                                >
+                                  {photoBusyId === task.id
+                                    ? "Clearing photos..."
+                                    : "Retake photos"}
                                 </Button>
                               )}
                           </div>

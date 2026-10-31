@@ -297,6 +297,38 @@ export async function removeStoredTaskPhoto(
   });
 }
 
+/**
+ * Retake (M6 / ANT-22, cleaning tasks): clear ALL photos and the AI result
+ * in one step, so staff can shoot a fresh set. Only on a started task.
+ * Returns the removed photo names so the caller can delete the files.
+ */
+export async function clearStoredTaskPhotos(
+  id: string,
+): Promise<
+  | { ok: true; task: StoredTask; removedNames: string[] }
+  | { ok: false; reason: "not_found" | "not_started"; task?: StoredTask }
+> {
+  return withLock(async () => {
+    const all = await readAll();
+    const index = all.findIndex((task) => task.id === id);
+    if (index === -1) return { ok: false, reason: "not_found" } as const;
+    const current = all[index];
+    if (current.status !== "in_progress") {
+      return { ok: false, reason: "not_started", task: current } as const;
+    }
+    const removedNames = current.photos.map((photo) => photo.name);
+    const updated: StoredTask = {
+      ...current,
+      photos: [],
+      aiCheck: null,
+      updatedAt: new Date().toISOString(),
+    };
+    all[index] = updated;
+    await writeAll(all);
+    return { ok: true, task: updated, removedNames } as const;
+  });
+}
+
 export type UpdateResult =
   | { ok: true; task: StoredTask }
   | {

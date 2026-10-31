@@ -1,5 +1,31 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — AI result + retake on staff board, cleaning only (ANT-22 / M6)
+
+What I built (simple words): Cleaning tasks only — staff now have a red **Retake photos** button on a started cleaning task with photos. It asks "Retake photos? This clears all photos and the AI result for this task." first, then clears every photo (files deleted too) and the AI result in one server step, so staff can shoot a fresh set. "Send to review" stays blocked until an AI check has run on the current photos: adding, deleting or retaking photos clears the old AI result on the server, and the server refuses review without a check (409). Request and repair tasks show no Retake button and no AI gating (their T1 rules are unchanged).
+
+Files changed:
+- `src/lib/store.ts` — new `clearStoredTaskPhotos`: clears photos + AI result on a started task, returns removed file names
+- `src/app/api/tasks/[id]/photos/route.ts` — `DELETE` with no `?name=` is the retake (clears all); `?name=` still deletes one photo
+- `src/app/staff/StaffBoard.tsx` — `retakePhotos` handler + "Retake photos" button (cleaning, In progress, has photos only)
+- `README.md` — retake + "check must match current photos" written down
+- `DEVLOG.md` — this entry
+
+Linear:
+- ANT-22 (M6) — shared task, taken by Meta1 ("Meta1: taking this"), In Progress, then Done with a summary comment.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok.
+- API test, 15/15 checks passed (LIVE AI, server on port 3100): supervisor created "Clean room 881"; Aigerim Accept → Start; Send to review with no photo refused (409); photo uploaded; Send without AI check refused (409 "Run the AI photo check before sending this cleaning task to review."); AI check ran LIVE (score 67, towels not found); Retake (`DELETE /api/tasks/<id>/photos`) cleared photos and the AI result and the photo file itself answered 404; Send after retake refused (409); re-upload + AI check again + Send to review worked (task In review); Retake while In review refused (409).
+
+NOT working / NOT checked yet:
+- The Retake button itself was exercised through its exact API call; clicking it in the browser is covered in the M7 browser pass of this session (same build).
+- A real phone camera photo is not checked; test photo is the saved sample in `.data/test-photos/` (git-ignored).
+- Not pushed to GitHub (owner did not say "push").
+
+AI model that helped: Muse via opencode (Meta1). Photo check tested LIVE with sam-3.1.
+Linear: ANT-22, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Staff board order: urgent first, then oldest (ANT-40)
 
 What I built (simple words): Every staff board column now uses the same order: urgent (high priority) tasks first, then the oldest task first (first in, first out). Before, ties went newest first. The rule lives in the one sort helper (`sortTasks` in `src/lib/tasks.ts`), so the API and every column on `/staff` follow it. Under every column title a small line now says "Urgent first, then oldest".

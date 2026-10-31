@@ -76,7 +76,10 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   one short problem line (e.g. "Not found: towels. Fix the room and take
   a new photo."), and the model name. The AI only helps the supervisor —
   it never approves a task, and the task status does not change. A
-  cleaning task can only be sent to review after this check ran. With no
+  cleaning task can only be sent to review after this check ran on the
+  current photos (adding, deleting or retaking photos clears the old
+  result). **Retake photos** (cleaning tasks only) clears all photos and
+  the AI result in one tap, after a confirmation. With no
   API key, or when the model errors, the saved result is clearly marked
   **MOCK** and the flow still works. API: `POST /api/tasks/<id>/ai-check`
   (refused for request/repair tasks).

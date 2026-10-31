@@ -239,7 +239,7 @@ interface MockRule {
 
 const MOCK_RULES: MockRule[] = [
   {
-    pattern: /leak|dripping|flood|plumb|no (hot )?water/i,
+    pattern: /leak|dripping|flood|plumb|no (hot )?water|протек|потоп|теч[её]т/i,
     department: "maintenance",
     type: "repair",
     title: "Fix water leak",
@@ -271,7 +271,7 @@ const MOCK_RULES: MockRule[] = [
     confidence: 0.9,
   },
   {
-    pattern: /towel/i,
+    pattern: /towel|полотен/i,
     department: "housekeeping",
     type: "request",
     title: "Bring towels",
@@ -279,7 +279,7 @@ const MOCK_RULES: MockRule[] = [
     confidence: 0.94,
   },
   {
-    pattern: /pillow|blanket|sheet|soap|shampoo|tooth|trash|tissue|water/i,
+    pattern: /pillow|blanket|sheet|soap|shampoo|tooth|trash|tissue|water|подушк|одеял|мыло|шампун/i,
     department: "housekeeping",
     type: "request",
     title: "Housekeeping request",

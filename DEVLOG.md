@@ -1,5 +1,41 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Guest AI assistant (ANT-43 / G1)
+
+What I built: The guest page is now a simple chat: guest bubbles on the right, assistant replies on the left, voice exactly as before (Mic → transcript lands in the box → guest can fix it → Send). One `muse-spark-1.3` call returns JSON `{reply, tasks}` (same task format and `validateTasks` validation as before), with the last 6 chat messages sent so follow-ups work. Reply rules live in one place, `src/lib/guest-ai.ts` — in the model prompt, in the MOCK replies, and as server guardrails on the LIVE answer, so they hold even if the model slips: reply in the guest's language, short/warm/honest, never promise a time, confirm which team got a request; hotel questions answered only from the G2 info sheet (deterministic sheet lookup for Wi-Fi/breakfast/times/phones/address/rules/FAQs), unknown questions get "I'll ask the front desk for you" + a front desk task with the question; emergencies (fire, gas smell, someone hurt/ill, flooding) tell the guest to call the reception/emergency numbers from the sheet now + an urgent (high) task; no invented prices, no other guests' info, chit-chat = short friendly reply, no task. Live status lines appear in the chat when staff move a task ("Housekeeping is on the way", "Done ✓ — …"). Chat lives only in this browser tab (state only, refresh starts clean) with the line "Your requests go to hotel staff." MOCK mode (no key) gives the same sensible replies via the same rules, clearly marked (MOCK badge + "MOCK reply").
+
+Files changed:
+- `src/lib/guest-ai.ts` — new: reply rules, emergency/info/question detection, sheet answers, MOCK assistant, LIVE guardrails, the model prompt (sheet + rules)
+- `src/app/api/guest/message/route.ts` — one model call returns reply + tasks; accepts `history` (last 6 kept); MOCK uses the rule assistant; empty/>2000 chars still 400
+- `src/app/r/[room]/GuestForm.tsx` — chat UI (bubbles, status lines, tab-only privacy line); voice flow unchanged
+- `src/lib/tasks.ts` — MOCK word rules also recognise a few Russian words (полотенца, подушка, протечка)
+- `DEVLOG.md` — this entry
+
+Linear: ANT-43 (G1, High, sub-issue of ANT-5) — "Meta1: taking this", In Progress.
+
+Backtest (all run this session, LIVE with key on port 3100/3000 unless noted):
+- "please bring two towels" → "I've passed this to housekeeping, towels are on the way", 1 housekeeping request task. PASS (API + browser)
+- "what is the wifi password?" → answer from the sheet (network + saved password), no task. PASS
+- "how much is parking?" (price not in the sheet) → no invented price, "I'll ask the front desk for you" + 1 front desk task with the question. PASS
+- "leak in the bathroom and bring towels" → reply mentions both teams, 2 tasks (maintenance repair + housekeeping request). PASS
+- Russian "Принесите, пожалуйста, два полотенца" → Russian reply, housekeeping task. PASS (LIVE and MOCK)
+- "I smell gas" → tells the guest to call reception + emergency number 112, 1 urgent (high) task. PASS
+- Follow-up "and one more pillow" after the towels (history sent) → housekeeping pillow task. PASS
+- Empty message → 400 "Message is empty"; 2001 chars → 400. MOCK mode (server with no key): all cases above give sensible marked replies (towels/wifi/parking/leak+ towels/Russian/gas/chit-chat). PASS
+- Regenerate QR → old link shows the "no longer valid" page, new link works (R1 test). Print page renders cards; PNG download starts a real `room-101A-qr.png` download and QR images render (320px, loaded). PASS
+- Roles: staff cannot open Rooms & QR (307/API 403) or Hotel info (307/API "Only the Owner…"); supervisor can view/print QR but cannot change rooms or hotel info. PASS
+- Old flows still work: staff board 200, supervisor page 200, cleaning send-to-review without photo still 409, request Accept→Start→Done worked from the browser test task; guest chat showed the live "Housekeeping is on the way" and "Done ✓" lines when staff moved it. Photo check/supervisor review/repairs reopen code untouched in this session (last checked in ANT-22/ANT-23, same build line). PASS
+- `npm run typecheck` ok, `npm run build` ok, no browser console errors on guest/rooms pages; 375px iframe check: guest and rooms pages `scrollWidth` = 375 (no sideways scroll), desktop check at 800px+ window also clean (1440 layout uses the same max-width grids checked in earlier sessions).
+
+NOT working / NOT checked yet:
+- A real phone, a real printer and a real QR scan with a phone camera are not checked — QR PNG/print are generated from the exact guest link and rendered in the browser.
+- The "accepted" status line can be skipped in the guest chat if staff Accept and Start between two 3-second polls (the later lines still show). 
+- History (M8/M9) and the owner morning report (M10) are still Todo. Not pushed to GitHub (owner did not say "push").
+- Test tasks created during the backtests were removed afterwards (pre-existing saved tasks restored); rooms 101A/102/103 + 201–205 and the demo hotel info ("Seaside Demo Hotel", parking FAQ) are left in `.data/hotel.json` on purpose so there is something to try.
+
+AI model that helped: Muse via opencode (Meta1). Guest assistant tested LIVE with muse-spark-1.3.
+Linear: ANT-43, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Hotel info sheet (ANT-42 / G2)
 
 What I built: Hotel info page (`/owner/hotel-info`, Owner only): hotel name, address, reception phone, emergency number, Wi-Fi name and password, check-in/check-out times, breakfast hours, house rules, plus extra questions & answers the owner can add, edit and delete (delete asks first; a helpful empty state suggests a parking example). Saving shows a clear "Saved ✓ The guest AI will use this info now." message. Data lives in the same one place as rooms (`src/lib/hotel-data.ts`, `.data/hotel.json`), so the guest assistant (G1) reads exactly this sheet. The guest page header now shows the hotel name ("Welcome to …").

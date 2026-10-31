@@ -40,7 +40,7 @@ export default async function RoomPage({
           <div className="relative">
             <Logo light />
           </div>
-          <p className="relative text-brand-100/70 text-[13px] mt-7">Welcome</p>
+          <p className="relative text-brand-100/70 text-[13px] mt-7">Welcome to {hotelName}</p>
           <h1 className="relative font-display text-[30px] font-semibold leading-tight">
             Room {room}
           </h1>

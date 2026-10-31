@@ -1,5 +1,27 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — Hotel info sheet (ANT-42 / G2)
+
+What I built: Hotel info page (`/owner/hotel-info`, Owner only): hotel name, address, reception phone, emergency number, Wi-Fi name and password, check-in/check-out times, breakfast hours, house rules, plus extra questions & answers the owner can add, edit and delete (delete asks first; a helpful empty state suggests a parking example). Saving shows a clear "Saved ✓ The guest AI will use this info now." message. Data lives in the same one place as rooms (`src/lib/hotel-data.ts`, `.data/hotel.json`), so the guest assistant (G1) reads exactly this sheet. The guest page header now shows the hotel name ("Welcome to …").
+
+Files changed:
+- `src/app/api/hotel-info/route.ts` — new: GET (public facts for guests/AI), PUT (Owner only on the server, FAQs validated)
+- `src/components/HotelInfoForm.tsx`, `src/app/owner/hotel-info/page.tsx` — new page (staff/supervisor redirected, server-checked)
+- `src/app/r/[room]/page.tsx` — guest header shows the hotel name
+- `DEVLOG.md` — this entry
+
+Linear: ANT-42 (G2, High, sub-issue of ANT-5) — "Meta1: taking this", In Progress.
+
+How I checked it works:
+- `npm run typecheck` ok, `npm run build` ok (new `/owner/hotel-info`, `/api/hotel-info`).
+- Server test (port 3100): staff and supervisor PUT both refused ("Only the Owner can change the hotel info."); owner PUT saved name "Seaside Demo Hotel", Wi-Fi password and a parking FAQ; guest `/r/204` header shows the new hotel name; staff `/owner/hotel-info` → 307 to `/staff`, supervisor → 307 to `/supervisor`, owner → 200.
+
+NOT working / NOT checked yet:
+- The guest assistant that answers from this sheet is G1 (ANT-43) — next commit in this session. Editing FAQs in the browser is exercised in the final browser pass.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-42, sub-issue of ANT-5
+
 ## Meta1 — 2026-10-31 — Rooms and QR codes (ANT-41 / R1)
 
 What I built: Owner nav now has Review, Rooms & QR, Hotel info. Rooms & QR page (`/owner/rooms`): friendly "Add your rooms" setup when empty; owner adds rooms by floor + number range (101–110) or one room, can fix a number, remove a room, and regenerate a QR token (confirm says the old QR for that room will stop working). Each room record (`src/lib/hotel-data.ts`, stored in `.data/hotel.json` like tasks) has id, number, floor, a random unguessable token, `bookingIds: []` so bookings can attach later, and timestamps. Guest link is `/r/<room>?t=<token>`; a wrong/old token shows "This QR code is no longer valid. Please contact reception." Owner setting "Allow links without QR code (demo mode)" is on by default so `/r/204` keeps working — but a link with a wrong token is always refused. QR grid: one card per room (QR image, room, floor), filter by floor, search by number; per room Download PNG, Copy link, Show full screen, Regenerate. "Print all" opens `/owner/rooms/print` (hotel name, room number, "Scan to message the hotel", several cards per A4 page, Print → Save as PDF). Only the owner can change rooms/QR (server-checked); supervisor can view and print; staff cannot open it (page redirect + API 403).

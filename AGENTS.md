@@ -45,6 +45,13 @@ Shared tasks are the MUST/SHOULD sub-issues of ANT-5 that come from
 - The `[Meta1]` title prefix is only for Meta1's own log issues. Shared
   tasks have no prefix.
 
+## How humans test
+
+- Colleagues test from GitHub by following the README section "Run it on your computer" (fresh clone, `npm install`, `npm run dev`, no `.data` and no API key needed — MOCK mode is clearly marked).
+- Each test area is a Linear sub-issue of ANT-5 titled "Human test: ..." (Todo, Medium) with steps, what should happen, and how to report. Testers comment their results on that issue.
+- For each bug a tester creates a new sub-issue of ANT-5 titled "Bug: ..." with steps to repeat it, what happened, what should happen, and a screenshot, and links it from the Human test issue.
+- Agents never ask testers for API keys, and keys never go in Linear, GitHub, or screenshots.
+
 ## Other rules
 
 - Never write API keys in code or logs. Keys go only in `.env.local`.

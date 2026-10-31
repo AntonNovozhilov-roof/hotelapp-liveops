@@ -368,6 +368,11 @@ export async function clearPendingReference(roomId: string): Promise<Room | null
   });
 }
 
+/** Reset rooms, hotel info and settings to a fresh start (Owner Reset). */
+export async function clearHotelData(): Promise<void> {
+  await withLock(async () => writeAll(defaults()));
+}
+
 export async function saveHotelInfo(info: HotelInfo): Promise<HotelInfo> {
   return withLock(async () => {
     const data = await readAll();

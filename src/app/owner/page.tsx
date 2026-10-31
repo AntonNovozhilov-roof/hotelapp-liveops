@@ -6,7 +6,9 @@ import DoneRepairs from "@/components/DoneRepairs";
 import SessionBar from "@/components/SessionBar";
 import TodayGlance from "@/components/TodayGlance";
 import { Card, PageHeader } from "@/components/ui";
+import LoadDemoHotel from "@/components/LoadDemoHotel";
 import { getCurrentUser } from "@/lib/auth";
+import { getHotelData } from "@/lib/hotel-data";
 import { listStoredTasks } from "@/lib/store";
 
 /**
@@ -18,6 +20,7 @@ export default async function OwnerPage() {
   if (!user) redirect("/login");
   if (user.role !== "owner") redirect(user.home);
 
+  const hotel = await getHotelData();
   const tasks = await listStoredTasks();
   const open = tasks.filter((task) => task.status !== "done").length;
   const inReview = tasks.filter((task) => task.status === "review").length;
@@ -30,6 +33,15 @@ export default async function OwnerPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title={user.screenTitle} sub={user.screenSub} />
+      {hotel.rooms.length === 0 && (
+        <Card className="mt-4 border-brand-200 bg-brand-50 p-5">
+          <h2 className="text-[15px] font-semibold">Start here: load the demo hotel</h2>
+          <p className="mt-1.5 text-[13.5px] text-ink-3">
+            One tap creates demo rooms (floor 1: 101–110, floor 2: 201–210), a sample hotel info sheet and a few sample tasks — all clearly labelled demo data with fake details. Try everything, then remove it all with <strong>Reset demo data</strong> below.
+          </p>
+          <div className="mt-3"><LoadDemoHotel /></div>
+        </Card>
+      )}
       <TodayGlance tasks={tasks} />
       <p className="mt-3 text-[13px] text-ink-3">{open} open tasks in total · {inReview} in review · {done} done altogether. The glance above is today only.</p>
 
@@ -95,8 +107,7 @@ export default async function OwnerPage() {
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Demo data</h2>
         <p className="mt-1.5 text-[13.5px] text-ink-3">
-          Only you (the Owner) can clear the demo data. The server refuses
-          this for every other account.
+          Only you (the Owner) can clear the demo data. Reset deletes all tasks and photos, rooms and QR codes, the hotel info sheet, history and reports — back to a fresh start. The server refuses this for every other account.
         </p>
         <div className="mt-3">
           <OwnerReset />

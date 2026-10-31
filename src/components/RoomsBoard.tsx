@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { Button, Card, Empty, Input, Badge } from "@/components/ui";
+import LoadDemoHotel from "@/components/LoadDemoHotel";
 import type { HotelSettings, Room } from "@/lib/hotel-data";
 
 function linkFor(room: Room) {
@@ -262,7 +263,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
       </div>
 
       {rooms.length === 0 ? (
-        <Card><Empty title="No rooms yet" text={canEdit ? "Add your rooms above — for example floor 1: 101–110, floor 2: 201–215." : "The Owner has not added rooms yet."} /></Card>
+        <Card><Empty title="No rooms yet" text={canEdit ? "Add your rooms above — for example floor 1: 101–110, floor 2: 201–210 — or load the ready-made demo hotel:" : "The Owner has not added rooms yet."} action={canEdit ? <LoadDemoHotel onLoaded={refresh} /> : undefined} /></Card>
       ) : visible.length === 0 ? (
         <Card><Empty title="No rooms match" text="Try a different search or floor." /></Card>
       ) : (

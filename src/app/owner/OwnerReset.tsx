@@ -12,7 +12,7 @@ export default function OwnerReset() {
 
   async function reset() {
     const confirmed = window.confirm(
-      "Are you sure? This will delete ALL saved tasks for every room and team.",
+      "Are you sure? This deletes ALL tasks and photos, all rooms and QR codes, the hotel info sheet, history and reports — back to a fresh start.",
     );
     if (!confirmed) return;
     setBusy(true);
@@ -26,7 +26,7 @@ export default function OwnerReset() {
       if (!response.ok) {
         throw new Error(data.error || "Could not clear the tasks.");
       }
-      setMessage(`Demo data cleared (${data.cleared ?? 0} tasks removed).`);
+      setMessage(`Demo data cleared (${data.cleared ?? 0} tasks removed, rooms, hotel info, history and reports reset). Fresh start — you can load the demo hotel again.`);
       router.refresh();
     } catch (resetError) {
       setMessage(

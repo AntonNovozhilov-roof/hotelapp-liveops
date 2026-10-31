@@ -1,5 +1,25 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — H1: Ready for human testing (ANT-47)
+
+What I built: A colleague can now clone the repo and test with no `.data` folder and no API key. (1) Fresh start: the Owner sees **Load demo hotel** on the Owner home when there are no rooms, and on the empty Rooms & QR page — one tap creates rooms floor 1: 101–110 and floor 2: 201–210, a sample hotel info sheet ("Seaside Demo Hotel (demo)", fake details, parking/breakfast FAQs) and 5 sample tasks (`(demo)` in the title, `sample:true`, one per team/type incl. a cleaning). Pressing it again adds nothing. **Reset demo data** now removes all of it: tasks+photos, rooms/QR, hotel info, history and reports — back to a fresh start. Owner-only on the server (staff 403, signed-out 401). (2) MOCK mode: with no `MODEL_API_KEY` a yellow MOCK banner sits on every page (AI/photo-check/report results were already marked MOCK); voice transcription stays honestly unavailable without a key (503, "type instead"). (3) README: new "Run it on your computer" for a non-developer tester — Node 20+ (22 LTS) for macOS/Windows, GitHub Desktop or `git clone`, `npm install`, `npm run dev`, http://localhost:3000, demo accounts table + `demo1234`, load demo/reset, real AI via their own `.env.local` key (never commit/paste it), phone on same Wi-Fi `http://<computer-ip>:3000` (photos work, microphone may not — needs HTTPS), and "Known limits" (data only on that computer in `.data`, sign-in resets on restart). AGENTS.md gained a short "How humans test" section.
+
+Files changed: `src/lib/demo-hotel.ts` + `src/app/api/demo/route.ts` + `src/components/LoadDemoHotel.tsx` (new), `src/lib/hotel-data.ts` (`clearHotelData`), `src/lib/reports-store.ts` (`clearReports`), `src/app/api/tasks/route.ts` (Reset also clears hotel/history/reports), `src/app/owner/page.tsx`, `src/app/owner/OwnerReset.tsx`, `src/components/RoomsBoard.tsx`, `src/app/layout.tsx` (MOCK banner), `README.md`, `AGENTS.md`, `DEVLOG.md`.
+
+Linear: ANT-47 "H1: Ready for human testing" (High, sub-issue of ANT-5, taken by Meta1). Created 8 human test tasks (Todo, Medium, sub-issues of ANT-5, each linked to ANT-36): ANT-48 Guest chat and voice, ANT-49 Staff boards per role, ANT-50 Cleaning with perfect photo check and retry, ANT-51 Supervisor review and history, ANT-52 Rooms & QR print/download, ANT-53 Hotel info sheet and assistant answers, ANT-54 Reports daily and weekly, ANT-55 Phone and desktop layout. Each has steps, what should happen, and "How to report" (comment results; per bug a new "Bug: ..." sub-issue of ANT-5 with steps/happened/expected/screenshot, linked back).
+
+How I checked it works:
+- `npm run typecheck` and `npm run build` pass (new `/api/demo` route built).
+- Fresh-clone test exactly as the README says: cloned this repo (committed state) into a temp folder outside the project — no `.data`, no `.env.local` — `npm install`, `npm run dev` with no key. Note found while testing: port 3000 was already busy on this Mac, so Next picked 3001 and printed it; README now explains that (this was the one unclear point, fixed). On the fresh server: MOCK banner on every page; Owner sign-in (demo1234) → "Load demo hotel" on Owner home and on empty Rooms & QR; staff load refused 403, signed-out 401; load created 20 rooms (101–210, floors 1–2), demo hotel info, 5 demo tasks; second load added 0; guest `/r/204` shows the demo hotel name, MOCK leak+towels made 2 tasks, Wi-Fi answered from the demo sheet with no task; voice without key = friendly 503; Aigerim Accept→Start→Done on a request; staff Reset refused 403; Owner Reset cleared 7 tasks → 0 rooms / 0 tasks / 0 history / reports empty, and "Load demo hotel" is offered again. All main pages returned 200 (owner `/staff` 307 to own home, as designed). Guest page iframe-measured at 375px and 1440px: `scrollWidth` equals width, no sideways scroll, no console errors. Temp folder deleted afterwards; the main project's server/data on port 3000 were not touched (still its 4 pre-session tasks).
+
+NOT working / NOT checked yet:
+- Not pushed to GitHub (owner did not say "push") — a colleague can clone these H1 changes from GitHub only after the owner pushes this commit.
+- A real phone, printer, and real-AI (key) run were not re-checked in this task; MOCK mode was the test target, and LIVE flows were checked in earlier tasks. Windows steps are written from the standard Node/GitHub Desktop flow, not run on a Windows machine.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-47, sub-issue of ANT-5 (human tests ANT-48–ANT-55)
+
+
 ## Meta1 — 2026-10-31 — U1: v1.2 polish pass on every screen (ANT-46)
 
 Polish changes (design ported from our earlier v1.2 prototype, read-only at `/Users/batyr/Documents/hotelapp/hotelapp-v1.2` — nav per role from its `nav.ts`/`AppShell`/`StaffShell`, PageHeader pattern, "today at a glance" from its Dashboard; no new features):

@@ -13,7 +13,8 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
   department (`maintenance` / `housekeeping` / `front_desk` / `room_service`),
   title, priority (`high` / `medium` / `low`), confidence (0 to 1).
   One message can create 2 tasks, e.g. "leak in the bathroom and bring towels".
-- With no API key, the app uses a fake MOCK answer and shows the word **MOCK**.
+- With no API key, the app uses a fake MOCK answer and shows the word **MOCK** (a MOCK banner sits on every page).
+- Fresh start (H1): the Owner sees **Load demo hotel** (Owner home, and on the empty Rooms & QR page) — one tap creates rooms 101–110 + 201–210, a sample hotel info sheet and sample tasks, all labelled demo and removed by **Reset demo data**.
 - Every created task is saved in `.data/tasks.json` (local only, ignored by git).
 - `/login` — demo sign-in. Accounts: **owner**, **supervisor**,
   **aigerim** (Housekeeping / cleaner), **ruslan** (Maintenance),
@@ -103,71 +104,153 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
 - Pages are responsive: one column on phones (from 375px), wider layouts
   with status columns on desktop (up to 1440px).
 
-## How to run it
+## Run it on your computer
 
-You need Node.js 20 or newer.
+For a non-developer tester. You do not need a database, an account, or an
+API key to try everything. Allow about 10 minutes for the first setup.
+
+### 1. Install Node.js
+
+Install **Node.js 20 or newer** (the 22 LTS version from
+[nodejs.org](https://nodejs.org) is a good choice):
+
+- **macOS:** download the macOS installer from nodejs.org and run it, or
+  with Homebrew: `brew install node@22`
+- **Windows:** download the Windows Installer (.msi) from nodejs.org and
+  run it. Tick nothing extra; the defaults are fine.
+
+Close and reopen your terminal afterwards, then check it worked:
+
+```bash
+node -v   # should print v20... or v22...
+npm -v
+```
+
+### 2. Get the code
+
+Repo: https://github.com/AntonNovozhilov-roof/hotelapp-liveops
+
+- **Easiest (GitHub Desktop):** install GitHub Desktop, sign in to GitHub,
+  choose **File → Clone repository**, paste the repo link above, pick a
+  folder, and click **Clone**.
+- **Or with git** in a terminal:
+
+```bash
+git clone https://github.com/AntonNovozhilov-roof/hotelapp-liveops.git
+cd hotelapp-liveops
+```
+
+### 3. Install and start
+
+In a terminal **inside the project folder** (in GitHub Desktop: Repository
+→ Open in Terminal):
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open in your browser:
+Wait until it says the server is ready, then open
+**http://localhost:3000** in your browser. Leave that terminal window open
+while you test — closing it (or pressing Ctrl+C) stops the app.
+If the terminal says "Port 3000 is in use … using available port 3001"
+(the app was already running), open the address it prints instead, for
+example http://localhost:3001 — or stop the other copy first with Ctrl+C
+in its terminal.
 
-- Guest (room 204): http://localhost:3000/r/204
-- Sign in: http://localhost:3000/login (demo accounts, password `demo1234`)
+No `.data` folder? That is normal on a fresh clone: the app creates it by
+itself the first time it saves something. Never commit `.data` or
+`.env.local` — both are ignored by git on purpose.
 
-Try this text:
+### 4. Sign in, load the demo hotel, try it
 
-> There is a leak in the bathroom and please bring towels
+Demo accounts (password `demo1234` for every account — tap a person on
+the sign-in page to sign in as them):
 
-That message makes 2 tasks: a **Repair** for Ruslan (Maintenance) and a
-**Request** for Aigerim (Housekeeping). Sign in as Aigerim and press
-Accept -> Start -> Done on the towels task — no photo needed. Sign in as
-Ruslan and press Accept -> Start on the leak task, add a proof photo,
-then Done — no AI check, no review; the guest page then shows "Done".
-To try cleaning: sign in as the Supervisor or Owner, use **New cleaning
-task** with a room number, then as Aigerim press Accept -> Start, add a
-photo, Run AI photo check, Send to review. Then open `/supervisor` (as
-the Supervisor or the Owner): the task is in the **Review queue** with
-its photos, AI score and one-line AI result. **Approve** finishes it
-(the guest sees Done); **Send back** with a short note returns it to
-Aigerim In progress with your note. Tasks where the AI said "not found"
-or "not sure" come first, then the oldest.
+| Sign in as | Username | What you see |
+|---|---|---|
+| Owner | `owner` | Owner home, Reports, Rooms & QR, Hotel info |
+| Supervisor | `supervisor` | Review cleaning work, Reports, History |
+| Aigerim · Housekeeping | `aigerim` | My rooms |
+| Ruslan · Maintenance | `ruslan` | Repairs |
+| Daniyar · Front desk | `daniyar` | Front desk |
+| Madina · Room service | `madina` | Room service orders |
 
-## Try voice input
+1. Open http://localhost:3000/login and sign in as **Owner**.
+2. On the Owner home press **Load demo hotel**. It creates demo rooms
+   (floor 1: 101–110, floor 2: 201–210), a sample hotel info sheet and a
+   few sample tasks. The same button is on the empty **Rooms & QR** page.
+   Everything it creates is clearly labelled demo data with fake details.
+3. Open a guest page, e.g. http://localhost:3000/r/204 (no sign-in needed),
+   and send: *"There is a leak in the bathroom and please bring towels"*.
+   That makes 2 tasks: a Repair for Ruslan and a Request for Aigerim.
+4. Sign in as each person and move their task along: requests are
+   Accept → Start → Done (no photo); repairs need a proof photo before
+   Done; cleaning needs a photo + **Run AI photo check** → Send to review,
+   then the Supervisor (or Owner) approves or sends it back on `/supervisor`.
 
-1. Open http://localhost:3000/r/204 in Chrome.
-2. Press **Mic**. If Chrome asks, allow the microphone.
-3. Say: "There is a leak in the bathroom. Please bring towels."
-4. Press **Stop**. Wait a few seconds.
-5. The text appears in the text box with the hint
-   "Check the text and fix it if needed, then press Send."
-   Fix any wrong words if you want.
-6. Press **Send**. Only now are the tasks created below.
+**Reset / start again:** sign in as Owner → Owner home → **Reset demo
+data** (it asks "Are you sure?"). It deletes all tasks and photos, rooms
+and QR codes, the hotel info sheet, history and reports — a fresh start,
+and you can load the demo hotel again.
 
-Note for phones: Chrome on a phone only allows the microphone on secure
-(HTTPS) pages or localhost. Opening the Mac's network address
-(http://192.168...) on a phone will block the microphone. Typing works
-everywhere. For a real phone test you need an HTTPS address (for example a
-tunnel) — ask for help if you want that set up.
+### 5. MOCK mode (no API key) and real AI (optional)
 
-## Using the real AI (optional)
+With no API key the app still works fully in **MOCK mode**: a yellow MOCK
+banner sits at the top of every page, and AI replies, photo checks and
+reports are marked MOCK. Tasks, photos, review, reports and history all
+really work — only the AI answers are simple examples, and voice
+transcription is unavailable (type instead).
 
-1. Copy `.env.example` to `.env.local`.
-2. Put your key in `.env.local`:
+To switch on real AI with **your own** Meta API key:
+
+1. In the project folder, copy `.env.example` to a new file `.env.local`.
+2. Put your key in `.env.local` (and nothing else on that line):
 
 ```text
 MODEL_API_KEY=your_key_here
 ```
 
-3. Restart `npm run dev`.
+3. Stop the app (Ctrl+C in its terminal) and start it again: `npm run dev`.
 
-The server calls the Meta Model API (`https://api.meta.ai/v1`, model
-`muse-spark-1.3`). The key is read only on the server from `.env.local`.
-Never put the key in code and never commit `.env.local`.
+> **Never** commit `.env.local`, never paste your key into GitHub, Linear,
+> chat, or a screenshot. The key is read only on the server. The server
+> calls the Meta Model API (`https://api.meta.ai/v1`).
 
-Without a key, the page still works in MOCK mode.
+### 6. Try it on a phone on the same Wi-Fi
+
+1. Connect the phone to the **same Wi-Fi** as the computer running the app.
+2. Find the computer's local address:
+   - **macOS:** System Settings → Wi-Fi → Details… → IP address (looks like
+     `192.168.1.20`), or run `ipconfig getifaddr en0` in a terminal.
+   - **Windows:** run `ipconfig` and look for the IPv4 address.
+3. On the phone open `http://<computer-ip>:3000` (for example
+   `http://192.168.1.20:3000`). If the page does not load, allow Node.js
+   through the computer's firewall when it asks.
+
+Photos work on the phone. **The microphone may not work there:** browsers
+only allow the microphone on secure (HTTPS) pages or on `localhost`, and
+this address is plain HTTP — typing works everywhere. Voice on a phone
+needs an HTTPS address (for example a tunnel); ask for help if you want
+that set up.
+
+For voice on the **computer** itself: open http://localhost:3000/r/204 in
+Chrome, press **Mic**, allow the microphone, speak (up to 45 seconds),
+press **Stop**, check/fix the text, then press **Send** — tasks are only
+created when you press Send.
+
+### Known limits
+
+- **Data is stored only on that computer**, in the `.data` folder next to
+  the code. It is not shared, not backed up, and another computer that
+  clones the repo starts empty.
+- **Sign-in resets when the app restarts:** sessions live in server memory,
+  so restarting `npm run dev` signs everyone out. Sign in again.
+- Demo accounts and the `demo1234` password are for local testing only.
+- The microphone needs HTTPS or `localhost` (see above), and voice
+  transcription also needs a real `MODEL_API_KEY`.
+- This is a local test build, not the online version: do not put real
+  guest names, phones, passports or payments into it.
 
 ## Checks
 

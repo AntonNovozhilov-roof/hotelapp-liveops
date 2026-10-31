@@ -6,7 +6,9 @@ import {
 } from "@/lib/store";
 import { sortTasks } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
-import { appendHistory } from "@/lib/history";
+import { appendHistory, clearHistory } from "@/lib/history";
+import { clearHotelData } from "@/lib/hotel-data";
+import { clearReports } from "@/lib/reports-store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -81,6 +83,10 @@ export async function DELETE() {
       { status: 403 },
     );
   }
+  // Full demo reset (H1): tasks + photos, rooms + hotel info, history, reports.
   const cleared = await clearStoredTasks();
+  await clearHotelData();
+  await clearHistory();
+  await clearReports();
   return NextResponse.json({ ok: true, cleared });
 }

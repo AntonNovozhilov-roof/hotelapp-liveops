@@ -24,6 +24,9 @@ async function writeAll(reports: SavedReport[]): Promise<void> {
   await fs.writeFile(tmp, `${JSON.stringify(reports, null, 2)}\n`, "utf8");
   await fs.rename(tmp, DATA_FILE);
 }
+export async function clearReports(): Promise<void> {
+  await withLock(async () => writeAll([]));
+}
 export async function listReports(): Promise<SavedReport[]> {
   return (await readAll()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }

@@ -68,9 +68,9 @@ async function writeAll(events: HistoryEvent[]): Promise<void> {
   await fs.rename(tmp, DATA_FILE);
 }
 
-/** Save one event. Never throws into the caller's flow. */
+/** Save one event. Never throws into the caller's flow. `at` is only for sample-week data (M10). */
 export async function appendHistory(
-  event: Omit<HistoryEvent, "id" | "at" | "ai"> & { ai?: HistoryAiDetails | null },
+  event: Omit<HistoryEvent, "id" | "at" | "ai"> & { ai?: HistoryAiDetails | null; at?: string },
 ): Promise<void> {
   try {
     await withLock(async () => {
@@ -79,7 +79,7 @@ export async function appendHistory(
         ...event,
         ai: event.ai ?? null,
         id: randomUUID(),
-        at: new Date().toISOString(),
+        at: event.at ?? new Date().toISOString(),
       });
       await writeAll(all);
     });
@@ -129,4 +129,16 @@ export async function listHistory(filter: HistoryFilter = {}): Promise<HistoryEv
 
 export async function clearHistory(): Promise<void> {
   await withLock(async () => writeAll([]));
+}
+
+/** Remove only the events of the given tasks (sample-week cleanup, M10). */
+export async function deleteHistoryForTasks(taskIds: string[]): Promise<number> {
+  const ids = new Set(taskIds);
+  if (!ids.size) return 0;
+  return withLock(async () => {
+    const all = await readAll();
+    const kept = all.filter((e) => !e.taskId || !ids.has(e.taskId));
+    await writeAll(kept);
+    return all.length - kept.length;
+  });
 }

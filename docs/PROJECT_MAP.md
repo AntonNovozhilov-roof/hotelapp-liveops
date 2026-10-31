@@ -236,24 +236,30 @@ auto-approve setting (off by default) = Done (supervisor can reopen).
 
 ### 8. Owner report
 
-**Done**
-- Nothing yet. In v1.2, the morning briefing is written by the "briefing"
-  AI job and sent at about 07:30–08:00 (`docs/API.md`: `GET
-  /dashboard/briefing`, guest names removed).
+**Done (M10+S6, 2026-10-31, ANT-26/ANT-34)**
+- Reports page `/reports` (owner + supervisor; staff refused by page and API)
+  with Daily (yesterday + today so far, auto-made on first open after 07:00,
+  Regenerate button) and Weekly (last 7 days) tabs, plus an old-reports list.
+- Facts are calculated first in `src/lib/reports.ts` (per team, done/open,
+  urgent, waiting >2h, accept/finish averages, cleaning AI pass/fail/twice,
+  sent back, reopened repairs, rooms without a perfect photo, repeat problem
+  in the same room, workload per person, unanswered guest questions). Muse
+  Wonder (`muse-wonder-1.0`, `POST /v1/chat/completions` — official Meta
+  docs at dev.meta.ai/docs/models) only restates those facts; every number
+  in its text is checked against them (one retry, then a plain facts report).
+  "All numbers checked ✓" shows on a pass. No key / model error = clearly
+  marked MOCK report from the same facts. Points expand to their tasks.
+- Download as PDF and .md, Copy text (S6). Owner-only "Load sample week
+  (demo)" creates 22 clearly labelled sample tasks+history over 7 days
+  (incl. 3 leaks in room 204); "Remove sample data" deletes only those.
+  Reports made with sample data show "Includes sample data".
 
-**Left (MUST for a simple version)**
-- New page `/owner` with a **Generate morning report** button.
-- `POST /api/report/morning`: builds facts from saved tasks and history
-  (done yesterday, still open, urgent, sent back, average AI photo score),
-  then asks the Meta model **Muse Wonder** (check the exact model id on the
-  Meta Model API first) to write a short, plain report. No guest personal
-  data in the prompt (we have none anyway). No key = clearly marked MOCK
-  report built from the same facts.
-- SHOULD: download the report as a text/Markdown file. Sending it to
-  Telegram/WhatsApp is LATER.
+**Left**
+- Sending the report to Telegram/WhatsApp is LATER.
 
-**Files (new)**
-- `src/app/owner/page.tsx`, `src/app/api/report/morning/route.ts`
+**Files**
+- `src/app/reports/*`, `src/app/api/reports/*`, `src/lib/reports.ts`,
+  `src/lib/reports-store.ts`, `src/lib/sample-week.ts`
 
 ### 9. History
 
@@ -362,7 +368,7 @@ back; Reset demo data is Owner-only; the guest page stays open).
 | P1 | Perfect room reference photos (ANT-45) | — | Each room has 1–3 "perfect room" photos (Bed area / Bathroom / Other). Muse Spark lists the objects in the perfect photo (Meta image-understanding docs), SAM 3.1 finds/counts them (broad fallback list in one place); the check runs on upload and a person presses "Set as perfect reference" (cached). Replacing archives the old reference (who/when/reason history). Cleaning checks compare all cleaner photos with the active reference and show only a simple verdict — item names/counts stay system-only. 1st fail = retake only, 2nd fail = auto review flagged; pass = one-tap approve; owner auto-approve setting (off by default); no reference = simple check + hint. |
 | M8 | History events + history API | — | Every step writes an event (who, what, when). `GET /api/history` returns them newest first. Uses the local `.data` storage (no database yet). |
 | M9 | History view | M8 | A history list (time, room, task, action, person) is visible on `/supervisor` or `/owner` and matches the test loop. Delivered as the `/history` page (owner + supervisor), linked from both homes and from review cards ("Timeline"). |
-| M10 | Owner morning report (Muse Wonder) | M8 | `/owner` Generate button makes a short report from real task facts (MOCK marked if no key); report text shows counts that match the board. |
+| M10 | Owner morning report (Muse Wonder) | M8 | Done (ANT-26): `/reports` Daily/Weekly tabs; facts first, numbers checked, tap a point for its tasks, sample week, MOCK marked if no key. |
 | M1 | Choose hosting and write the deploy plan (Done) | — | Plan is in `docs/DEPLOY.md`: platform, HTTPS, env vars, where tasks/photos live. Anyone can follow it. |
 | M2 | Move task storage to a real database — starts Nov 3 morning at the latest | M1 | Tasks are in the DB (same API shapes). Restart the server: tasks are still there. `.data` file is not used when `DATABASE_URL` is set, and local dev without `DATABASE_URL` still uses `.data` exactly as before. |
 | M11 | Go online over HTTPS — starts Nov 3 morning at the latest (after M2) | M1, M2 | The full app (guest, staff, supervisor, owner, as built in M3–M10) is on a public HTTPS link; pages open on a phone; tasks and photos survive a restart/redeploy (photo storage switches from `.data/photos` to cloud at this point, by changing only the photo helper file). "Reset demo data" is hidden online (still available in local dev). Guest text + voice sending has a simple per-minute limit per visitor (friendly "please wait" / HTTP 429). |
@@ -392,7 +398,7 @@ hosting config, `README.md` · M12 `README.md` only (test + fixes in the files a
 | S3 | Housekeeping checklist on staff tasks | M3 | A housekeeping task shows the v1.2 checklist; staff ticks items; ticks are saved and still there after refresh. |
 | S4 | Assign a task to a named person | M2 | Staff board can set an assignee; "Only my tasks" filter shows only that person's tasks. |
 | S5 | Flag low-confidence AI tasks | — | Tasks with confidence < 0.7 show a "Needs check" mark on `/staff`; other tasks do not. |
-| S6 | Download the owner report | M10 | `/owner` has a Download button that saves the report as a `.md` file with today's date in the file name. |
+| S6 | Download the owner report | M10 | Done (ANT-34): `/reports` Download PDF + Download .md (date in the file name) + Copy text. |
 
 Files per SHOULD task (short): S1 `src/app/r/[room]/page.tsx`, link helper ·
 S2 `GuestForm.tsx` · S3 `StaffBoard.tsx`, task checklist field + API ·

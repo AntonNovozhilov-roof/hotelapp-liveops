@@ -98,6 +98,7 @@ function normalizeTask(task: StoredTask): StoredTask {
     aiCheck: isTaskAiCheck(check) ? check : null,
     aiFailCount: typeof (task as { aiFailCount?: unknown }).aiFailCount === "number" ? (task as unknown as StoredTask).aiFailCount : 0,
     flaggedTwice: (task as { flaggedTwice?: unknown }).flaggedTwice === true,
+    sample: (task as { sample?: unknown }).sample === true,
   };
 }
 
@@ -378,6 +379,29 @@ export async function clearStoredTaskPhotos(
     await writeAll(all);
     return { ok: true, task: updated, removedNames } as const;
   });
+}
+
+/** Insert fully-formed sample-week tasks (M10). Returns the inserted tasks. */
+export async function insertSampleTasks(tasks: StoredTask[]): Promise<StoredTask[]> {
+  return withLock(async () => {
+    const all = await readAll();
+    await writeAll([...all, ...tasks]);
+    return tasks;
+  });
+}
+
+/** Delete ONLY sample tasks. Returns the removed tasks (for history/photo cleanup). */
+export async function deleteSampleTasks(): Promise<StoredTask[]> {
+  return withLock(async () => {
+    const all = await readAll();
+    const removed = all.filter((t) => t.sample);
+    await writeAll(all.filter((t) => !t.sample));
+    return removed;
+  });
+}
+
+export async function countSampleTasks(): Promise<number> {
+  return (await readAll()).filter((t) => t.sample).length;
 }
 
 export type UpdateResult =

@@ -117,6 +117,8 @@ export interface StoredTask extends Task {
   aiFailCount: number;
   /** P1: failed the AI check twice — supervisor sees this flag. */
   flaggedTwice: boolean;
+  /** M10: clearly labelled demo sample-week data (owner can remove it). */
+  sample?: boolean;
   createdAt: string;
   updatedAt: string;
 }

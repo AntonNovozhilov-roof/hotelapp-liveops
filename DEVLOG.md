@@ -1,5 +1,33 @@
 # Dev Log
 
+## Meta1 — 2026-10-31 — M10+S6: AI reports for owner and supervisor (ANT-26 + ANT-34)
+
+Meta docs checked first: Muse Wonder = `muse-wonder-1.0` on Model API, `POST https://api.meta.ai/v1/chat/completions` (dev.meta.ai/docs/models) — same chat format as muse-spark-1.3.
+
+What I built: New Reports page `/reports` (owner + supervisor only; staff page redirects and APIs 403) with Daily and Weekly tabs. Daily = yesterday + today so far, auto-made on first open after 07:00 with a Regenerate button; Weekly = last 7 days (went well/wrong, patterns, workload, exactly 3 suggestions). All facts are calculated first in `src/lib/reports.ts` (per-team created/done/open, urgent, waiting >2h, average accept/finish minutes per team, cleaning AI passed/failed/unsure/failed-twice, sent back, reopened repairs, rooms without a perfect photo, the same repair/cleaning problem repeating in the same room, workload per staff member, guest questions the assistant could not answer with a "add to the info sheet" suggestion). Muse Wonder only writes from those facts (no guest personal data). Every number in its text is checked against the facts: one corrected retry, then a plain facts report marked "Plain report — AI numbers did not pass the check"; a pass shows "All numbers checked ✓". No key or model error = clearly marked MOCK report from the same facts. Every point expands to the tasks behind it. Old reports stay in a list. Download PDF, Download .md (date in the name), Copy text (S6). Owner-only "Load sample week (demo)" creates 22 clearly labelled sample tasks + history over the past 7 days (3 leaks in room 204, a twice-failed cleaning, a reopened repair, unanswered guest questions); "Remove sample data" deletes only sample tasks and their history. Reports made with sample data show "Includes sample data".
+
+Files changed:
+- `src/lib/reports.ts`, `src/lib/reports-store.ts`, `src/lib/sample-week.ts` — new: facts, number check, plain report, saved reports (`.data/reports.json`), sample week
+- `src/app/api/reports/route.ts`, `src/app/api/reports/sample/route.ts` — new: list/generate (owner+supervisor), sample load/remove (owner)
+- `src/app/reports/page.tsx`, `src/app/reports/ReportsBoard.tsx` — new Reports page
+- `src/lib/store.ts`, `src/lib/tasks.ts`, `src/lib/history.ts` — `sample` flag, sample insert/delete, history cleanup + timestamp for sample events
+- `src/app/owner/page.tsx`, `src/app/supervisor/page.tsx`, `src/lib/users.ts` — Reports links/cards
+- `docs/PROJECT_MAP.md` — Owner report block, M10 and S6 rows done
+
+Backtest (this commit, port 3100):
+- Load sample week (22 tasks) → LIVE Weekly (muse-wonder-1.0) mentions "Room 204 had 3 leak tasks", "All numbers checked ✓", includes-sample badge on; point with 3 tasks expands concept verified via `/api/tasks?ids=`. PASS
+- Daily auto logic + Regenerate: Daily/Weekly generate, old reports list shows 3 reports. PASS (auto-after-07:00 uses the same generate call on first mount)
+- Break numbers on purpose (`REPORT_TEST_BREAK_NUMBERS=1`, test-only env): both AI tries fail the check → plain fallback report appears. PASS
+- MOCK mode (no key): weekly report marked MOCK, same facts, pattern "Room 204 had 3 leak tasks — the same problem keeps coming back there". PASS
+- Remove sample data: 22 removed; back to the original 4 tasks / 20 history events, no sample history left. PASS
+- Staff (Aigerim): `/reports` 307 to `/staff`, API 403, sample load 403. PASS
+- `npm run typecheck` and `npm run build` pass.
+- NOT checked in this commit: tapping a point in the real browser + PDF/Copy buttons are exercised in the U1 browser pass that follows; test reports file was deleted after the test so the owner starts clean.
+- After the tests: sample data removed, `.data/tasks.json`/`.data/history.json` restored to the 4 pre-session tasks.
+
+AI model that helped: Muse via opencode (Meta1). Report writing tested LIVE with muse-wonder-1.0.
+Linear: ANT-26 + ANT-34, sub-issues of ANT-5
+
 ## Meta1 — 2026-10-31 — M8+M9: History events, API and History page (ANT-24 + ANT-25)
 
 What I built: Every step now saves a history event (`.data/history.json`, `src/lib/history.ts`): task created (Guest via AI, or supervisor/owner), accepted, started, photo added/removed, AI check (simple verdict; score, model and item details stored system-only, never shown), sent to review (including the automatic "Failed AI check twice" one), approved (by whom, or "Auto-approved by AI (owner setting)"), sent back (with note), reopened, done — plus reference photo added/approved/replaced, QR regenerated, rooms changed and hotel info saved. Each event has time, who (name + role, or Guest / AI), room, task, action and short details. The guest chat is never stored, only the request text. `GET /api/history` is owner/supervisor only (staff get 403), newest first, with room/person/task-type/today/last-7-days/search filters and `?task=<id>`. The History page (`/history`, owner + supervisor; staff are redirected away) has the same filters and search; a task link opens its full timeline oldest-first, and every review card has a "Timeline" link. Links added on the Owner home and Supervisor page. (Also fixed in the final backtest: a Done cleaning task on the staff board no longer shows its old "Not ready yet" verdict — it shows the Done line.)

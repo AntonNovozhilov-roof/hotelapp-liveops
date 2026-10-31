@@ -56,6 +56,7 @@ export default async function OwnerPage() {
         <Link href="/owner/rooms"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Rooms &amp; QR</p><p className="mt-1 text-[12.5px] text-ink-3">Room QR codes to print</p></Card></Link>
         <Link href="/owner/hotel-info"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Hotel info</p><p className="mt-1 text-[12.5px] text-ink-3">Info the AI can tell guests</p></Card></Link>
         <Link href="/history"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">History</p><p className="mt-1 text-[12.5px] text-ink-3">Who did what, and when</p></Card></Link>
+        <Link href="/reports"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Reports</p><p className="mt-1 text-[12.5px] text-ink-3">Daily and weekly AI reports</p></Card></Link>
       </nav>
 
       <Card className="mt-4 p-5">
@@ -92,13 +93,16 @@ export default async function OwnerPage() {
       </Card>
 
       <Card className="mt-4 p-5">
-        <h2 className="text-[15px] font-semibold">Morning report (coming in M10)</h2>
+        <h2 className="text-[15px] font-semibold">Reports</h2>
         <p className="mt-1.5 text-[13.5px] text-ink-3">
-          Soon a Generate button here will write your short morning report
-          from the real task facts. For now, these counts come straight from
-          the saved tasks.
+          Your daily report is made automatically after 07:00, and the weekly
+          report looks for patterns. Every number is checked against the facts.
         </p>
         <p className="mt-3 text-[13.5px]">
+          <Link href="/reports" className="font-semibold text-brand-700 hover:underline">
+            Open Reports
+          </Link>{" "}
+          ·{" "}
           <Link href="/r/204" className="font-semibold text-brand-700 hover:underline">
             Open the guest page (room 204)
           </Link>{" "}

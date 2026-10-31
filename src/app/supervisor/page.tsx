@@ -84,6 +84,12 @@ export default async function SupervisorPage() {
       </Card>
 
       <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">Reports</h2>
+        <p className="mt-1.5 text-[13.5px] text-ink-3">Daily and weekly reports from the real task facts, with every number checked.</p>
+        <p className="mt-3 text-[13.5px]"><a href="/reports" className="font-semibold text-brand-700 hover:underline">Open Reports</a></p>
+      </Card>
+
+      <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">History</h2>
         <p className="mt-1.5 text-[13.5px] text-ink-3">Every step of every task — who did what, and when.</p>
         <p className="mt-3 text-[13.5px]"><a href="/history" className="font-semibold text-brand-700 hover:underline">Open History</a></p>

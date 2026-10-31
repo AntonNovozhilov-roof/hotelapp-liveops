@@ -40,7 +40,7 @@ export const DEMO_USERS: DemoUser[] = [
     department: null,
     home: "/owner",
     screenTitle: "Owner home",
-    screenSub: "Your hotel at a glance. The full morning report comes in M10.",
+    screenSub: "Your hotel at a glance, with daily and weekly reports.",
   },
   {
     username: "supervisor",

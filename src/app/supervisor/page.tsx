@@ -6,7 +6,7 @@ import SessionBar from "@/components/SessionBar";
 import TodayGlance from "@/components/TodayGlance";
 import { Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
-import { ensureAutoCheckoutTasks } from "@/lib/bookings";
+import { ensureAutoCheckoutTasks, listBookings } from "@/lib/bookings";
 import { listStoredTasks } from "@/lib/store";
 import { sortReviewTasks } from "@/lib/tasks";
 import { getHotelData } from "@/lib/hotel-data";
@@ -48,7 +48,7 @@ export default async function SupervisorPage() {
     <main className="app-main mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="Supervisor review" sub={<>Cleaning work waiting for your check. Approve it, or send it back with a short note. AI problems come first, then the oldest task.{user.role === "owner" ? " You are signed in as the Owner — you can review here too." : ""}</>} />
-      <TodayGlance tasks={tasks} />
+      <TodayGlance tasks={tasks} bookings={await listBookings()} roomsTotal={hotel.rooms.length} />
       <p className="mt-3 text-[13px] text-ink-3">{reviewTasks.length} cleaning tasks waiting for you · {open} open in total · {done} done altogether.</p>
 
       <Card className="mt-4 p-5">

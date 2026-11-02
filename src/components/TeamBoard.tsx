@@ -4,6 +4,12 @@ import { Badge, Button, Card, Empty, Field, Input } from "@/components/ui";
 import type { PublicEmployee } from "@/lib/employees";
 import { ROLE_META, STAFF_ROLES, type RoleKey } from "@/lib/users";
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Deterministic (server + browser identical) — avoids hydration mismatches. */
+function fmtSignIn(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`;
+}
 const ROLE_OPTIONS: { value: RoleKey; label: string }[] = [
   { value: "housekeeping", label: "Housekeeping" }, { value: "maintenance", label: "Maintenance" },
   { value: "front_desk", label: "Front desk" }, { value: "room_service", label: "Room service" },
@@ -111,7 +117,7 @@ export default function TeamBoard({ initial, isOwner, currentEmployeeId }: { ini
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-[14.5px] font-semibold">{person.name} {isSelf && <span className="text-ink-3">(you)</span>}</p>
-                      <p className="text-[12.5px] text-ink-3">{ROLE_META[person.role].roleLabel} · login <code className="font-semibold">{person.login}</code> · {person.lastSignInAt ? `last sign-in ${new Date(person.lastSignInAt).toLocaleString()}` : "never signed in"}</p>
+                      <p className="text-[12.5px] text-ink-3">{ROLE_META[person.role].roleLabel} · login <code className="font-semibold">{person.login}</code> · {person.lastSignInAt ? `last sign-in ${fmtSignIn(person.lastSignInAt)}` : "never signed in"}</p>
                     </div>
                     <Badge tone={person.active ? "ready" : "dirty"}>{person.active ? "Active" : "Deactivated"}</Badge>
                   </div>

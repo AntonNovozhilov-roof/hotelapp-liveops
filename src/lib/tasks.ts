@@ -119,6 +119,8 @@ export interface StoredTask extends Task {
   flaggedTwice: boolean;
   /** M10: clearly labelled demo sample-week data (owner can remove it). */
   sample?: boolean;
+  /** E1: real name of the person who accepted this task. */
+  acceptedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }

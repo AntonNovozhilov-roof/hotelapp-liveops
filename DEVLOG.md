@@ -1,3 +1,19 @@
+## Meta1 — 2026-11-02 — E1: Team — owner and supervisor add employees (ANT-59)
+
+What I built: New **Team** page (`/team`, owner + supervisor; staff sent home, API 403). Owner manages everyone; supervisor can add/edit only staff roles (Housekeeping, Maintenance, Front desk, Room service) — server refuses supervisors/owner targets. Add employee: full name, role, login (lowercase letters/numbers/dot, 3–30, unique against employees + demo usernames, clear taken error with suggestion). On save a readable strong password (e.g. Sunny-river-4832!) is generated and shown **once** in a popup with Copy password, Copy login card and Print/share login card (name, login, password, app link), with a clear “cannot be shown again” warning. List shows name, role, login, Active/Deactivated, last sign-in. Actions: Reset password (new one shown once), Edit name/role, Deactivate (confirm; signs them out at once because every request re-checks active; history kept), Reactivate. No delete. Profile menu in the top bar (tap your name): Change my password (current + new ≥8, verified against hash) and Sign out. Passwords are scrypt hashes only (`src/lib/employees.ts`, `.data/employees.json` — the one storage place for M2). Login limited to 5 failed tries per minute per login, then “wait a minute”. Demo accounts work only when DEMO_MODE is on. Tasks still go to the department; accepting records `acceptedBy` and the staff card shows “Accepted by <name>”; history already records the real signed-in name.
+
+Files changed: `src/lib/employees.ts` (new), `src/lib/users.ts` (ROLE_META), `src/lib/auth.ts` (employee sessions, deactivated = signed out), `src/lib/security.ts` (login failure limit), `src/app/api/auth/login/route.ts`, `src/app/api/auth/change-password/route.ts` (new), `src/app/api/employees/route.ts` + `[id]/route.ts` (new), `src/app/team/page.tsx` + `src/components/TeamBoard.tsx` (new), `src/components/SessionBar.tsx` (profile menu + Team nav), `src/lib/tasks.ts`/`src/lib/store.ts`/`src/app/api/tasks/[id]/route.ts` (acceptedBy), `src/app/staff/StaffBoard.tsx`, `docs/PROJECT_MAP.md` (E1 row + M2 scope: employees), `DEVLOG.md`.
+
+How I checked it works:
+- `npm run typecheck` passes; build passes (checked in this commit).
+- Full backtest (anna.k flow, supervisor limits, deactivate, reset, duplicate, rate limit, change own password) runs at the end of the session — see the final entry.
+
+NOT working / NOT checked yet:
+- Browser backtest runs at the end of the session.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-59, sub-issue of ANT-5
+
 ## Meta1 — 2026-11-02 — B1: Brand — app is now called Readybell (ANT-58)
 
 What I built: Copied the Readybell logos from the owner's logo folder into `public/brand/` (full logo, on-dark, stacked, bell mark, favicon-32, apple-touch-icon-180, app icon). The app is now **Readybell** everywhere: browser tab title + favicon/apple-touch-icon (`src/app/layout.tsx`), login page stacked logo, top bar full logo on desktop and bell mark only on phone (`Logo responsiveMark`), MOCK banner with bell mark, QR print sheet and QR PNG downloads (canvas card with small Readybell logo + hotel name + room + QR), report PDF header logo, README title. Guest page keeps the hotel name as the main title and gains a small “Powered by Readybell” footer. App colors unchanged (logo teal already matches).

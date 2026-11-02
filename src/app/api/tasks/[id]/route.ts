@@ -128,6 +128,7 @@ export async function PATCH(
     id,
     requested as TaskStatus,
     note,
+    user.name,
   );
 
   if (!result.ok && result.reason === "not_found") {

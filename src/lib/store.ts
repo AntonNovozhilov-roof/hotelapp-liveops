@@ -99,6 +99,7 @@ function normalizeTask(task: StoredTask): StoredTask {
     aiFailCount: typeof (task as { aiFailCount?: unknown }).aiFailCount === "number" ? (task as unknown as StoredTask).aiFailCount : 0,
     flaggedTwice: (task as { flaggedTwice?: unknown }).flaggedTwice === true,
     sample: (task as { sample?: unknown }).sample === true,
+    acceptedBy: typeof (task as { acceptedBy?: unknown }).acceptedBy === "string" ? (task as unknown as StoredTask).acceptedBy : null,
   };
 }
 
@@ -167,6 +168,7 @@ export async function createStoredTasks(
       aiCheck: null,
       aiFailCount: 0,
       flaggedTwice: false,
+      acceptedBy: null,
       createdAt: now,
       updatedAt: now,
     }));
@@ -430,6 +432,7 @@ export async function updateStoredTaskStatus(
   id: string,
   nextStatus: TaskStatus,
   note?: string,
+  actorName?: string,
 ): Promise<UpdateResult> {
   return withLock(async () => {
     const all = await readAll();
@@ -484,6 +487,7 @@ export async function updateStoredTaskStatus(
     const updated: StoredTask = {
       ...current,
       status: nextStatus,
+      acceptedBy: nextStatus === "accepted" && actorName ? actorName : current.acceptedBy ?? null,
       reviewNote: needsNote ? cleanNote : null,
       // A supervisor decision starts a fresh AI retry cycle (P1).
       aiFailCount: needsNote ? 0 : current.aiFailCount,

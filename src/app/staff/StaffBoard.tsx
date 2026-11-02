@@ -381,6 +381,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                           </Badge>
                           {task.sample && <Badge tone="brass">Sample</Badge>}
                           <span>{timeAgo(task.createdAt)}</span>
+                          {task.acceptedBy && task.status !== "new" && <span className="font-semibold text-ink-2">Accepted by {task.acceptedBy}</span>}
                         </div>
                         {task.status === "review" && (
                           <p className="mt-3 rounded-xl bg-insp-soft px-3 py-2 text-[13px] font-semibold text-insp-deep">

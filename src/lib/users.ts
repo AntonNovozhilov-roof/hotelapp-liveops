@@ -102,6 +102,8 @@ export function findDemoUser(username: string): DemoUser | null {
 /** What pages and APIs may show about a signed-in person (never a password). */
 export interface PublicUser {
   username: string;
+  /** E1: real employee account id, or null for demo accounts. */
+  employeeId?: string | null;
   name: string;
   role: RoleKey;
   roleLabel: string;
@@ -122,4 +124,19 @@ export function toPublicUser(user: DemoUser): PublicUser {
     screenTitle: user.screenTitle,
     screenSub: user.screenSub,
   };
+}
+
+/** Role metadata for real employees (E1): one place mapping role -> team/home/labels. */
+export const ROLE_META: Record<RoleKey, { roleLabel: string; department: Department | null; home: string; screenTitle: string; screenSub: string }> = {
+  owner: { roleLabel: "Owner", department: null, home: "/owner", screenTitle: "Owner home", screenSub: "Your hotel at a glance, with daily and weekly reports." },
+  supervisor: { roleLabel: "Supervisor", department: null, home: "/supervisor", screenTitle: "Supervisor review", screenSub: "Approve or send back cleaning work waiting in review." },
+  housekeeping: { roleLabel: "Housekeeping · Cleaner", department: "housekeeping", home: "/staff", screenTitle: "My rooms", screenSub: "Housekeeping tasks the AI sent to you." },
+  maintenance: { roleLabel: "Maintenance", department: "maintenance", home: "/staff", screenTitle: "Repairs", screenSub: "Maintenance tasks the AI sent to you." },
+  front_desk: { roleLabel: "Front desk", department: "front_desk", home: "/staff", screenTitle: "Front desk", screenSub: "Front desk tasks the AI sent to you." },
+  room_service: { roleLabel: "Room service", department: "room_service", home: "/staff", screenTitle: "Room service orders", screenSub: "Room service tasks the AI sent to you." },
+};
+
+export const STAFF_ROLES: RoleKey[] = ["housekeeping", "maintenance", "front_desk", "room_service"];
+export function isRoleKey(v: unknown): v is RoleKey {
+  return typeof v === "string" && v in ROLE_META;
 }

@@ -177,3 +177,20 @@ export function foreignOriginResponse(request: Request): NextResponse | null {
   if (!isForeignOrigin(request)) return null;
   return NextResponse.json({ error: "This request was blocked because it came from another site." }, { status: 403 });
 }
+
+// ---- Login attempt limit (E1): 5 failed tries per minute per login ----
+type FailStore = Map<string, number[]>;
+const failGlobal = globalThis as typeof globalThis & { __hotelLoginFails?: FailStore };
+function failStore(): FailStore { if (!failGlobal.__hotelLoginFails) failGlobal.__hotelLoginFails = new Map(); return failGlobal.__hotelLoginFails; }
+export function loginBlocked(login: string): boolean {
+  const now = Date.now();
+  const recent = (failStore().get(login) ?? []).filter((x) => now - x < 60_000);
+  failStore().set(login, recent);
+  return recent.length >= 5;
+}
+export function recordLoginFailure(login: string): void {
+  const store = failStore(); const now = Date.now();
+  const recent = (store.get(login) ?? []).filter((x) => now - x < 60_000);
+  recent.push(now); store.set(login, recent);
+}
+export function clearLoginFailures(login: string): void { failStore().delete(login); }

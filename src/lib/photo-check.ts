@@ -1,6 +1,7 @@
 import type {
   AiCheckItem,
   Department,
+  SparkOpinion,
   TaskAiCheck,
   TaskPhoto,
 } from "./tasks";
@@ -29,8 +30,52 @@ export const SAM_MODEL = "sam-3.1";
 const MODEL_BASE_URL = "https://api.meta.ai/v1";
 const REQUEST_TIMEOUT_MS = 60_000;
 
+/**
+ * PC1 — THE one place for photo-check items, prompts and thresholds.
+ *
+ * The "found" bar is 0.80 because the colleague's false towel (ANT-65)
+ * scored 0.74–0.79: below 0.80 an item is "unsure", never "found".
+ * "Looks ready" (verdict ready) needs SAM all-found AND Spark ready with
+ * confidence >= 0.70. Auto-approve needs both higher (see below) and the
+ * owner setting (off by default).
+ */
+export const PHOTO_CHECK_CONFIG = {
+  /** SAM confidence at/above which an item counts as found. */
+  foundThreshold: 0.8,
+  /** Spark confidence needed (with SAM all-found) for "Looks ready". */
+  sparkReadyThreshold: 0.7,
+  /** Auto-approve bars: SAM every item >= this AND Spark >= sparkAutoApprove. */
+  autoApproveSamThreshold: 0.8,
+  autoApproveSparkThreshold: 0.85,
+  /** Part 3: max SAM/Spark requests running at once. */
+  concurrency: 6,
+  /** Part 3: extra tries on 5xx/timeout (2 retries = 3 attempts). */
+  maxRetries: 2,
+} as const;
+
 /** Below this SAM confidence a check is "not sure", never pass or fail. */
-export const LOW_CONFIDENCE_THRESHOLD = 0.5;
+export const LOW_CONFIDENCE_THRESHOLD = PHOTO_CHECK_CONFIG.foundThreshold;
+
+/**
+ * Prompt variations for key items (PC1): SAM gets each phrasing and the
+ * best result wins, so towels at a new angle/lighting (ANT-66) still count.
+ * Keys match AiCheckItem keys (singular/plural spellings included).
+ */
+export const KEY_ITEM_PROMPTS: Record<string, string[]> = {
+  towel: ["towel", "bath towel", "folded towel", "hanging towel"],
+  towels: ["towel", "bath towel", "folded towel", "hanging towel"],
+  pillow: ["pillow", "bed pillow", "pillow on a bed"],
+  bed: ["bed", "made bed", "bed with pillows"],
+};
+
+/** All SAM prompts to try for one check def (variations for key items). */
+export function promptsFor(def: PhotoCheckDef): string[] {
+  const variations =
+    KEY_ITEM_PROMPTS[def.key.toLowerCase()] ??
+    KEY_ITEM_PROMPTS[def.label.toLowerCase()];
+  if (!variations) return [def.prompt];
+  return [...new Set([def.prompt, ...variations])];
+}
 
 export interface PhotoCheckDef {
   key: string;
@@ -171,35 +216,70 @@ export async function listRoomItemsFromPhotos(
   }
 }
 
+/** One item's best SAM result across prompts/photos (part 3 parallelizes). */
+async function bestSamForDef(
+  apiKey: string,
+  def: PhotoCheckDef,
+  dataUrls: string[],
+): Promise<{ count: number; confidence: number | null }> {
+  let count = 0;
+  let confidence: number | null = null;
+  for (const prompt of promptsFor(def)) {
+    for (const dataUrl of dataUrls) {
+      const result = await segmentConcept(apiKey, prompt, dataUrl);
+      // Count = the most seen in one photo; confidence = that result's best.
+      if (
+        result.count > count ||
+        (result.count === count &&
+          result.count > 0 &&
+          (confidence === null ||
+            (result.confidence !== null && result.confidence > confidence)))
+      ) {
+        count = result.count;
+        confidence = result.confidence;
+      } else if (count === 0 && result.confidence !== null) {
+        if (confidence === null || result.confidence > confidence) {
+          confidence = result.confidence;
+        }
+      }
+    }
+  }
+  return { count, confidence };
+}
+
 /** Run SAM for each def over combined photos (found = confident in any). */
 export async function runSamOverPhotos(
   defs: PhotoCheckDef[],
   dataUrls: string[],
+  options?: {
+    /** Perfect-photo counts by item key: fewer found = "AI not sure" (PC1). */
+    expectedCounts?: Map<string, number>;
+    onProgress?: (done: number, total: number) => void;
+  },
 ): Promise<AiCheckItem[]> {
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey) throw new Error("MODEL_API_KEY is not set");
   const checks: AiCheckItem[] = [];
+  let done = 0;
   for (const def of defs) {
-    let count = 0;
-    let confidence: number | null = null;
-    for (const dataUrl of dataUrls) {
-      const result = await segmentConcept(apiKey, def.prompt, dataUrl);
-      count += result.count;
-      if (
-        result.confidence !== null &&
-        (confidence === null || result.confidence > confidence)
-      ) {
-        confidence = result.confidence;
-      }
-      if (statusFor(count, confidence) === "found") break;
+    const { count, confidence } = await bestSamForDef(apiKey, def, dataUrls);
+    const expected = options?.expectedCounts?.get(def.key) ?? null;
+    let status = statusFor(count, confidence);
+    // PC1: fewer of an item than the perfect photo -> "AI not sure",
+    // never a pass (e.g. 1 pillow instead of 2).
+    if (expected !== null && count > 0 && count < expected) {
+      status = "unsure";
     }
     checks.push({
       key: def.key,
       label: def.label,
-      status: statusFor(count, confidence),
+      status,
       confidence,
       count,
+      expectedCount: expected,
     });
+    done += 1;
+    options?.onProgress?.(done, defs.length);
   }
   return checks;
 }
@@ -218,7 +298,9 @@ export function verdictFor(
     return { verdict: "unsure", highConfidence: false };
   }
   const high = checks.every(
-    (c) => c.confidence !== null && c.confidence >= 0.7,
+    (c) =>
+      c.confidence !== null &&
+      c.confidence >= PHOTO_CHECK_CONFIG.autoApproveSamThreshold,
   );
   return { verdict: "ready", highConfidence: high };
 }
@@ -298,10 +380,169 @@ export async function compareWithReference(
       prompt: broad?.prompt ?? item.label,
     };
   });
-  const checks = await runSamOverPhotos(defs, cleanerDataUrls);
+  const expectedCounts = new Map(
+    considered.map((item) => [item.key, item.count] as const),
+  );
+  const checks = await runSamOverPhotos(defs, cleanerDataUrls, {
+    expectedCounts,
+  });
   const base = buildAiCheck(checks, SAM_MODEL, "LIVE");
   const { verdict, highConfidence } = verdictFor(checks);
   return { ...base, verdict, comparedToReference: true, highConfidence };
+}
+
+/**
+ * PC1 second opinion: one muse-spark-1.3 image-understanding call per
+ * check. Sends the perfect photo(s) first, then the cleaner's photo(s),
+ * and asks for strict JSON {ready, differences, confidence}. Returns null
+ * when Spark cannot answer — the fusion then says "AI not sure", never
+ * "Looks ready".
+ */
+export async function runSecondOpinion(
+  perfectDataUrls: string[],
+  cleanerDataUrls: string[],
+): Promise<SparkOpinion | null> {
+  const apiKey = process.env.MODEL_API_KEY;
+  if (!apiKey || cleanerDataUrls.length === 0) return null;
+  try {
+    const response = await fetch(`${MODEL_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: VISION_MODEL,
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  perfectDataUrls.length > 0
+                    ? 'The first photo(s) show a hotel room cleaned perfectly (the reference). The last photo(s) show the same room after cleaning. Compare them strictly. Reply with ONLY JSON, no markdown: {"ready":true,"differences":[],"confidence":0.9}. ready is true only if the cleaned room matches the perfect room (bed made, towels present, nothing left on the floor, no missing items). differences is a short list like ["towels missing","bed not made","items left on the floor"] — empty when ready. confidence is 0 to 1.'
+                    : 'These photo(s) show a hotel room after cleaning. Judge strictly whether the room looks ready for a guest (bed made, towels present, nothing left on the floor, no clutter). Reply with ONLY JSON, no markdown: {"ready":true,"differences":[],"confidence":0.9}. differences is a short list like ["towels missing","bed not made","items left on the floor"] — empty when ready. confidence is 0 to 1.',
+              },
+              ...perfectDataUrls.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+              })),
+              ...cleanerDataUrls.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+              })),
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: unknown } }>;
+    };
+    const content = data.choices?.[0]?.message?.content;
+    return parseSparkOpinion(typeof content === "string" ? content : "");
+  } catch {
+    return null;
+  }
+}
+
+/** Parse Spark's strict JSON (tolerates a markdown fence / extra words). */
+export function parseSparkOpinion(text: string): SparkOpinion | null {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  try {
+    const raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+    if (typeof raw.ready !== "boolean") return null;
+    const confidence =
+      typeof raw.confidence === "number" && Number.isFinite(raw.confidence)
+        ? Math.min(1, Math.max(0, raw.confidence))
+        : 0;
+    const differences = Array.isArray(raw.differences)
+      ? raw.differences
+          .filter((d): d is string => typeof d === "string")
+          .map((d) => d.trim().slice(0, 80))
+          .filter(Boolean)
+          .slice(0, 6)
+      : [];
+    return { ready: raw.ready, differences, confidence };
+  } catch {
+    return null;
+  }
+}
+
+/** One plain hint line for the cleaner from Spark differences. No numbers. */
+export function hintFromDifferences(differences: string[]): string | null {
+  const cleaned = differences
+    .map((d) => d.replace(/[0-9]/g, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (cleaned.length === 0) return null;
+  return `Check: ${cleaned.join(", ")}`;
+}
+
+/**
+ * PC1 final verdict — SAM items + Spark second opinion fused:
+ * - Spark lists differences -> "different" (Not ready yet; a retry fail).
+ * - "ready" only when SAM found everything (no count shortfall) AND
+ *   Spark says ready with confidence >= sparkReadyThreshold.
+ * - Any disagreement or low confidence -> "unsure" (AI not sure): goes
+ *   to the supervisor and never counts as a pass.
+ * Auto-approve (highConfidence) needs SAM all >= autoApproveSamThreshold
+ * AND Spark >= autoApproveSparkThreshold.
+ */
+export function fuseWithSpark(
+  check: TaskAiCheck,
+  spark: SparkOpinion | null,
+): TaskAiCheck {
+  const samVerdict = check.verdict ?? verdictFor(check.checks).verdict;
+  const hint = spark ? hintFromDifferences(spark.differences) : null;
+  if (!spark) {
+    // No second opinion: never upgrade to a pass.
+    return {
+      ...check,
+      verdict: samVerdict === "ready" ? "unsure" : samVerdict,
+      highConfidence: false,
+      spark: null,
+      hint: null,
+    };
+  }
+  if (spark.differences.length > 0) {
+    return { ...check, verdict: "different", highConfidence: false, spark, hint };
+  }
+  if (!spark.ready) {
+    return {
+      ...check,
+      verdict: samVerdict === "different" ? "different" : "unsure",
+      highConfidence: false,
+      spark,
+      hint,
+    };
+  }
+  if (spark.confidence < PHOTO_CHECK_CONFIG.sparkReadyThreshold) {
+    return { ...check, verdict: "unsure", highConfidence: false, spark, hint };
+  }
+  if (samVerdict !== "ready") {
+    // Spark is happy but SAM is not (or counts fell short): disagreement.
+    return { ...check, verdict: "unsure", highConfidence: false, spark, hint };
+  }
+  const samHigh = check.checks.every(
+    (c) =>
+      c.confidence !== null &&
+      c.confidence >= PHOTO_CHECK_CONFIG.autoApproveSamThreshold,
+  );
+  return {
+    ...check,
+    verdict: "ready",
+    highConfidence:
+      samHigh && spark.confidence >= PHOTO_CHECK_CONFIG.autoApproveSparkThreshold,
+    spark,
+    hint: null,
+  };
 }
 
 /** Count SAM box records in one output text and take the best confidence. */

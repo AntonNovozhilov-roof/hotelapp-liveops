@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStoredTask, saveAiCheckOutcome } from "@/lib/store";
 import { readPhotoDataUrl } from "@/lib/photos";
-import { compareWithReference, mockAiCheck, runLivePhotoCheck, verdictFor } from "@/lib/photo-check";
+import { compareWithReference, fuseWithSpark, mockAiCheck, runLivePhotoCheck, runSecondOpinion, verdictFor } from "@/lib/photo-check";
 import type { TaskAiCheck } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
@@ -117,6 +117,20 @@ export async function POST(
         { status: 503 },
       );
     }
+    // PC1 second opinion: one Spark call per check, then fuse verdicts.
+    // Spark failing/unparseable -> "AI not sure", never a pass.
+    const perfectDataUrls: string[] = [];
+    if (reference) {
+      for (const photo of reference.photos) {
+        const url = await readPhotoDataUrl(photo.name);
+        if (url) perfectDataUrls.push(url);
+      }
+    }
+    const spark = await runSecondOpinion(
+      perfectDataUrls,
+      photos.map((p) => p.dataUrl),
+    );
+    aiCheck = fuseWithSpark(aiCheck, spark);
   }
   if (!aiCheck.verdict) {
     aiCheck = { ...aiCheck, verdict: verdictFor(aiCheck.checks).verdict };
@@ -131,7 +145,7 @@ export async function POST(
   await appendHistory({
     actorName: "AI", actorRole: "AI", room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type,
     action: "AI check", details: `AI check: ${verdictWord}.`,
-    ai: { verdict: aiCheck.verdict ?? null, score: aiCheck.score, model: aiCheck.model, mode: aiCheck.mode, checks: aiCheck.checks },
+    ai: { verdict: aiCheck.verdict ?? null, score: aiCheck.score, model: aiCheck.model, mode: aiCheck.mode, checks: aiCheck.checks, spark: aiCheck.spark ?? null },
   });
   if (result.outcome === "review") {
     await appendHistory({ actorName: "AI", actorRole: "AI", room: result.task.room, taskId: result.task.id, taskTitle: result.task.title, taskType: result.task.type, action: "Sent to review", details: "Failed AI check twice — sent to review automatically for a supervisor to decide." });

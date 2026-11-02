@@ -80,6 +80,15 @@ export interface AiCheckItem {
   confidence: number | null;
   /** How many matching objects SAM found. */
   count: number;
+  /** PC1: how many the perfect photo has (system-only). Fewer = "AI not sure". */
+  expectedCount?: number | null;
+}
+
+/** PC1: Muse Spark second opinion (system-only, except the plain hint). */
+export interface SparkOpinion {
+  ready: boolean;
+  differences: string[];
+  confidence: number;
 }
 
 /**
@@ -102,6 +111,10 @@ export interface TaskAiCheck {
   comparedToReference?: boolean;
   /** P1: pass with high confidence (for the owner auto-approve setting). */
   highConfidence?: boolean;
+  /** PC1: Spark second opinion (system-only; supervisor sees differences). */
+  spark?: SparkOpinion | null;
+  /** PC1: one plain hint line for the cleaner, e.g. "Check: towels, bed". No numbers. */
+  hint?: string | null;
 }
 
 /** A task saved on the server (in .data/tasks.json for now). */

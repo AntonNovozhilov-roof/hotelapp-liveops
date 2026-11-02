@@ -197,10 +197,22 @@ export default function SupervisorBoard({
                   </div>
 
                   {aiPhotoCheckEnabled ? (
+                    <>
                     <p className={`mt-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold ${task.aiCheck?.verdict === "ready" ? "bg-ready-soft text-ready-deep" : task.aiCheck?.verdict === "different" ? "bg-dirty-soft text-dirty-deep" : "bg-occ-soft text-occ-deep"}`}>
                       {verdict}
                       {task.aiCheck?.mode === "MOCK" && <span className="ml-2"><Badge tone="occ">MOCK</Badge></span>}
                     </p>
+                    {task.aiCheck?.spark && task.aiCheck.spark.differences.length > 0 && (
+                      <div className="mt-2 rounded-xl border border-line bg-white px-3 py-2.5">
+                        <p className="text-[12px] font-semibold text-ink-3">AI second opinion — differences</p>
+                        <ul className="mt-1 list-disc pl-5 text-[13px] text-ink-2">
+                          {task.aiCheck.spark.differences.map((d) => (
+                            <li key={d}>{d}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <p className="mt-3 rounded-xl bg-brand-50 px-3 py-2.5 text-[13.5px] font-semibold text-brand-800">AI photo check is off — please check the photos yourself.</p>
                   )}

@@ -534,6 +534,11 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                     </p>
                                   ) : null;
                                 })()}
+                                {task.aiCheck.hint && task.aiCheck.verdict === "different" && (
+                                  <p className="mt-2 text-[12.5px] font-semibold text-ink-2">
+                                    {task.aiCheck.hint}
+                                  </p>
+                                )}
                                 {task.aiCheck.comparedToReference === false && (
                                   <p className="mt-2 text-[12.5px] text-ink-4">
                                     No perfect photo for room {task.room} yet. Ask the owner to add one.

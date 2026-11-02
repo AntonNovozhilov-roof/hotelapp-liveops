@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { AiCheckItem } from "./tasks";
+import type { AiCheckItem, SparkOpinion } from "./tasks";
 
 /**
  * History events (M8 / ANT-24) — one event for every step, stored in
@@ -15,6 +15,8 @@ export interface HistoryAiDetails {
   model: string;
   mode: string;
   checks: AiCheckItem[];
+  /** PC1: Spark second opinion, system-only (never shown on screens). */
+  spark?: SparkOpinion | null;
 }
 
 export interface HistoryEvent {

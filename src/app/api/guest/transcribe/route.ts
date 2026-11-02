@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guessLanguage, languageFromMeta } from "@/lib/language";
+import { checkRateLimit, clientIp, consumeAiCall, rateLimitResponse } from "@/lib/security";
 
 // Official Meta docs (checked 2026-10-29):
 // Speech to text: https://dev.meta.ai/docs/speech-to-text
@@ -22,6 +23,24 @@ function isWav(bytes: Uint8Array): boolean {
 }
 
 export async function POST(request: Request) {
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return NextResponse.json(
+      { error: "No audio received. Please try again or type your request." },
+      { status: 400 },
+    );
+  }
+
+  // Rate limit (SEC1): 5 voice recordings per minute, per IP and per room.
+  const roomRaw = form.get("room");
+  const room = typeof roomRaw === "string" && roomRaw.trim() ? roomRaw.trim().slice(0, 20) : "unknown";
+  const ip = clientIp(request);
+  if (!checkRateLimit(`guest-voice:ip:${ip}`, 5) || !checkRateLimit(`guest-voice:room:${room}`, 5)) {
+    return rateLimitResponse();
+  }
+
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -33,13 +52,10 @@ export async function POST(request: Request) {
     );
   }
 
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
+  if (!consumeAiCall("guest voice transcription")) {
     return NextResponse.json(
-      { error: "No audio received. Please try again or type your request." },
-      { status: 400 },
+      { error: "Voice is not available right now. Please type your request instead." },
+      { status: 503 },
     );
   }
 

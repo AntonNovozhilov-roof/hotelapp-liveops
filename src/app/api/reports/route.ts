@@ -5,6 +5,7 @@ import { listHistory } from "@/lib/history";
 import { getHotelData } from "@/lib/hotel-data";
 import { buildPlainReport, computeReportFacts, factsForPrompt, verifyReportText, type ReportKind, type ReportPoint, type ReportSource } from "@/lib/reports";
 import { listReports, saveReport } from "@/lib/reports-store";
+import { consumeAiCall } from "@/lib/security";
 
 /**
  * Reports API (M10/S6). Owner + Supervisor only — staff get 403.
@@ -84,7 +85,8 @@ export async function POST(request: Request) {
   const breakNumbers = process.env.REPORT_TEST_BREAK_NUMBERS === "1"; // test-only hook: proves the fallback works
 
   let points: ReportPoint[]; let source: ReportSource; let model: string | null = null;
-  if (!process.env.MODEL_API_KEY) {
+  // Daily AI cap (SEC1): over the cap the report is a marked MOCK.
+  if (!process.env.MODEL_API_KEY || !consumeAiCall("owner report")) {
     points = plain; source = "mock";
   } else {
     try {

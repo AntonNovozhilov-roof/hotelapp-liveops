@@ -4,7 +4,7 @@ import { createStoredTasks } from "@/lib/store";
 import { getHotelData } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
 import { applyGuardrails, buildSystemPrompt, mockAssistant, type ChatMessage } from "@/lib/guest-ai";
-import { GUEST_COOKIE, createGuestToken, guestCookieOptions, guestDataFromToken, type GuestTokenData } from "@/lib/security";
+import { GUEST_COOKIE, checkRateLimit, clientIp, consumeAiCall, createGuestToken, guestCookieOptions, guestDataFromToken, rateLimitResponse, type GuestTokenData } from "@/lib/security";
 import type { StoredTask } from "@/lib/tasks";
 
 function existingGuest(request: Request): GuestTokenData | null {
@@ -104,9 +104,17 @@ export async function POST(request: Request) {
   if (!message) return NextResponse.json({ error: "Message is empty. Please write a request." }, { status: 400 });
   if (message.length > 2000) return NextResponse.json({ error: "Message is too long (max 2000 characters)." }, { status: 400 });
 
+  // Rate limit (SEC1): 10 guest texts per minute, per IP and per room.
+  const ip = clientIp(request);
+  if (!checkRateLimit(`guest-text:ip:${ip}`, 10) || !checkRateLimit(`guest-text:room:${room}`, 10)) {
+    return rateLimitResponse();
+  }
+
   const { hotelInfo } = await getHotelData();
 
-  if (!process.env.MODEL_API_KEY) {
+  // Daily AI cap (SEC1): over the cap we answer with a marked MOCK instead.
+  const useLiveAi = Boolean(process.env.MODEL_API_KEY) && consumeAiCall("guest message");
+  if (!useLiveAi) {
     const result = mockAssistant(message, hotelInfo, room);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
     for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });

@@ -6,6 +6,7 @@ import type { TaskAiCheck } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
+import { consumeAiCall } from "@/lib/security";
 
 /**
  * POST /api/tasks/[id]/ai-check — SAM 3.1 photo check (M5) + perfect
@@ -84,7 +85,8 @@ export async function POST(
   const reference = room?.reference ?? null;
 
   let aiCheck: TaskAiCheck;
-  if (!process.env.MODEL_API_KEY) {
+  // Daily AI cap (SEC1): over the cap the check is a marked MOCK.
+  if (!process.env.MODEL_API_KEY || !consumeAiCall("photo check")) {
     aiCheck = reference
       ? { ...mockAiCheck(task.department), comparedToReference: true }
       : mockAiCheck(task.department);

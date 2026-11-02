@@ -136,7 +136,7 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     taskId: null,
     taskTitle: null,
     taskType: null,
-    action: "Hotel restored",
+    action: "Demo restored",
     details: "All hotel data was deleted and a fresh hotel was loaded.",
     at: new Date(Math.max(Date.now(), latestSeeded + 1000)).toISOString(),
   });
@@ -146,6 +146,6 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     deleted: { tasks: deletedTasks, employees: deletedEmployees },
     seeded: { rooms: fresh.rooms.length, bookings: bookings.length, tasks: tasks.length, historyEvents: history.length },
   };
-  console.log(`[restore] Hotel restored at ${new Date().toISOString()}: deleted ${counts.deleted.tasks} tasks and ${counts.deleted.employees} employees; seeded ${counts.seeded.rooms} rooms, ${counts.seeded.bookings} bookings, ${counts.seeded.tasks} tasks, ${counts.seeded.historyEvents} history events.`);
+  console.log(`[restore] Demo restored at ${new Date().toISOString()}: deleted ${counts.deleted.tasks} tasks and ${counts.deleted.employees} employees; seeded ${counts.seeded.rooms} rooms, ${counts.seeded.bookings} bookings, ${counts.seeded.tasks} tasks, ${counts.seeded.historyEvents} history events.`);
   return counts;
 }

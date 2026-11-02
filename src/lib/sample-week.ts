@@ -34,7 +34,7 @@ export async function buildSampleWeek(now = new Date()): Promise<StoredTask[]> {
   { const c = at(4, 9); const t = mk(c, at(1, 10), { department: "maintenance", type: "repair", title: "Fix tap or sink", room: "202", status: "in_progress", reviewNote: "Still dripping, please fix again." });
     lifecycle(t, c, "Ruslan", "Maintenance", 25, 100); ev(t, at(1, 10), "Supervisor", "Supervisor", "Reopened", "Reopened by Supervisor: still dripping."); }
   // Cleaning: 3 passed + done, 1 failed twice (in review), 1 sent back.
-  for (const [d, room] of [[5, "203"], [2, "205"], [1, "202"]] as [number, string][]) {
+  for (const [d, room] of [[5, "203"], [2, "208"], [1, "202"]] as [number, string][]) {
     const c = at(d, 11); const t = mk(c, at(d, 13), { department: "housekeeping", type: "cleaning", title: `Clean room ${room}`, room, status: "done" });
     lifecycle(t, c, "Aigerim", "Housekeeping · Cleaner", 15, 90); ev(t, at(d, 12, 30), "Supervisor", "Supervisor", "Approved", "Approved by Supervisor."); }
   { const c = at(1, 10); const t = mk(c, at(1, 12), { department: "housekeeping", type: "cleaning", title: "Clean room 206", room: "206", status: "review" });
@@ -45,7 +45,7 @@ export async function buildSampleWeek(now = new Date()): Promise<StoredTask[]> {
   { const c = at(2, 10); const t = mk(c, at(2, 12), { department: "housekeeping", type: "cleaning", title: "Clean room 207", room: "207", status: "in_progress", reviewNote: "Bathroom needs another clean." });
     lifecycle(t, c, "Aigerim", "Housekeeping · Cleaner", 15, null); ev(t, at(2, 12), "Supervisor", "Supervisor", "Sent back", "Sent back by Supervisor: bathroom needs another clean."); }
   // Housekeeping requests (Aigerim workload).
-  for (const [d, title] of [[6, "Bring towels"], [4, "Bring extra towels"], [3, "Bring pillow"], [1, "Bring bath towels"], [0, "Bring hand towels"]] as [number, string][]) {
+  for (const [d, title] of [[6, "Bring towels"], [4, "Bring towels and shampoo"], [3, "Bring pillow"], [1, "Bring bath towels"], [0, "Bring hand towels"]] as [number, string][]) {
     const c = at(d, 8, 30); const doneFlag = d !== 0; const t = mk(c, doneFlag ? at(d, 9, 30) : c, { department: "housekeeping", type: "request", title, room: "204", status: doneFlag ? "done" : "new" });
     lifecycle(t, c, "Aigerim", "Housekeeping · Cleaner", 10, doneFlag ? 45 : null); }
   // Guest questions the assistant could not answer.

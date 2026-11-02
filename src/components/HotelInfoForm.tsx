@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
-import type { FaqItem, HotelInfo } from "@/lib/hotel-data";
+import type { FaqItem, HotelInfo, RecommendationItem } from "@/lib/hotel-data";
 
 const TEXT_FIELDS: Array<{ key: keyof HotelInfo; label: string; hint?: string }> = [
   { key: "hotelName", label: "Hotel name", hint: "Shown to guests at the top of their page." },
@@ -38,6 +38,7 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD", initia
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [newQ, setNewQ] = useState(""); const [newA, setNewA] = useState("");
+  const [newRecTitle, setNewRecTitle] = useState(""); const [newRecNote, setNewRecNote] = useState("");
 
   function set(key: keyof HotelInfo, value: string) { setInfo((p) => ({ ...p, [key]: value })); setSaved(false); }
 
@@ -54,6 +55,9 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD", initia
 
   function updateFaq(id: string, patch: Partial<FaqItem>) {
     setInfo((p) => ({ ...p, faqs: p.faqs.map((f) => (f.id === id ? { ...f, ...patch } : f)) })); setSaved(false);
+  }
+  function updateRec(id: string, patch: Partial<RecommendationItem>) {
+    setInfo((p) => ({ ...p, recommendations: p.recommendations.map((f) => (f.id === id ? { ...f, ...patch } : f)) })); setSaved(false);
   }
 
   return (
@@ -73,6 +77,39 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD", initia
         </div>
         <Field label="House rules" className="mt-3"><Textarea value={info.houseRules} onChange={(e) => set("houseRules", e.target.value)} rows={3} /></Field>
         <Button className="mt-4" size="lg" loading={busy} onClick={() => void save()}>Save hotel info</Button>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">General information</h2>
+        <p className="mt-1 text-[13px] text-ink-3">About the hotel, the area, the style — anything you want guests to know. The guest assistant uses this when guests ask what the hotel and the neighbourhood are like.</p>
+        <Field label="General information" className="mt-3"><Textarea value={info.generalInfo} onChange={(e) => set("generalInfo", e.target.value)} rows={5} maxLength={4000} placeholder="For example: A small hotel in central Paris, in a quiet street near the river. Family-run, with a small garden…" /></Field>
+        <Button className="mt-4" size="lg" loading={busy} onClick={() => void save()}>Save hotel info</Button>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">Our recommendations</h2>
+        <p className="mt-1 text-[13px] text-ink-3">Your own tips: restaurants, cafés, sights, pharmacy, transport. When a guest asks what to do nearby, the guest assistant suggests these first.</p>
+        {info.recommendations.length === 0 ? (
+          <p className="mt-3 rounded-xl bg-canvas px-3.5 py-3 text-[13.5px] text-ink-3">No recommendations yet. Add the first one below — for example “Café Lumière” → “Our favourite café, two streets away. Great croissants.”</p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {info.recommendations.map((rec) => (
+              <li key={rec.id} className="rounded-xl border border-line p-3">
+                <Field label="Name or place"><Input value={rec.title} onChange={(e) => updateRec(rec.id, { title: e.target.value })} /></Field>
+                <Field label="Why you recommend it" className="mt-2"><Textarea value={rec.note} onChange={(e) => updateRec(rec.id, { note: e.target.value })} rows={2} /></Field>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" loading={busy} onClick={() => void save()}>Save</Button>
+                  <Button size="sm" variant="danger" disabled={busy} onClick={() => { if (window.confirm("Delete this recommendation?")) { const next = { ...info, recommendations: info.recommendations.filter((f) => f.id !== rec.id) }; setInfo(next); void save(next); } }}>Delete</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-4 border-t border-line pt-3 grid grid-cols-1 gap-2">
+          <Field label="New recommendation"><Input value={newRecTitle} onChange={(e) => setNewRecTitle(e.target.value)} placeholder="Café Lumière" /></Field>
+          <Field label="Why you recommend it"><Textarea value={newRecNote} onChange={(e) => setNewRecNote(e.target.value)} rows={2} placeholder="Our favourite café, two streets away. Great croissants." /></Field>
+          <div><Button disabled={busy || !newRecTitle.trim()} onClick={() => { const next = { ...info, recommendations: [...info.recommendations, { id: crypto.randomUUID(), title: newRecTitle.trim(), note: newRecNote.trim() }] }; setInfo(next); setNewRecTitle(""); setNewRecNote(""); void save(next); }}>Add recommendation</Button></div>
+        </div>
       </Card>
 
       <Card className="mt-4 p-5">

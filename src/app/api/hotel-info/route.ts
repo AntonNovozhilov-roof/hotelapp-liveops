@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getHotelData, getRoomByNumber, guestLinkAllowed, guestSafeHotelInfo, saveHotelInfo, saveSettings, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
+import { getHotelData, getRoomByNumber, guestLinkAllowed, guestSafeHotelInfo, saveHotelInfo, saveSettings, type FaqItem, type HotelInfo, type RecommendationItem } from "@/lib/hotel-data";
 import { randomUUID } from "crypto";
 import { appendHistory } from "@/lib/history";
 import { foreignOriginResponse } from "@/lib/security";
@@ -48,6 +48,19 @@ export async function PUT(request: Request) {
     if (typeof r[f] === "string") info[f] = (r[f] as string).trim().slice(0, f === "houseRules" ? 2000 : 200);
   }
   if (!info.hotelName) return NextResponse.json({ error: "Please write the hotel name." }, { status: 400 });
+  // G3: general information + owner recommendations.
+  if (typeof r.generalInfo === "string") info.generalInfo = r.generalInfo.trim().slice(0, 4000);
+  if (Array.isArray(r.recommendations)) {
+    const recs: RecommendationItem[] = [];
+    for (const x of r.recommendations.slice(0, 100)) {
+      if (!x || typeof x !== "object") continue;
+      const f = x as Record<string, unknown>;
+      const title = typeof f.title === "string" ? f.title.trim().slice(0, 200) : "";
+      const note = typeof f.note === "string" ? f.note.trim().slice(0, 1000) : "";
+      if (title) recs.push({ id: typeof f.id === "string" ? f.id : randomUUID(), title, note });
+    }
+    info.recommendations = recs;
+  }
   if (Array.isArray(r.faqs)) {
     const faqs: FaqItem[] = [];
     for (const x of r.faqs.slice(0, 50)) {

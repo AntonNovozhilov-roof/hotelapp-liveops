@@ -21,6 +21,10 @@ export const DEMO_HOTEL_INFO: HotelInfo = {
   checkOut: "12:00",
   breakfastHours: "07:00–10:30",
   houseRules: "Demo rules: no smoking in rooms. Quiet after 22:00, please.",
+  generalInfo: "A small friendly demo hotel in a quiet demo neighbourhood, a short walk from the demo old town (fake demo info).",
+  recommendations: [
+    { id: "demo-cafe", title: "Demo Café (demo)", note: "Fake demo tip: a cosy café two streets away, good for breakfast." },
+  ],
   faqs: [
     { id: "demo-parking", question: "Is there parking?", answer: "Demo answer: yes, free parking is behind the hotel (fake demo info)." },
     { id: "demo-breakfast", question: "Where is breakfast?", answer: "Demo answer: breakfast is in the ground-floor restaurant, 07:00–10:30 (fake demo info)." },

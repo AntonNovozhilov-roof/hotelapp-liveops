@@ -81,6 +81,13 @@ export interface FaqItem {
   answer: string;
 }
 
+/** G3: one owner recommendation (restaurant, sight, pharmacy, ...). */
+export interface RecommendationItem {
+  id: string;
+  title: string;
+  note: string;
+}
+
 export interface HotelInfo {
   hotelName: string;
   address: string;
@@ -92,6 +99,10 @@ export interface HotelInfo {
   checkOut: string;
   breakfastHours: string;
   houseRules: string;
+  /** G3: free text about the hotel, area and style for the guest assistant. */
+  generalInfo: string;
+  /** G3: owner's own nearby tips; the assistant suggests these first. */
+  recommendations: RecommendationItem[];
   faqs: FaqItem[];
 }
 
@@ -125,6 +136,8 @@ export const DEFAULT_HOTEL_INFO: HotelInfo = {
   checkOut: "12:00",
   breakfastHours: "07:00–10:30",
   houseRules: "No smoking in rooms. Quiet after 22:00, please.",
+  generalInfo: "",
+  recommendations: [],
   faqs: [],
 };
 
@@ -186,6 +199,14 @@ function normalize(raw: unknown): HotelData {
         return [{ id: typeof f.id === "string" ? f.id : randomUUID(), question: f.question, answer: f.answer }];
       })
     : [];
+  const recommendations: RecommendationItem[] = Array.isArray(infoRaw.recommendations)
+    ? (infoRaw.recommendations as unknown[]).flatMap((x) => {
+        if (!x || typeof x !== "object") return [];
+        const f = x as Record<string, unknown>;
+        if (typeof f.title !== "string" || !f.title.trim()) return [];
+        return [{ id: typeof f.id === "string" ? f.id : randomUUID(), title: f.title, note: typeof f.note === "string" ? f.note : "" }];
+      })
+    : [];
   const settingsRaw = (r.settings ?? {}) as Record<string, unknown>;
   return {
     rooms,
@@ -200,6 +221,8 @@ function normalize(raw: unknown): HotelData {
       checkOut: str("checkOut", d.hotelInfo.checkOut),
       breakfastHours: str("breakfastHours", d.hotelInfo.breakfastHours),
       houseRules: str("houseRules", d.hotelInfo.houseRules),
+      generalInfo: typeof infoRaw.generalInfo === "string" ? infoRaw.generalInfo : "",
+      recommendations,
       faqs,
     },
     settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true, currency: typeof settingsRaw.currency === "string" && /^[A-Za-z]{3}$/.test(settingsRaw.currency) ? settingsRaw.currency.toUpperCase() : "USD", aiPhotoCheckEnabled: settingsRaw.aiPhotoCheckEnabled !== false, cleanerPhotoRequired: settingsRaw.cleanerPhotoRequired !== false },

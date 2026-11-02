@@ -21,6 +21,11 @@ const testEnv = {
   ALLOW_DEMO_RESET: "false",
   MODEL_API_KEY: "",
   AI_DAILY_LIMIT: "500",
+  // These tests always prove the local file mode, even on a Mac whose
+  // .env.local already has the real database settings (M2).
+  DATABASE_URL: "",
+  SUPABASE_URL: "",
+  SUPABASE_SERVICE_ROLE_KEY: "",
 };
 
 async function waitForServer() {

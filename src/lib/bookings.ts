@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { createCleaningTask } from "./store";
 import { appendHistory } from "./history";
 import { BOOKING_SOURCES, addDaysStr, dateStr, nightsBetween, todayStr, type Booking, type BookingSource } from "./booking-types";
+import { dbGetDocument, dbSetDocument, isDbEnabled, withDocLock } from "./db";
 
 export { BOOKING_SOURCES, addDaysStr, dateStr, nightsBetween, todayStr, roomStatusToday } from "./booking-types";
 export type { Booking, BookingSource, RoomTodayStatus } from "./booking-types";
@@ -23,8 +24,10 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "bookings.json");
 
 let queue: Promise<unknown> = Promise.resolve();
+const DOC_KEY = "bookings";
 function withLock<T>(work: () => Promise<T>): Promise<T> {
-  const run = queue.then(work, work);
+  const locked = () => withDocLock(DOC_KEY, work);
+  const run = queue.then(locked, locked);
   queue = run.then(() => undefined, () => undefined);
   return run;
 }
@@ -54,9 +57,11 @@ function normalize(raw: unknown): Booking[] {
 }
 
 async function readAll(): Promise<Booking[]> {
+  if (isDbEnabled()) return normalize(await dbGetDocument<unknown>(DOC_KEY));
   try { return normalize(JSON.parse(await fs.readFile(DATA_FILE, "utf8")) as unknown); } catch { return []; }
 }
 async function writeAll(list: Booking[]): Promise<void> {
+  if (isDbEnabled()) { await dbSetDocument(DOC_KEY, list); return; }
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = `${DATA_FILE}.tmp`;
   await fs.writeFile(tmp, `${JSON.stringify(list, null, 2)}\n`, "utf8");

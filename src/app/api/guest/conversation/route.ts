@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   // Per-IP limit kept (SEC1); the per-room chat limit lives in part 4's helper use below.
   const ip = clientIp(request);
-  if (!checkRateLimit(`guest-text:ip:${ip}`, 10)) return rateLimitResponse();
+  if (!(await checkRateLimit(`guest-text:ip:${ip}`, 10))) return rateLimitResponse();
 
   if (text && guest?.conversationId) {
     const updated = await appendGuestMessage(guest.conversationId, text);

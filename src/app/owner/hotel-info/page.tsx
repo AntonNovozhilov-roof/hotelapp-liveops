@@ -15,7 +15,7 @@ export default async function HotelInfoPage() {
     <main className="app-main mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="Hotel info" sub="What guests can ask the assistant about. Only you (the Owner) can change this." />
-      <div className="mt-5"><HotelInfoForm initial={data.hotelInfo} initialCurrency={data.settings.currency} initialAiPhotoCheckEnabled={data.settings.aiPhotoCheckEnabled} initialCleanerPhotoRequired={data.settings.cleanerPhotoRequired} initialConversationRetentionDays={data.settings.conversationRetentionDays} initialAiUsage={getAiUsage()} /></div>
+      <div className="mt-5"><HotelInfoForm initial={data.hotelInfo} initialCurrency={data.settings.currency} initialAiPhotoCheckEnabled={data.settings.aiPhotoCheckEnabled} initialCleanerPhotoRequired={data.settings.cleanerPhotoRequired} initialConversationRetentionDays={data.settings.conversationRetentionDays} initialAiUsage={await getAiUsage()} /></div>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes, randomUUID } from "crypto";
+import { dbGetDocument, dbSetDocument, isDbEnabled, withDocLock } from "./db";
 
 /**
  * Hotel data — rooms, QR tokens, hotel info sheet, settings (R1/G2).
@@ -149,8 +150,10 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "hotel.json");
 
 let queue: Promise<unknown> = Promise.resolve();
+const DOC_KEY = "hotel";
 function withLock<T>(work: () => Promise<T>): Promise<T> {
-  const run = queue.then(work, work);
+  const locked = () => withDocLock(DOC_KEY, work);
+  const run = queue.then(locked, locked);
   queue = run.then(() => undefined, () => undefined);
   return run;
 }
@@ -234,6 +237,7 @@ function normalize(raw: unknown): HotelData {
 }
 
 async function readAll(): Promise<HotelData> {
+  if (isDbEnabled()) return normalize(await dbGetDocument<unknown>(DOC_KEY));
   try {
     return normalize(JSON.parse(await fs.readFile(DATA_FILE, "utf8")) as unknown);
   } catch {
@@ -242,6 +246,7 @@ async function readAll(): Promise<HotelData> {
 }
 
 async function writeAll(data: HotelData): Promise<void> {
+  if (isDbEnabled()) { await dbSetDocument(DOC_KEY, data); return; }
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = `${DATA_FILE}.tmp`;
   await fs.writeFile(tmp, `${JSON.stringify(data, null, 2)}\n`, "utf8");

@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
   let points: ReportPoint[]; let source: ReportSource; let model: string | null = null;
   // Daily AI cap (SEC1): over the cap the report is a marked MOCK.
-  if (!process.env.MODEL_API_KEY || !consumeAiCall("owner report")) {
+  if (!process.env.MODEL_API_KEY || !(await consumeAiCall("owner report"))) {
     points = plain; source = "mock";
   } else {
     try {

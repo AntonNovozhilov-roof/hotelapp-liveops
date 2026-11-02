@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const password = typeof record.password === "string" ? record.password : "";
   if (!username || !password) return NextResponse.json({ error: "Enter your login and password." }, { status: 400 });
 
-  if (loginBlocked(username)) {
+  if (await loginBlocked(username)) {
     return NextResponse.json({ error: "Too many wrong passwords. Please wait a minute and try again." }, { status: 429, headers: { "Retry-After": "60" } });
   }
 
@@ -27,10 +27,10 @@ export async function POST(request: Request) {
   if (employee) {
     if (!employee.active) return NextResponse.json({ error: "This account has been deactivated. Please ask the owner for help." }, { status: 403 });
     if (!verifyPassword(password, employee.passwordHash)) {
-      recordLoginFailure(username);
+      await recordLoginFailure(username);
       return NextResponse.json({ error: "That login and password do not match. Please try again." }, { status: 401 });
     }
-    clearLoginFailures(username);
+    await clearLoginFailures(username);
     await touchLastSignIn(employee.id);
     const user = employeeToPublicUser(employee);
     const response = NextResponse.json({ user });
@@ -41,12 +41,12 @@ export async function POST(request: Request) {
   // Demo accounts (DEMO_MODE only).
   const demo = checkDemoCredentials(username, password);
   if (demo) {
-    clearLoginFailures(username);
+    await clearLoginFailures(username);
     const token = createDemoSession(demo);
     const response = NextResponse.json({ user: toPublicUser(demo) });
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
     return response;
   }
-  recordLoginFailure(username);
+  await recordLoginFailure(username);
   return NextResponse.json({ error: isDemoMode() ? "That login and password do not match. Please try again." : "That login and password do not match. Please try again." }, { status: 401 });
 }

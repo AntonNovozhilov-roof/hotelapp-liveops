@@ -9,7 +9,7 @@ accounts and clicks we can. Nothing here needs a paid plan for the hackathon.
 Phone / computer browser
         |  HTTPS (automatic)
         v
-Vercel  — the app itself (Next.js pages + /api routes)
+Vercel  — the app itself (Next.js pages + /api routes), region iad1 (Washington)
         |
         +--> Supabase Postgres  — saved tasks (and later history)
         +--> Supabase Storage   — staff photos (bucket "task-photos", from M11; local .data/photos until then)
@@ -17,9 +17,9 @@ Vercel  — the app itself (Next.js pages + /api routes)
         +--> Meta Model API     — AI, with MODEL_API_KEY (server only)
 ```
 
-- **Vercel** runs the app. Plan: **Hobby (free)**.
+- **Vercel** runs the app. Plan: **Hobby (free)**. Function region: **iad1** (Washington, D.C.) — the closest Vercel region to the Supabase project, so app and database talk fast. (Changed from the earlier fra1 idea: the Supabase project "readybell" is in East US, North Virginia, so iad1 is the matching pair.)
 - **Supabase** is the one service for both the database and photos.
-  Plan: **Free**. Free limits checked on the pricing pages on 2026-10-31:
+  Project: **readybell**, region **East US (North Virginia)**. Plan: **Free**. Free limits checked on the pricing pages on 2026-10-31:
   500 MB database, 1 GB file storage — far more than this demo needs.
 - **No new passwords if possible:** sign in to both Vercel and Supabase
   with the GitHub account that already owns this repo
@@ -90,10 +90,10 @@ only for testing the real database from the Mac.
 | Name | Needed from | Where it goes | Secret? |
 |---|---|---|---|
 | `MODEL_API_KEY` | Already used today | `.env.local` on the Mac; Vercel env settings online | Yes — server only |
-| `DATABASE_URL` | M2 | `.env.local` (optional, local DB test); Vercel env settings | Yes — it contains the database password. Server only, never `NEXT_PUBLIC_` |
-| `SUPABASE_URL` | M11 (photos online; local M3 photos need no keys) | Same places as above | No, but keep server-side anyway |
-| `SUPABASE_SERVICE_ROLE_KEY` | M11 (photos online) | Same places as above | Yes — server only, never in the browser, never `NEXT_PUBLIC_` |
-| `SUPABASE_PHOTOS_BUCKET` | M11 (photos online) | Same places; value is just `task-photos` | No |
+| `DATABASE_URL` | M2 | `.env.local` (optional, local DB test); Vercel env settings | Yes — it contains the database password. Use the Supabase **Transaction pooler** URI (port **6543**). Server only, never `NEXT_PUBLIC_` |
+| `SUPABASE_URL` | M2 (photos in Supabase Storage; without it photos stay local files) | Same places as above | No, but keep server-side anyway |
+| `SUPABASE_SERVICE_ROLE_KEY` | M2 (photos in Supabase Storage) | Same places as above | Yes — server only, never in the browser, never `NEXT_PUBLIC_` |
+| `SUPABASE_PHOTOS_BUCKET` | M2 | Same places; value is just `task-photos` (a PRIVATE bucket) | No |
 | `SESSION_SECRET` | SEC1 (already in code) | `.env.local`; Vercel env settings | Yes — signs the 12h sign-in cookies. Long random value from a password manager. Always set online; empty only falls back to a marked development secret locally |
 | `DEMO_MODE` | SEC1 | Same places; value `true` or `false` | No. `true` = public demo sandbox (demo accounts shown on /login, demo hotel auto-loads when empty, guest links work without QR token). Use `true` for the hackathon demo link |
 | `ALLOW_DEMO_RESET` | SEC1 | Same places; value `true` or `false` | No. Default off. `true` shows + enables the Owner "Reset demo data" button. Keep `false` unless the link is a throwaway sandbox |
@@ -124,23 +124,37 @@ Do this once. Have your password manager open (or pen and paper you keep).
    **Free** plan, click **Create organization**. (If you already have an
    organization, pick it.)
 4. Click **New project**.
-5. Name: `hotelapp-liveops`.
+5. Name: `readybell`.
 6. **Database password:** click **Generate a password**, then **copy it
    into your password manager right away** (name the entry
-   "Supabase hotelapp-liveops database password"). You will need it in
-   step B6 and nobody — including the agent — can recover it for you.
-   Never paste it into chat or Linear.
-7. **Region:** pick the region closest to the hotel (the list shows city
-   names; if unsure, pick **Singapore** — it can be changed later only by
-   making a new project, so closest-city is the rule).
+   "Supabase readybell database password"). You will need it when you
+   copy DATABASE_URL (step M2 below) and nobody — including the agent —
+   can recover it for you. Never paste it into chat or Linear.
+7. **Region:** **East US (North Virginia)** — already chosen for the
+   "readybell" project. It pairs with Vercel region **iad1**.
 8. Click **Create new project** and wait 1–2 minutes until the dashboard
    finishes "Setting up project".
 9. Stop here for now. Do **not** create tables or buckets yet:
-   - the `tasks` table is created in M2 — the agent will give you one
-     exact block of text to paste into **SQL Editor → New query → Run**;
-   - the `task-photos` bucket is created at M11 the same click-by-click way.
+   - the tables are created in M2 — run `supabase/schema.sql` from this
+     repo in **SQL Editor → New query → Run** (it also creates the
+     private `task-photos` bucket; see the M2 steps the agent gave you).
 10. Tell the agent in Linear (on ANT-17 or ANT-18): "Supabase project
     created". Do not send the password or any key.
+
+## Part A2 — Owner: turn on the database (M2 / ANT-18, about 10 minutes)
+
+Do this once, on your own computer. Never paste any value into chat or Linear.
+
+1. Open https://supabase.com, sign in, and open the **readybell** project.
+2. In the left menu click **SQL Editor**, then **New query**.
+3. In this repo, open the file `supabase/schema.sql`, copy ALL of it, paste it into the query box, and click **Run**. You should see a success message. (It creates the tables with Row Level Security ON and no public policies, plus the PRIVATE `task-photos` bucket. Running it again is safe.)
+4. Check the bucket: left menu **Storage**. You should see `task-photos` marked **Private**. If it is not there, create it by hand: **New bucket**, name `task-photos`, leave **Public bucket** OFF, click **Create**.
+5. Get the database connection string: top bar **Connect** → **Transaction pooler** (port **6543**) → copy the URI. If it contains `[YOUR-PASSWORD]`, replace that part (including the brackets) with your Supabase database password from your password manager.
+6. In this repo on your Mac, open `.env.local` and set `DATABASE_URL=` to that URI (the line is already there in `.env.example`; add it to `.env.local` if missing).
+7. Get the photo-storage values: left menu **Project Settings (gear) → API**. Copy **Project URL** into `SUPABASE_URL=` and the **service_role** key (labelled "service_role / secret" — NOT the anon/publishable key) into `SUPABASE_SERVICE_ROLE_KEY=` in `.env.local`. Make sure `SUPABASE_PHOTOS_BUCKET=task-photos` is there too.
+8. Optional but recommended: copy your current local data up once — in the repo folder run `npm run db:import`. It copies `.data` (including photos) into Supabase. Running it twice is safe (no duplicates).
+9. Restart `npm run dev` and use the app normally: everything now saves to the database. To prove it, restart the app — your tasks, rooms and photos are still there. (To go back to local files, empty `DATABASE_URL` again and restart.)
+10. Tell the agent in Linear (ANT-18): "schema done". Do not send any key or password.
 
 ## Part B — Owner: create the Vercel project (about 10 minutes, at M11 time)
 
@@ -159,7 +173,9 @@ which does not survive on Vercel.
    Permissions** / "Install" and allow Vercel to see that repository,
    then come back.)
 4. On "Configure Project": leave Framework Preset = **Next.js**,
-   Root Directory = `./`, and the build settings untouched.
+   Root Directory = `./`, and the build settings untouched. After the
+   project exists, set the function region to **iad1**: project →
+   **Settings → Functions → Function Region → Washington, D.C. (iad1)**.
 5. Click open **Environment Variables** and add the first variable:
    - Name: `MODEL_API_KEY`
    - Value: open `.env.local` **on your own Mac** (in this repo folder),
@@ -169,16 +185,16 @@ which does not survive on Vercel.
    - Click **Add**.
 6. Add the second variable the same way:
    - Name: `DATABASE_URL`
-   - Value: in Supabase go to your `hotelapp-liveops` project, click
-     **Connect** (top bar) — or **Project Settings (gear) → Database →
-     Connection string**. Choose the **pooler / Session pooler** URI
-     (the one whose address contains `pooler.supabase.com`; server apps
-     on Vercel must use the pooler, not the direct connection). Copy the
+   - Value: in Supabase go to your `readybell` project, click
+     **Connect** (top bar). Choose the **Transaction pooler** URI
+     (port **6543**; the address contains `pooler.supabase.com`. Server
+     apps on Vercel must use the transaction pooler, not the direct
+     connection on port 5432). Copy the
      URI. If it contains `[YOUR-PASSWORD]`, replace that part (including
      the brackets) with the database password from your password manager.
      Paste the finished URI into Vercel as the value. Never into chat.
    - Click **Add**.
-7. (Only when the agent says photos are moving online, at M11) add `SUPABASE_URL`,
+7. (From M2, photos already use Supabase Storage) add `SUPABASE_URL`,
    `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_PHOTOS_BUCKET` the same way.
    In Supabase, `SUPABASE_URL` and the service role key are under
    **Project Settings (gear) → API**. The service role key is the one
@@ -192,7 +208,7 @@ which does not survive on Vercel.
     when you said "push"), Vercel rebuilds and updates that same link
     by itself in about a minute. Nothing to click.
 
-Changing a secret later: Vercel dashboard → project `hotelapp-liveops` →
+Changing a secret later: Vercel dashboard → project `hotelapp-liveops` (the Vercel project name may differ from the Supabase project `readybell`) →
 **Settings → Environment Variables** → edit the value → then
 **Deployments → ⋯ on the newest deployment → Redeploy**.
 

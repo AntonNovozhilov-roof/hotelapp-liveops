@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { dbQuery, isDbEnabled } from "./db";
 import type {
   AiCheckItem,
   Department,
@@ -74,6 +75,37 @@ function cacheSet<V>(cache: Map<string, V>, key: string, value: V): void {
     if (oldest) cache.delete(oldest);
   }
   cache.set(key, value);
+}
+
+/**
+ * M2: in database mode the same cache also lives in `photo_check_cache`,
+ * so a photo + prompt checked on one server is never re-checked on
+ * another. The in-memory map stays as the fast first level in both modes.
+ */
+async function cacheGetDb<V>(kind: string, key: string, mem: Map<string, V>): Promise<V | undefined> {
+  const hit = mem.get(key);
+  if (hit !== undefined || !isDbEnabled()) return hit;
+  try {
+    const rows = await dbQuery<{ result: V }>(
+      "SELECT result FROM photo_check_cache WHERE kind = $1 AND cache_key = $2",
+      [kind, key],
+    );
+    if (!rows.length) return undefined;
+    cacheSet(mem, key, rows[0].result);
+    return rows[0].result;
+  } catch { return undefined; }
+}
+
+async function cacheSetDb<V>(kind: string, key: string, value: V, mem: Map<string, V>): Promise<void> {
+  cacheSet(mem, key, value);
+  if (!isDbEnabled()) return;
+  try {
+    await dbQuery(
+      `INSERT INTO photo_check_cache (kind, cache_key, result) VALUES ($1, $2, $3::jsonb)
+       ON CONFLICT (kind, cache_key) DO UPDATE SET result = EXCLUDED.result, created_at = now()`,
+      [kind, key, JSON.stringify(value)],
+    );
+  } catch { /* the AI check itself must never fail because of its cache */ }
 }
 
 function dataUrlHash(dataUrl: string): string {
@@ -557,7 +589,7 @@ export async function runSecondOpinion(
   const cacheKey = [...perfectDataUrls, "|", ...cleanerDataUrls]
     .map(dataUrlHash)
     .join("|");
-  const cached = sparkCache.get(cacheKey);
+  const cached = await cacheGetDb("spark", cacheKey, sparkCache);
   if (cached) return cached;
   try {
     const response = await withConcurrency(() =>
@@ -601,7 +633,7 @@ export async function runSecondOpinion(
     };
     const content = data.choices?.[0]?.message?.content;
     const opinion = parseSparkOpinion(typeof content === "string" ? content : "");
-    if (opinion) cacheSet(sparkCache, cacheKey, opinion);
+    if (opinion) await cacheSetDb("spark", cacheKey, opinion, sparkCache);
     return opinion;
   } catch {
     return null;
@@ -752,7 +784,7 @@ async function segmentConcept(
   dataUrl: string,
 ): Promise<{ count: number; confidence: number | null }> {
   const cacheKey = `${dataUrlHash(dataUrl)}|${prompt}`;
-  const cached = samCache.get(cacheKey);
+  const cached = await cacheGetDb("sam", cacheKey, samCache);
   if (cached) return cached;
   const result = await withConcurrency(async () => {
     const response = await fetchWithRetry(`${MODEL_BASE_URL}/responses`, {
@@ -782,7 +814,7 @@ async function segmentConcept(
     const data: unknown = await response.json();
     return parseSamOutput(extractOutputText(data));
   });
-  cacheSet(samCache, cacheKey, result);
+  await cacheSetDb("sam", cacheKey, result, samCache);
   return result;
 }
 

@@ -41,10 +41,10 @@ export async function POST(request: Request) {
   const roomRaw = form.get("room");
   const room = typeof roomRaw === "string" && roomRaw.trim() ? roomRaw.trim().slice(0, 20) : "unknown";
   const ip = clientIp(request);
-  if (!checkRateLimit(`guest-voice:ip:${ip}`, 5)) {
+  if (!(await checkRateLimit(`guest-voice:ip:${ip}`, 5))) {
     return rateLimitResponse();
   }
-  if (!checkRateLimit(`guest-voice:room:${room}`, 10, 10 * 60_000)) {
+  if (!(await checkRateLimit(`guest-voice:room:${room}`, 10, 10 * 60_000))) {
     return NextResponse.json(
       { error: "You've sent a lot of voice messages in a short time. Please wait a little while and try again, or type your request instead." },
       { status: 429, headers: { "Retry-After": "60" } },
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!consumeAiCall("guest voice transcription")) {
+  if (!(await consumeAiCall("guest voice transcription"))) {
     return NextResponse.json(
       { error: "Voice is not available right now. Please type your request instead." },
       { status: 503 },

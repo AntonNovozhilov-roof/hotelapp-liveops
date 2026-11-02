@@ -7,13 +7,76 @@ import type { TaskPhoto } from "./tasks";
 /**
  * The one place that knows where task photos live.
  *
- * Today: local files in `.data/photos` (git-ignored, never committed).
- * When the app goes online (M11), only this file changes: save/read/delete
- * will use cloud storage instead, and every caller keeps using the photo
- * URL saved on the task. Nothing else in the app touches photo files.
+ * Local mode: files in `.data/photos` (git-ignored, never committed).
+ * Storage mode (M2 / ANT-18): when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+ * are set, the same functions use a PRIVATE Supabase Storage bucket. The
+ * bucket is never public: photos are served only through the sign-in-checked
+ * /api/photos/[name] route, which reads them here with the service key
+ * (server only, never in browser code). Callers keep using the photo URL
+ * saved on the task. Nothing else in the app touches photo files.
  */
 
 const PHOTOS_DIR = path.join(process.cwd(), ".data", "photos");
+
+/** Storage mode needs both values; without them photos stay local files. */
+export function isStorageEnabled(): boolean {
+  return Boolean(process.env.SUPABASE_URL?.trim() && process.env.SUPABASE_SERVICE_ROLE_KEY?.trim());
+}
+
+function storageBucket(): string {
+  return process.env.SUPABASE_PHOTOS_BUCKET?.trim() || "task-photos";
+}
+
+function storageObjectUrl(name: string): string {
+  const base = process.env.SUPABASE_URL!.trim().replace(/\/+$/, "");
+  return `${base}/storage/v1/object/${storageBucket()}/${encodeURIComponent(name)}`;
+}
+
+function storageHeaders(contentType?: string): Record<string, string> {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!.trim();
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    ...(contentType ? { "Content-Type": contentType } : {}),
+  };
+}
+
+async function storageSave(name: string, bytes: Buffer, contentType: string): Promise<void> {
+  const response = await fetch(storageObjectUrl(name), {
+    method: "POST",
+    headers: { ...storageHeaders(contentType), "x-upsert": "true" },
+    body: new Uint8Array(bytes),
+  });
+  if (!response.ok) throw new Error(`Photo storage save failed (HTTP ${response.status})`);
+}
+
+async function storageRead(name: string): Promise<Buffer | null> {
+  const response = await fetch(storageObjectUrl(name), { headers: storageHeaders() });
+  if (!response.ok) return null;
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function storageDelete(names: string[]): Promise<void> {
+  if (!names.length) return;
+  const base = process.env.SUPABASE_URL!.trim().replace(/\/+$/, "");
+  await fetch(`${base}/storage/v1/object/${storageBucket()}`, {
+    method: "DELETE",
+    headers: { ...storageHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ prefixes: names }),
+  }).catch(() => undefined);
+}
+
+async function storageListNames(): Promise<string[]> {
+  const base = process.env.SUPABASE_URL!.trim().replace(/\/+$/, "");
+  const response = await fetch(`${base}/storage/v1/object/list/${storageBucket()}`, {
+    method: "POST",
+    headers: { ...storageHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ prefix: "", limit: 1000, offset: 0 }),
+  });
+  if (!response.ok) return [];
+  const items = (await response.json()) as Array<{ name?: unknown }>;
+  return items.flatMap((i) => (typeof i.name === "string" ? [i.name] : []));
+}
 
 export const MAX_PHOTOS_PER_TASK = 3;
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -151,8 +214,12 @@ export async function savePhoto(
   // format message instead of continuing silently.
   const normalized = await normalizePhotoBytes(bytes, contentType, fileName);
   const name = `${taskId}-${randomUUID()}.jpg`;
-  await fs.mkdir(PHOTOS_DIR, { recursive: true });
-  await fs.writeFile(path.join(PHOTOS_DIR, name), normalized.bytes);
+  if (isStorageEnabled()) {
+    await storageSave(name, normalized.bytes, normalized.contentType);
+  } else {
+    await fs.mkdir(PHOTOS_DIR, { recursive: true });
+    await fs.writeFile(path.join(PHOTOS_DIR, name), normalized.bytes);
+  }
   return {
     name,
     url: photoUrl(name),
@@ -200,6 +267,10 @@ export async function readPhoto(
   const contentType =
     EXT_TO_CONTENT_TYPE[path.extname(safe).toLowerCase()] ??
     "application/octet-stream";
+  if (isStorageEnabled()) {
+    const bytes = await storageRead(safe);
+    return bytes ? { bytes, contentType } : null;
+  }
   try {
     const bytes = await fs.readFile(path.join(PHOTOS_DIR, safe));
     return { bytes, contentType };
@@ -212,6 +283,10 @@ export async function readPhoto(
 export async function deletePhoto(name: string): Promise<boolean> {
   const safe = safeFileName(name);
   if (!safe) return false;
+  if (isStorageEnabled()) {
+    await storageDelete([safe]);
+    return true;
+  }
   try {
     await fs.unlink(path.join(PHOTOS_DIR, safe));
     return true;
@@ -222,6 +297,10 @@ export async function deletePhoto(name: string): Promise<boolean> {
 
 /** Delete every saved photo file (staff "Reset demo data"). */
 export async function deleteAllPhotos(): Promise<void> {
+  if (isStorageEnabled()) {
+    await storageDelete(await storageListNames());
+    return;
+  }
   try {
     const names = await fs.readdir(PHOTOS_DIR);
     await Promise.all(

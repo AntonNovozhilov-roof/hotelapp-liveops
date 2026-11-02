@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { getHotelData } from "./hotel-data";
+import { dbGetDocument, dbSetDocument, isDbEnabled, withDocLock } from "./db";
 
 /**
  * Guest "Talk to a person" conversations (G3 / ANT-62) — THE one place for
@@ -41,8 +42,10 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "conversations.json");
 
 let queue: Promise<unknown> = Promise.resolve();
+const DOC_KEY = "conversations";
 function withLock<T>(work: () => Promise<T>): Promise<T> {
-  const run = queue.then(work, work);
+  const locked = () => withDocLock(DOC_KEY, work);
+  const run = queue.then(locked, locked);
   queue = run.then(() => undefined, () => undefined);
   return run;
 }
@@ -56,7 +59,10 @@ async function retentionDays(): Promise<number> {
 
 async function readAll(): Promise<Conversation[]> {
   let all: Conversation[] = [];
-  try {
+  if (isDbEnabled()) {
+    const data = await dbGetDocument<unknown>(DOC_KEY);
+    if (Array.isArray(data)) all = data.filter((c): c is Conversation => Boolean(c) && typeof c === "object" && typeof (c as Conversation).id === "string" && Array.isArray((c as Conversation).messages));
+  } else try {
     const parsed = JSON.parse(await fs.readFile(DATA_FILE, "utf8")) as unknown;
     if (Array.isArray(parsed)) all = parsed.filter((c): c is Conversation => Boolean(c) && typeof c === "object" && typeof (c as Conversation).id === "string" && Array.isArray((c as Conversation).messages));
   } catch { return []; }
@@ -69,6 +75,7 @@ async function readAll(): Promise<Conversation[]> {
 }
 
 async function writeAll(all: Conversation[]): Promise<void> {
+  if (isDbEnabled()) { await dbSetDocument(DOC_KEY, all); return; }
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = `${DATA_FILE}.tmp`;
   await fs.writeFile(tmp, `${JSON.stringify(all, null, 2)}\n`, "utf8");

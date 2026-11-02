@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { recordAiUsage, type AiUsageKind } from "./ai-usage";
+import { dbQuery, isDbEnabled } from "./db";
 
 /**
  * Shared security helpers (SEC1 / ANT-57).
@@ -112,8 +113,31 @@ export function clientIp(request: Request): string {
 type RateStore = Map<string, number[]>;
 const rateGlobal = globalThis as typeof globalThis & { __hotelRateLimits?: RateStore };
 
-/** Simple in-memory sliding-window limit. Returns true when allowed. */
-export function checkRateLimit(key: string, limit: number, windowMs = 60_000): boolean {
+/**
+ * Sliding-window limit. Returns true when allowed. File mode uses the
+ * simple in-memory map (resets on restart, as before). Database mode
+ * (M2) counts hits in `rate_limit_hits` with one atomic statement, so the
+ * limit holds when the app runs on several servers.
+ */
+export async function checkRateLimit(key: string, limit: number, windowMs = 60_000): Promise<boolean> {
+  if (isDbEnabled()) {
+    const rows = await dbQuery<{ allowed: boolean }>(
+      `WITH pruned AS (
+         DELETE FROM rate_limit_hits
+         WHERE key = $1 AND hit_at < now() - ($3::bigint * interval '1 millisecond')
+         RETURNING 1
+       ), counted AS (
+         SELECT count(*)::int AS n FROM rate_limit_hits WHERE key = $1
+       ), inserted AS (
+         INSERT INTO rate_limit_hits (key, hit_at)
+         SELECT $1, now() FROM counted WHERE counted.n < $2
+         RETURNING 1
+       )
+       SELECT EXISTS (SELECT 1 FROM inserted) AS allowed`,
+      [key, limit, windowMs],
+    );
+    return rows[0]?.allowed === true;
+  }
   if (!rateGlobal.__hotelRateLimits) rateGlobal.__hotelRateLimits = new Map();
   const store = rateGlobal.__hotelRateLimits;
   const now = Date.now();
@@ -144,8 +168,10 @@ export function aiDailyLimit(): number {
 
 /**
  * Daily AI-call cap. Returns true (and counts the call) while under the cap.
- * In-memory on purpose for the hackathon: it resets on restart, like the
- * rate limits. When it returns false the caller must use a marked MOCK.
+ * File mode keeps the count in memory (resets on restart, as before).
+ * Database mode (M2) increments `ai_daily_counters` atomically, so the cap
+ * holds across servers and restarts. When it returns false the caller must
+ * use a marked MOCK.
  */
 const AI_USAGE_KIND: Record<string, AiUsageKind> = {
   "guest message": "guestChat",
@@ -154,7 +180,25 @@ const AI_USAGE_KIND: Record<string, AiUsageKind> = {
   "owner report": "reports",
 };
 
-export function consumeAiCall(label: string): boolean {
+export async function consumeAiCall(label: string): Promise<boolean> {
+  const kind = AI_USAGE_KIND[label] ?? "guestChat";
+  if (isDbEnabled()) {
+    const day = new Date().toISOString().slice(0, 10);
+    const rows = await dbQuery<{ count: number }>(
+      `INSERT INTO ai_daily_counters (day, count) VALUES ($1, 1)
+       ON CONFLICT (day) DO UPDATE SET count = ai_daily_counters.count + 1
+       WHERE ai_daily_counters.count < $2
+       RETURNING count`,
+      [day, aiDailyLimit()],
+    );
+    if (!rows.length) {
+      console.log(`[AI_DAILY_LIMIT] Daily AI limit (${aiDailyLimit()}) reached; using MOCK for ${label}.`);
+      return false;
+    }
+    // G3: the same successful count feeds the Owner AI usage card.
+    await recordAiUsage(kind);
+    return true;
+  }
   const day = new Date().toISOString().slice(0, 10);
   if (!aiGlobal.__hotelAiDaily || aiGlobal.__hotelAiDaily.day !== day) {
     aiGlobal.__hotelAiDaily = { day, count: 0 };
@@ -166,7 +210,7 @@ export function consumeAiCall(label: string): boolean {
   }
   store.count += 1;
   // G3: the same successful count feeds the Owner AI usage card.
-  recordAiUsage(AI_USAGE_KIND[label] ?? "guestChat");
+  await recordAiUsage(kind);
   return true;
 }
 
@@ -195,15 +239,33 @@ export function foreignOriginResponse(request: Request): NextResponse | null {
 type FailStore = Map<string, number[]>;
 const failGlobal = globalThis as typeof globalThis & { __hotelLoginFails?: FailStore };
 function failStore(): FailStore { if (!failGlobal.__hotelLoginFails) failGlobal.__hotelLoginFails = new Map(); return failGlobal.__hotelLoginFails; }
-export function loginBlocked(login: string): boolean {
+const LOGIN_KEY = (login: string) => `login-fail:${login}`;
+export async function loginBlocked(login: string): Promise<boolean> {
+  if (isDbEnabled()) {
+    const rows = await dbQuery<{ n: number }>(
+      "SELECT count(*)::int AS n FROM rate_limit_hits WHERE key = $1 AND hit_at >= now() - interval '60 seconds'",
+      [LOGIN_KEY(login)],
+    );
+    return (rows[0]?.n ?? 0) >= 5;
+  }
   const now = Date.now();
   const recent = (failStore().get(login) ?? []).filter((x) => now - x < 60_000);
   failStore().set(login, recent);
   return recent.length >= 5;
 }
-export function recordLoginFailure(login: string): void {
+export async function recordLoginFailure(login: string): Promise<void> {
+  if (isDbEnabled()) {
+    await dbQuery("INSERT INTO rate_limit_hits (key, hit_at) VALUES ($1, now())", [LOGIN_KEY(login)]);
+    return;
+  }
   const store = failStore(); const now = Date.now();
   const recent = (store.get(login) ?? []).filter((x) => now - x < 60_000);
   recent.push(now); store.set(login, recent);
 }
-export function clearLoginFailures(login: string): void { failStore().delete(login); }
+export async function clearLoginFailures(login: string): Promise<void> {
+  if (isDbEnabled()) {
+    await dbQuery("DELETE FROM rate_limit_hits WHERE key = $1", [LOGIN_KEY(login)]);
+    return;
+  }
+  failStore().delete(login);
+}

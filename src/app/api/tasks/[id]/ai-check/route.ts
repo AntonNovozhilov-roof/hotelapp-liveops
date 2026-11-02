@@ -93,7 +93,7 @@ export async function POST(
 
   let aiCheck: TaskAiCheck;
   // Daily AI cap (SEC1): over the cap the check is a marked MOCK.
-  if (!process.env.MODEL_API_KEY || !consumeAiCall("photo check")) {
+  if (!process.env.MODEL_API_KEY || !(await consumeAiCall("photo check"))) {
     aiCheck = reference
       ? { ...mockAiCheck(task.department), comparedToReference: true }
       : mockAiCheck(task.department);

@@ -11,6 +11,7 @@ import {
   type TaskStatus,
 } from "./tasks";
 import { MAX_PHOTOS_PER_TASK, deleteAllPhotos } from "./photos";
+import { dbGetDocument, dbSetDocument, isDbEnabled, withDocLock } from "./db";
 import { TASK_TYPE_RULES, effectiveRule, resolveTaskType, type CleaningSettings } from "./task-types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -19,8 +20,10 @@ const DATA_FILE = path.join(DATA_DIR, "tasks.json");
 // Serialize read-modify-write cycles so parallel requests cannot lose tasks.
 let queue: Promise<unknown> = Promise.resolve();
 
+const DOC_KEY = "tasks";
 function withLock<T>(work: () => Promise<T>): Promise<T> {
-  const run = queue.then(work, work);
+  const locked = () => withDocLock(DOC_KEY, work);
+  const run = queue.then(locked, locked);
   queue = run.then(
     () => undefined,
     () => undefined,
@@ -104,6 +107,11 @@ function normalizeTask(task: StoredTask): StoredTask {
 }
 
 async function readAll(): Promise<StoredTask[]> {
+  if (isDbEnabled()) {
+    const data = await dbGetDocument<unknown>(DOC_KEY);
+    if (!Array.isArray(data)) return [];
+    return data.filter(isStoredTask).map(normalizeTask);
+  }
   try {
     const raw = await fs.readFile(DATA_FILE, "utf8");
     const parsed = JSON.parse(raw) as unknown;
@@ -116,6 +124,7 @@ async function readAll(): Promise<StoredTask[]> {
 }
 
 async function writeAll(tasks: StoredTask[]): Promise<void> {
+  if (isDbEnabled()) { await dbSetDocument(DOC_KEY, tasks); return; }
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tempFile = `${DATA_FILE}.tmp`;
   await fs.writeFile(tempFile, `${JSON.stringify(tasks, null, 2)}\n`, "utf8");

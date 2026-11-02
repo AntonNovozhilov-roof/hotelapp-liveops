@@ -1,11 +1,13 @@
 import * as fs from "fs";
 import path from "path";
+import { dbQuery, isDbEnabled } from "./db";
 
 /**
- * AI usage counters (G3 / ANT-62) — THE one place (.data/ai-usage.json;
- * M2 moves it to the database). One bucket per day, split by kind, so the
- * Owner card can show today and this month. Only real (LIVE) AI calls are
- * counted — MOCK answers never reach the recording point.
+ * AI usage counters (G3 / ANT-62) — THE one place for these numbers.
+ * File mode: .data/ai-usage.json. Database mode (M2 / ANT-18): the
+ * `ai_usage_daily` table, one row per day and kind, incremented with one
+ * atomic SQL statement so several servers can never lose a count. Only
+ * real (LIVE) AI calls are counted — MOCK answers never reach here.
  */
 
 export type AiUsageKind = "guestChat" | "photoChecks" | "reports" | "voice";
@@ -15,8 +17,9 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "ai-usage.json");
 
 const EMPTY: AiUsageBucket = { guestChat: 0, photoChecks: 0, reports: 0, voice: 0 };
+const KINDS = Object.keys(EMPTY) as AiUsageKind[];
 
-function readAll(): Record<string, AiUsageBucket> {
+function readAllFile(): Record<string, AiUsageBucket> {
   try {
     const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf8")) as Record<string, Partial<AiUsageBucket>>;
     const out: Record<string, AiUsageBucket> = {};
@@ -26,10 +29,18 @@ function readAll(): Record<string, AiUsageBucket> {
 }
 
 /** Count one real AI call. Called from consumeAiCall, so the daily cap and the usage card can never drift apart. */
-export function recordAiUsage(kind: AiUsageKind): void {
+export async function recordAiUsage(kind: AiUsageKind): Promise<void> {
+  const day = new Date().toISOString().slice(0, 10);
   try {
-    const day = new Date().toISOString().slice(0, 10);
-    const all = readAll();
+    if (isDbEnabled()) {
+      await dbQuery(
+        `INSERT INTO ai_usage_daily (day, kind, count) VALUES ($1, $2, 1)
+         ON CONFLICT (day, kind) DO UPDATE SET count = ai_usage_daily.count + 1`,
+        [day, kind],
+      );
+      return;
+    }
+    const all = readAllFile();
     all[day] = { ...EMPTY, ...(all[day] ?? {}), [kind]: (all[day]?.[kind] ?? 0) + 1 };
     fs.mkdirSync(DATA_DIR, { recursive: true });
     const tmp = `${DATA_FILE}.tmp`;
@@ -40,14 +51,29 @@ export function recordAiUsage(kind: AiUsageKind): void {
   }
 }
 
-export function getAiUsage(now = new Date()): { today: AiUsageBucket; month: AiUsageBucket } {
-  const all = readAll();
+export async function getAiUsage(now = new Date()): Promise<{ today: AiUsageBucket; month: AiUsageBucket }> {
   const todayKey = now.toISOString().slice(0, 10);
   const monthPrefix = todayKey.slice(0, 7);
+  if (isDbEnabled()) {
+    const rows = await dbQuery<{ day: string; kind: string; count: number }>(
+      "SELECT to_char(day, 'YYYY-MM-DD') AS day, kind, count FROM ai_usage_daily WHERE to_char(day, 'YYYY-MM') = $1",
+      [monthPrefix],
+    );
+    const today: AiUsageBucket = { ...EMPTY };
+    const month: AiUsageBucket = { ...EMPTY };
+    for (const row of rows) {
+      if (!KINDS.includes(row.kind as AiUsageKind)) continue;
+      const kind = row.kind as AiUsageKind;
+      month[kind] += Number(row.count) || 0;
+      if (row.day === todayKey) today[kind] += Number(row.count) || 0;
+    }
+    return { today, month };
+  }
+  const all = readAllFile();
   const month: AiUsageBucket = { ...EMPTY };
   for (const [day, bucket] of Object.entries(all)) {
     if (!day.startsWith(monthPrefix)) continue;
-    for (const kind of Object.keys(EMPTY) as AiUsageKind[]) month[kind] += bucket[kind] ?? 0;
+    for (const kind of KINDS) month[kind] += bucket[kind] ?? 0;
   }
   return { today: { ...EMPTY, ...(all[todayKey] ?? {}) }, month };
 }

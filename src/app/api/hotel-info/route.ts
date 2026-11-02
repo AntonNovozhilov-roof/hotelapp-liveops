@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const data = await getHotelData();
   if (user?.role === "owner") {
     const { getAiUsage } = await import("@/lib/ai-usage");
-    return NextResponse.json({ hotelInfo: data.hotelInfo, currency: data.settings.currency, aiUsage: getAiUsage() });
+    return NextResponse.json({ hotelInfo: data.hotelInfo, currency: data.settings.currency, aiUsage: await getAiUsage() });
   }
   const sp = new URL(request.url).searchParams;
   const roomNumber = sp.get("room");

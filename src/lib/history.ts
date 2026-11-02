@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type { AiCheckItem, SparkOpinion } from "./tasks";
+import { dbGetDocument, dbSetDocument, isDbEnabled, withDocLock } from "./db";
 
 /**
  * History events (M8 / ANT-24) — one event for every step, stored in
@@ -37,8 +38,10 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "history.json");
 
 let queue: Promise<unknown> = Promise.resolve();
+const DOC_KEY = "history";
 function withLock<T>(work: () => Promise<T>): Promise<T> {
-  const run = queue.then(work, work);
+  const locked = () => withDocLock(DOC_KEY, work);
+  const run = queue.then(locked, locked);
   queue = run.then(
     () => undefined,
     () => undefined,
@@ -47,6 +50,18 @@ function withLock<T>(work: () => Promise<T>): Promise<T> {
 }
 
 async function readAll(): Promise<HistoryEvent[]> {
+  if (isDbEnabled()) {
+    const data = await dbGetDocument<unknown>(DOC_KEY);
+    if (!Array.isArray(data)) return [];
+    return data.filter(
+      (e): e is HistoryEvent =>
+        Boolean(e) &&
+        typeof e === "object" &&
+        typeof (e as HistoryEvent).id === "string" &&
+        typeof (e as HistoryEvent).at === "string" &&
+        typeof (e as HistoryEvent).action === "string",
+    );
+  }
   try {
     const parsed = JSON.parse(await fs.readFile(DATA_FILE, "utf8")) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -64,6 +79,7 @@ async function readAll(): Promise<HistoryEvent[]> {
 }
 
 async function writeAll(events: HistoryEvent[]): Promise<void> {
+  if (isDbEnabled()) { await dbSetDocument(DOC_KEY, events); return; }
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = `${DATA_FILE}.tmp`;
   await fs.writeFile(tmp, `${JSON.stringify(events, null, 2)}\n`, "utf8");

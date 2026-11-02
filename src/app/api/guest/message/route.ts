@@ -113,10 +113,10 @@ export async function POST(request: Request) {
   // Rate limits: per-IP limit kept (SEC1, 10/min); per room the guest chat
   // limit is 30 messages per 10 minutes (G3) with a friendly wait message.
   const ip = clientIp(request);
-  if (!checkRateLimit(`guest-text:ip:${ip}`, 10)) {
+  if (!(await checkRateLimit(`guest-text:ip:${ip}`, 10))) {
     return rateLimitResponse();
   }
-  if (!checkRateLimit(`guest-chat:room:${room}`, 30, 10 * 60_000)) {
+  if (!(await checkRateLimit(`guest-chat:room:${room}`, 30, 10 * 60_000))) {
     return NextResponse.json(
       { error: "You've sent a lot of messages in a short time. Please wait a little while and try again — or tap “Talk to a person” and the front desk will help you." },
       { status: 429, headers: { "Retry-After": "60" } },
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
   }
 
   // Daily AI cap (SEC1): over the cap we answer with a marked MOCK instead.
-  const useLiveAi = Boolean(process.env.MODEL_API_KEY) && consumeAiCall("guest message");
+  const useLiveAi = Boolean(process.env.MODEL_API_KEY) && await consumeAiCall("guest message");
   async function withHandoff(result: AssistantResult, mode: "MOCK" | "LIVE", saved: StoredTask[]) {
     if (!result.handoff) return null;
     const { conversation, created } = await startConversation(room, result.handoff, message, result.reply);

@@ -52,7 +52,11 @@ minutes.
 ```text
 M3..M10 (photos, review, supervisor, history, owner report — all local,
 on the Mac, with the local .data storage)
--> M2 (tasks into Supabase Postgres) -> M11 (go online) -> M12 (full demo test)
+-> SEC1 (security fixes, ANT-57 — owner decision 2026-11-02: done today,
+before M2)
+-> M2 (ALL saved data into Supabase: tasks, history, reports, rooms + QR
+tokens, hotel info, settings, perfect room references, and photos to
+Storage) -> M11 (go online) -> M12 (full demo test)
 ```
 
 **M2 and M11 stay Todo and start on Nov 3 morning at the latest.** Until
@@ -72,6 +76,7 @@ test.
 | Tasks | Supabase Postgres table `tasks` | `.data/tasks.json` if no `DATABASE_URL` is set (today's behaviour) |
 | Photos (from M3) | Supabase Storage bucket `task-photos`; only the photo URL is saved on the task row | Local files in `.data/photos` (git-ignored), via the one helper file `src/lib/photos.ts` — so `npm run dev` works with no cloud keys at all. Only that helper file changes when photos move to the cloud in M11 |
 | History (from M8) | Supabase Postgres table `history` | Same local fallback story as tasks |
+| **ALL other saved data (SEC1, 2026-11-02)** | **M2 must move everything, not only tasks:** history, reports, rooms and QR tokens, hotel info, settings, perfect room references (records in Postgres; their photo files in Storage) — one table (or JSON column) per kind in Supabase Postgres, same API shapes | Local `.data/*.json` files, exactly as today, when no `DATABASE_URL` is set |
 | Secrets | Vercel Environment Variables (typed in by the owner, see below) | `.env.local` (never committed, never pasted into chat/Linear) |
 
 Rule for M2 so local dev keeps working: **if `DATABASE_URL` is not set,
@@ -89,9 +94,24 @@ only for testing the real database from the Mac.
 | `SUPABASE_URL` | M11 (photos online; local M3 photos need no keys) | Same places as above | No, but keep server-side anyway |
 | `SUPABASE_SERVICE_ROLE_KEY` | M11 (photos online) | Same places as above | Yes — server only, never in the browser, never `NEXT_PUBLIC_` |
 | `SUPABASE_PHOTOS_BUCKET` | M11 (photos online) | Same places; value is just `task-photos` | No |
+| `SESSION_SECRET` | SEC1 (already in code) | `.env.local`; Vercel env settings | Yes — signs the 12h sign-in cookies. Long random value from a password manager. Always set online; empty only falls back to a marked development secret locally |
+| `DEMO_MODE` | SEC1 | Same places; value `true` or `false` | No. `true` = public demo sandbox (demo accounts shown on /login, demo hotel auto-loads when empty, guest links work without QR token). Use `true` for the hackathon demo link |
+| `ALLOW_DEMO_RESET` | SEC1 | Same places; value `true` or `false` | No. Default off. `true` shows + enables the Owner "Reset demo data" button. Keep `false` unless the link is a throwaway sandbox |
+| `AI_DAILY_LIMIT` | SEC1 | Same places; a number, default 500 | No. Daily cap on real AI calls; over the cap the app answers with clearly marked MOCK and logs one line |
 
 That is the whole list. The M2 agent may only add a var by updating this
 table, `.env.example`, and the issue comment — no silent new secrets.
+
+**Security already in the app (SEC1 / ANT-57, before M2):** tasks, photos,
+history and reports APIs require sign-in (staff see only their department;
+guests only get the status+title of tasks from their own messages, proved by
+a signed httpOnly guest cookie, and never photos); sign-in is a signed 12h
+cookie (`SESSION_SECRET`) that survives restarts; guest hotel info is
+guest-safe fields only and needs a valid room link; guest text is limited to
+10/min and voice to 5/min per IP and per room (HTTP 429, friendly message);
+mutating requests with a foreign `Origin` are rejected. `npm test` proves
+these (401s, 403 cross-department, guest isolation, reset blocked, 429,
+restart survival, foreign Origin).
 
 ## Part A — Owner: create the Supabase project (about 10 minutes; not needed until Nov 3 morning — M2/M11 start then)
 

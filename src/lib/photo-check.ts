@@ -28,7 +28,9 @@ import type {
  */
 
 export const SAM_MODEL = "sam-3.1";
-const MODEL_BASE_URL = "https://api.meta.ai/v1";
+/** Official Meta Model API base. META_API_BASE_URL exists only so tests
+ * can point at a local stub (e.g. simulated SAM 503); unset in real use. */
+const MODEL_BASE_URL = process.env.META_API_BASE_URL ?? "https://api.meta.ai/v1";
 const REQUEST_TIMEOUT_MS = 30_000;
 
 /* ------------------------------------------------------------------ */
@@ -139,6 +141,15 @@ export const PHOTO_CHECK_CONFIG = {
   /** Auto-approve bars: SAM every item >= this AND Spark >= sparkAutoApprove. */
   autoApproveSamThreshold: 0.8,
   autoApproveSparkThreshold: 0.85,
+  /**
+   * Reference-relative bar (PC1 tuning): when the perfect photo itself
+   * scored an item low (e.g. towel art at 0.70), the cleaner photo counts
+   * as found within this slack of the reference confidence — but never
+   * below 0.50, and never above the absolute 0.80 bar. With a reference
+   * towel at 0.90 the bar is 0.75, so the ANT-65 false towel (0.74) and
+   * the no-reference false towels (0.79 vs the absolute 0.80) still fail.
+   */
+  referenceConfidenceSlack: 0.15,
   /** Part 3: max SAM/Spark requests running at once. */
   concurrency: 6,
   /** Part 3: extra tries on 5xx/timeout (2 retries = 3 attempts). */
@@ -307,36 +318,57 @@ export async function listRoomItemsFromPhotos(
   }
 }
 
-/** One item's best SAM result across prompts/photos (all in parallel). */
+/** The "found" bar for one item, relative to its reference confidence. */
+function foundThresholdFor(referenceConfidence: number | null | undefined): number {
+  if (referenceConfidence === null || referenceConfidence === undefined) {
+    return PHOTO_CHECK_CONFIG.foundThreshold;
+  }
+  return Math.min(
+    PHOTO_CHECK_CONFIG.foundThreshold,
+    Math.max(0.5, referenceConfidence - PHOTO_CHECK_CONFIG.referenceConfidenceSlack),
+  );
+}
+
+/** One item's best SAM result across prompts/photos (photos in parallel). */
 async function bestSamForDef(
   apiKey: string,
   def: PhotoCheckDef,
   dataUrls: string[],
+  expectedCount: number | null,
+  referenceConfidence: number | null | undefined,
 ): Promise<{ count: number; confidence: number | null }> {
-  const jobs: Array<Promise<{ count: number; confidence: number | null }>> = [];
-  for (const prompt of promptsFor(def)) {
-    for (const dataUrl of dataUrls) {
-      jobs.push(segmentConcept(apiKey, prompt, dataUrl));
-    }
-  }
-  const results = await Promise.all(jobs);
   let count = 0;
   let confidence: number | null = null;
-  for (const result of results) {
-    // Count = the most seen in one photo; confidence = that result's best.
-    if (
-      result.count > count ||
-      (result.count === count &&
-        result.count > 0 &&
-        (confidence === null ||
-          (result.confidence !== null && result.confidence > confidence)))
-    ) {
-      count = result.count;
-      confidence = result.confidence;
-    } else if (count === 0 && result.confidence !== null) {
-      if (confidence === null || result.confidence > confidence) {
+  const threshold = foundThresholdFor(referenceConfidence);
+  for (const prompt of promptsFor(def)) {
+    const results = await Promise.all(
+      dataUrls.map((dataUrl) => segmentConcept(apiKey, prompt, dataUrl)),
+    );
+    for (const result of results) {
+      // Count = the most seen in one photo; confidence = that result's best.
+      if (
+        result.count > count ||
+        (result.count === count &&
+          result.count > 0 &&
+          (confidence === null ||
+            (result.confidence !== null && result.confidence > confidence)))
+      ) {
+        count = result.count;
         confidence = result.confidence;
+      } else if (count === 0 && result.confidence !== null) {
+        if (confidence === null || result.confidence > confidence) {
+          confidence = result.confidence;
+        }
       }
+    }
+    // Early exit: confidently found enough of the item — skip variations.
+    if (
+      count > 0 &&
+      confidence !== null &&
+      confidence >= threshold &&
+      (expectedCount === null || count >= expectedCount)
+    ) {
+      break;
     }
   }
   return { count, confidence };
@@ -349,6 +381,8 @@ export async function runSamOverPhotos(
   options?: {
     /** Perfect-photo counts by item key: fewer found = "AI not sure" (PC1). */
     expectedCounts?: Map<string, number>;
+    /** Perfect-photo SAM confidence per item key (reference-relative bar). */
+    referenceConfidences?: Map<string, number | null>;
     onProgress?: (done: number, total: number) => void;
   },
 ): Promise<AiCheckItem[]> {
@@ -359,9 +393,21 @@ export async function runSamOverPhotos(
   // segmentConcept); progress fires as each item finishes.
   const checks = await Promise.all(
     defs.map(async (def) => {
-      const { count, confidence } = await bestSamForDef(apiKey, def, dataUrls);
       const expected = options?.expectedCounts?.get(def.key) ?? null;
-      let status = statusFor(count, confidence);
+      const referenceConfidence =
+        options?.referenceConfidences?.get(def.key) ?? null;
+      const { count, confidence } = await bestSamForDef(
+        apiKey,
+        def,
+        dataUrls,
+        expected,
+        referenceConfidence,
+      );
+      let status = statusFor(
+        count,
+        confidence,
+        foundThresholdFor(referenceConfidence),
+      );
       // PC1: fewer of an item than the perfect photo -> "AI not sure",
       // never a pass (e.g. 1 pillow instead of 2).
       if (expected !== null && count > 0 && count < expected) {
@@ -482,8 +528,12 @@ export async function compareWithReference(
   const expectedCounts = new Map(
     considered.map((item) => [item.key, item.count] as const),
   );
+  const referenceConfidences = new Map(
+    considered.map((item) => [item.key, item.confidence] as const),
+  );
   const checks = await runSamOverPhotos(defs, cleanerDataUrls, {
     expectedCounts,
+    referenceConfidences,
     onProgress,
   });
   const base = buildAiCheck(checks, SAM_MODEL, "LIVE");
@@ -739,9 +789,10 @@ async function segmentConcept(
 function statusFor(
   count: number,
   confidence: number | null,
+  threshold: number = LOW_CONFIDENCE_THRESHOLD,
 ): AiCheckItem["status"] {
   if (count === 0) return "not_found";
-  if (confidence === null || confidence < LOW_CONFIDENCE_THRESHOLD) {
+  if (confidence === null || confidence < threshold) {
     return "unsure";
   }
   return "found";

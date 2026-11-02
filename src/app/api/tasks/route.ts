@@ -10,7 +10,16 @@ import { appendHistory, clearHistory } from "@/lib/history";
 import { clearHotelData } from "@/lib/hotel-data";
 import { clearReports } from "@/lib/reports-store";
 
+/**
+ * Tasks are staff data (SEC1): sign-in required. Staff only ever see their
+ * own department (asking for another one is 403); Owner/Supervisor see all.
+ * Guests never use this route — they use GET /api/guest/tasks.
+ */
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Please sign in to do this." }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const room = searchParams.get("room") ?? undefined;
   const department = searchParams.get("department") ?? undefined;
@@ -22,6 +31,26 @@ export async function GET(request: Request) {
         .filter(Boolean)
         .slice(0, 50)
     : undefined;
+
+  if (user.department) {
+    if (department && department !== user.department) {
+      return NextResponse.json(
+        { error: "This belongs to another team. You can only see your own team's tasks." },
+        { status: 403 },
+      );
+    }
+    if (ids?.length) {
+      const requested = await listStoredTasks({ ids });
+      if (requested.some((task) => task.department !== user.department)) {
+        return NextResponse.json(
+          { error: "This belongs to another team. You can only see your own team's tasks." },
+          { status: 403 },
+        );
+      }
+    }
+    const tasks = sortTasks(await listStoredTasks({ room, department: user.department, ids }));
+    return NextResponse.json({ tasks });
+  }
 
   const tasks = sortTasks(await listStoredTasks({ room, department, ids }));
   return NextResponse.json({ tasks });

@@ -3,20 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Send } from "lucide-react";
 import { Badge, Button, Card, Textarea } from "@/components/ui";
-import { DEPARTMENT_LABELS, type MessageMode, type StoredTask, type TaskStatus } from "@/lib/tasks";
+import type { MessageMode, TaskStatus } from "@/lib/tasks";
 
 const POLL_MS = 3000;
 const MAX_RECORD_SECONDS = 45;
+
+/** The only task data a guest ever sees (SEC1): id, title, status. */
+interface GuestTask { id: string; title: string; status: TaskStatus }
 
 interface Heard { transcript: string; language: string }
 type EntryKind = "guest" | "assistant" | "status";
 interface Entry { id: string; kind: EntryKind; text: string; mode?: MessageMode | null }
 
-const STATUS_LINE: Partial<Record<TaskStatus, (label: string, title: string) => string>> = {
-  accepted: (label) => `${label} accepted your request`,
-  in_progress: (label) => `${label} is on the way`,
-  review: (label) => `${label} is finishing your request`,
-  done: (label, title) => `Done ✓ — ${title}`,
+const STATUS_LINE: Partial<Record<TaskStatus, (title: string) => string>> = {
+  accepted: () => "Our team accepted your request",
+  in_progress: () => "Our team is on the way",
+  review: () => "Our team is finishing your request",
+  done: (title) => `Done ✓ — ${title}`,
 };
 
 function formatSeconds(totalSeconds: number): string {
@@ -89,7 +92,7 @@ export default function GuestForm({ room }: { room: string }) {
   const [entries, setEntries] = useState<Entry[]>([
     { id: "welcome", kind: "assistant", text: "Hi! Tell me what you need — for example “please bring two towels”, or ask me about the Wi-Fi or breakfast." },
   ]);
-  const [allTasks, setAllTasks] = useState<StoredTask[]>([]);
+  const [allTasks, setAllTasks] = useState<GuestTask[]>([]);
   const [lastMode, setLastMode] = useState<MessageMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -117,12 +120,13 @@ export default function GuestForm({ room }: { room: string }) {
   const refreshTasks = useCallback(async () => {
     if (!allIds) return;
     try {
-      const response = await fetch(`/api/tasks?ids=${encodeURIComponent(allIds)}`, { cache: "no-store" });
+      // Guest endpoint: the signed guest cookie proves these are our tasks.
+      const response = await fetch("/api/guest/tasks", { cache: "no-store" });
       if (!response.ok) return;
-      const data = (await response.json()) as { tasks: StoredTask[] };
+      const data = (await response.json()) as { tasks: GuestTask[] };
       const order = allIds.split(",");
       const byId = new Map(data.tasks.map((t) => [t.id, t]));
-      const ordered = order.map((id) => byId.get(id)).filter((t): t is StoredTask => Boolean(t));
+      const ordered = order.map((id) => byId.get(id)).filter((t): t is GuestTask => Boolean(t));
       // Live status lines when staff move a task.
       for (const task of ordered) {
         const prev = statusRef.current.get(task.id);
@@ -130,8 +134,7 @@ export default function GuestForm({ room }: { room: string }) {
         if (prev && prev !== task.status) {
           const make = STATUS_LINE[task.status];
           if (make) {
-            const label = DEPARTMENT_LABELS[task.department];
-            setEntries((p) => [...p, { id: `status-${task.id}-${task.status}`, kind: "status", text: make(label, task.title) }]);
+            setEntries((p) => [...p, { id: `status-${task.id}-${task.status}`, kind: "status", text: make(task.title) }]);
           }
         }
       }
@@ -162,7 +165,7 @@ export default function GuestForm({ room }: { room: string }) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, room, history }),
       });
-      const data = (await response.json()) as { mode?: MessageMode; error?: string; reply?: string; tasks?: StoredTask[] };
+      const data = (await response.json()) as { mode?: MessageMode; error?: string; reply?: string; tasks?: GuestTask[] };
       if (!response.ok) throw new Error(data.error || "Something went wrong. Please try again.");
       if (data.mode) setLastMode(data.mode);
       const newTasks = data.tasks ?? [];

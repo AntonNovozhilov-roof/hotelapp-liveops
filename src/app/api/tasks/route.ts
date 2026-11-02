@@ -145,5 +145,7 @@ export async function DELETE(request: Request) {
   await clearHotelData();
   await clearHistory();
   await clearReports();
+  const { clearConversations } = await import("@/lib/conversations");
+  await clearConversations();
   return NextResponse.json({ ok: true, cleared });
 }

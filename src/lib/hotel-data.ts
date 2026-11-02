@@ -117,6 +117,8 @@ export interface HotelSettings {
   aiPhotoCheckEnabled: boolean;
   /** P2: cleaners must add a photo before sending cleaning to review. On by default. */
   cleanerPhotoRequired: boolean;
+  /** G3: days conversation text is kept after closing (1, 7 or 30). Default 7. */
+  conversationRetentionDays: number;
 }
 
 export interface HotelData {
@@ -159,7 +161,7 @@ function defaults(): HotelData {
   return {
     rooms: [],
     hotelInfo: { ...DEFAULT_HOTEL_INFO, faqs: [] },
-    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false, currency: "USD", aiPhotoCheckEnabled: true, cleanerPhotoRequired: true },
+    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false, currency: "USD", aiPhotoCheckEnabled: true, cleanerPhotoRequired: true, conversationRetentionDays: 7 },
   };
 }
 
@@ -225,7 +227,7 @@ function normalize(raw: unknown): HotelData {
       recommendations,
       faqs,
     },
-    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true, currency: typeof settingsRaw.currency === "string" && /^[A-Za-z]{3}$/.test(settingsRaw.currency) ? settingsRaw.currency.toUpperCase() : "USD", aiPhotoCheckEnabled: settingsRaw.aiPhotoCheckEnabled !== false, cleanerPhotoRequired: settingsRaw.cleanerPhotoRequired !== false },
+    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true, currency: typeof settingsRaw.currency === "string" && /^[A-Za-z]{3}$/.test(settingsRaw.currency) ? settingsRaw.currency.toUpperCase() : "USD", aiPhotoCheckEnabled: settingsRaw.aiPhotoCheckEnabled !== false, cleanerPhotoRequired: settingsRaw.cleanerPhotoRequired !== false, conversationRetentionDays: [1, 7, 30].includes(settingsRaw.conversationRetentionDays as number) ? (settingsRaw.conversationRetentionDays as number) : 7 },
   };
 }
 
@@ -372,6 +374,7 @@ export async function saveSettings(settings: Partial<HotelSettings>): Promise<Ho
       currency: typeof settings.currency === "string" && /^[A-Za-z]{3}$/.test(settings.currency) ? settings.currency.toUpperCase() : data.settings.currency,
       aiPhotoCheckEnabled: settings.aiPhotoCheckEnabled !== undefined ? Boolean(settings.aiPhotoCheckEnabled) : data.settings.aiPhotoCheckEnabled,
       cleanerPhotoRequired: settings.cleanerPhotoRequired !== undefined ? Boolean(settings.cleanerPhotoRequired) : data.settings.cleanerPhotoRequired,
+      conversationRetentionDays: [1, 7, 30].includes(settings.conversationRetentionDays as number) ? (settings.conversationRetentionDays as number) : data.settings.conversationRetentionDays,
     };
     await writeAll(data);
     return data.settings;

@@ -13,7 +13,16 @@ interface GuestTask { id: string; title: string; status: TaskStatus }
 
 interface Heard { transcript: string; language: string }
 type EntryKind = "guest" | "assistant" | "status";
-interface Entry { id: string; kind: EntryKind; text: string; mode?: MessageMode | null }
+interface Entry { id: string; kind: EntryKind; text: string; mode?: MessageMode | null; name?: string | null }
+
+interface ConvMessage { id: string; sender: "guest" | "assistant" | "staff" | "system"; name: string | null; text: string; at: string }
+interface GuestConv { id: string; room: string; status: string; humanJoined: boolean; staffName: string | null; showUrgentPhone: boolean; receptionPhone: string | null; messages: ConvMessage[] }
+
+function convEntries(conv: GuestConv): Entry[] {
+  return conv.messages.map((m) => m.sender === "system"
+    ? { id: `conv-${m.id}`, kind: "status" as const, text: m.text }
+    : { id: `conv-${m.id}`, kind: m.sender === "guest" ? "guest" as const : "assistant" as const, text: m.text, name: m.sender === "staff" ? m.name : null });
+}
 
 const STATUS_LINE: Partial<Record<TaskStatus, (title: string) => string>> = {
   accepted: () => "Our team accepted your request",
@@ -102,6 +111,11 @@ export default function GuestForm({ room }: { room: string }) {
   const [heard, setHeard] = useState<Heard | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceReady, setVoiceReady] = useState(false);
+  // G3: an open "Talk to a person" conversation survives a refresh (signed
+  // guest cookie on the server); a closed one is never shown again.
+  const [conversation, setConversation] = useState<GuestConv | null>(null);
+  const conversationRef = useRef<GuestConv | null>(null);
+  conversationRef.current = conversation;
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -148,6 +162,44 @@ export default function GuestForm({ room }: { room: string }) {
     return () => clearInterval(timer);
   }, [refreshTasks, allIds]);
 
+  const syncConversation = useCallback(async () => {
+    try {
+      const response = await fetch("/api/guest/conversation", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = (await response.json()) as { conversation: GuestConv | null; closed?: boolean; endReason?: string | null };
+      if (data.conversation) {
+        setConversation(data.conversation);
+        setEntries(convEntries(data.conversation));
+      } else if (data.closed && conversationRef.current) {
+        // Closed or handed back: the guest starts from a clean chat.
+        setConversation(null);
+        setEntries([{ id: "welcome-back", kind: "assistant", text: data.endReason === "handed_back" ? "You're chatting with our assistant again. How can I help?" : "That conversation has closed. You're chatting with our assistant again — how can I help?" }]);
+      } else if (!data.conversation && conversationRef.current) {
+        setConversation(null);
+      }
+    } catch { /* keep last known */ }
+  }, []);
+
+  // Restore an open conversation after a page refresh, then poll every 3 s.
+  useEffect(() => {
+    void syncConversation();
+    const timer = setInterval(() => { if (conversationRef.current) void syncConversation(); }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [syncConversation]);
+
+  async function startHandoff() {
+    if (conversation || isSending) return;
+    setError(null);
+    try {
+      const response = await fetch("/api/guest/conversation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room }) });
+      const data = (await response.json()) as { conversation?: GuestConv; error?: string };
+      if (!response.ok || !data.conversation) throw new Error(data.error || "Something went wrong. Please try again.");
+      setConversation(data.conversation);
+      setEntries((p) => [...p, { id: `conv-start-${Date.now()}`, kind: "assistant", text: "I've asked the front desk to join this chat." }]);
+      void syncConversation();
+    } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong. Please try again."); }
+  }
+
   useEffect(() => () => {
     if (timerRef.current) window.clearInterval(timerRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -157,21 +209,34 @@ export default function GuestForm({ room }: { room: string }) {
     event.preventDefault();
     const text = message.trim();
     if (!text || isSending) return;
-    const history = entriesRef.current.filter((e) => e.kind === "guest" || e.kind === "assistant").slice(-6).map((e) => ({ role: e.kind, content: e.text }));
     setEntries((p) => [...p, { id: `g-${Date.now()}`, kind: "guest", text }]);
     setIsSending(true); setError(null);
     try {
+      // While a person is in the chat the AI stays silent: words go to staff.
+      if (conversationRef.current) {
+        const response = await fetch("/api/guest/conversation", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, room }),
+        });
+        const data = (await response.json()) as { conversation?: GuestConv; error?: string };
+        if (!response.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+        if (data.conversation) { setConversation(data.conversation); setEntries(convEntries(data.conversation)); }
+        setMessage(""); setVoiceReady(false);
+        return;
+      }
+      const history = entriesRef.current.filter((e) => e.kind === "guest" || e.kind === "assistant").slice(-6).map((e) => ({ role: e.kind, content: e.text }));
       const response = await fetch("/api/guest/message", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, room, history }),
       });
-      const data = (await response.json()) as { mode?: MessageMode; error?: string; reply?: string; tasks?: GuestTask[] };
+      const data = (await response.json()) as { mode?: MessageMode; error?: string; reply?: string; tasks?: GuestTask[]; handoff?: string | null; conversation?: GuestConv };
       if (!response.ok) throw new Error(data.error || "Something went wrong. Please try again.");
       if (data.mode) setLastMode(data.mode);
       const newTasks = data.tasks ?? [];
       for (const t of newTasks) statusRef.current.set(t.id, t.status);
       if (newTasks.length) setAllTasks((p) => [...p, ...newTasks]);
-      setEntries((p) => [...p, { id: `a-${Date.now()}`, kind: "assistant", text: data.reply || "Done — I've passed that to our team.", mode: data.mode ?? null }]);
+      if (data.reply) setEntries((p) => [...p, { id: `a-${Date.now()}`, kind: "assistant", text: data.reply || "Done — I've passed that to our team.", mode: data.mode ?? null }]);
+      if (data.conversation) { setConversation(data.conversation); void syncConversation(); }
       setMessage(""); setVoiceReady(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
@@ -243,10 +308,22 @@ export default function GuestForm({ room }: { room: string }) {
           ) : entry.kind === "guest" ? (
             <div key={entry.id} className="flex justify-end"><p className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-700 text-white px-3.5 py-2.5 text-[14px]">{entry.text}</p></div>
           ) : (
-            <div key={entry.id} className="flex justify-start"><div className="max-w-[85%]"><p className="rounded-2xl rounded-bl-md bg-canvas ring-1 ring-line px-3.5 py-2.5 text-[14px] text-ink">{entry.text}</p>{entry.mode === "MOCK" && <span className="mt-1 inline-block"><Badge tone="occ">MOCK reply</Badge></span>}</div></div>
+            <div key={entry.id} className="flex justify-start"><div className="max-w-[85%]">{entry.name && <p className="mb-1 text-[12px] font-semibold text-brand-700">{entry.name} from the front desk</p>}<p className="rounded-2xl rounded-bl-md bg-canvas ring-1 ring-line px-3.5 py-2.5 text-[14px] text-ink">{entry.text}</p>{entry.mode === "MOCK" && <span className="mt-1 inline-block"><Badge tone="occ">MOCK reply</Badge></span>}</div></div>
           ))}
           {isSending && <p className="text-[12.5px] text-ink-3">One moment…</p>}
           <div ref={bottomRef} />
+        </div>
+
+        <div className="mt-3">
+          <Button type="button" variant="secondary" className="w-full" disabled={Boolean(conversation) || isSending} onClick={() => void startHandoff()}>
+            {conversation ? (conversation.humanJoined ? `${conversation.staffName ?? "The front desk"} is in this chat` : "Waiting for the front desk…") : "Talk to a person"}
+          </Button>
+          {conversation && conversation.showUrgentPhone && conversation.receptionPhone && (
+            <p className="mt-2 rounded-xl bg-occ-soft px-3.5 py-3 text-[13.5px] font-semibold text-occ-deep" role="status">For anything urgent, please call {conversation.receptionPhone}.</p>
+          )}
+          {conversation && !conversation.humanJoined && (
+            <p className="mt-2 text-center text-[12.5px] text-ink-3">A person from the front desk will join this chat. The assistant will stay quiet while you talk.</p>
+          )}
         </div>
 
         <form onSubmit={handleSend} className="mt-3">
@@ -259,7 +336,7 @@ export default function GuestForm({ room }: { room: string }) {
           </div>
           {isRecording && <p aria-live="polite" className="mt-3 text-center text-[13.5px] font-semibold text-dirty-deep">Recording… {formatSeconds(recordingSeconds)} / {formatSeconds(MAX_RECORD_SECONDS)}</p>}
           {isTranscribing && <p aria-live="polite" className="mt-3 text-center text-[13.5px] text-ink-3">Turning your voice into text...</p>}
-          <p className="mt-3 text-center text-[12.5px] text-ink-4">Your requests go to hotel staff. This chat lives only in this tab — refresh starts a clean chat.</p>
+          <p className="mt-3 text-center text-[12.5px] text-ink-4">Your requests go to hotel staff. Chat with a person stays open if you refresh; other chat lives only in this tab.</p>
         </form>
       </Card>
 

@@ -17,9 +17,10 @@ const TEXT_FIELDS: Array<{ key: keyof HotelInfo; label: string; hint?: string }>
 
 const CURRENCIES = ["USD", "EUR", "GBP", "KZT", "AED", "TRY", "RUB", "CNY"];
 
-export default function HotelInfoForm({ initial, initialCurrency = "USD", initialAiPhotoCheckEnabled = true, initialCleanerPhotoRequired = true }: { initial: HotelInfo; initialCurrency?: string; initialAiPhotoCheckEnabled?: boolean; initialCleanerPhotoRequired?: boolean }) {
+export default function HotelInfoForm({ initial, initialCurrency = "USD", initialAiPhotoCheckEnabled = true, initialCleanerPhotoRequired = true, initialConversationRetentionDays = 7 }: { initial: HotelInfo; initialCurrency?: string; initialAiPhotoCheckEnabled?: boolean; initialCleanerPhotoRequired?: boolean; initialConversationRetentionDays?: number }) {
   const [info, setInfo] = useState<HotelInfo>(initial);
   const [currency, setCurrency] = useState(initialCurrency);
+  const [retentionDays, setRetentionDays] = useState(initialConversationRetentionDays);
   const [aiOn, setAiOn] = useState(initialAiPhotoCheckEnabled);
   const [photoRequired, setPhotoRequired] = useState(initialCleanerPhotoRequired);
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
@@ -45,10 +46,10 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD", initia
   async function save(next: HotelInfo = info) {
     setBusy(true); setError(null);
     try {
-      const res = await fetch("/api/hotel-info", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...next, currency }) });
-      const data = await res.json().catch(() => ({})) as { error?: string; hotelInfo?: HotelInfo; currency?: string };
+      const res = await fetch("/api/hotel-info", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...next, currency, conversationRetentionDays: retentionDays }) });
+      const data = await res.json().catch(() => ({})) as { error?: string; hotelInfo?: HotelInfo; currency?: string; conversationRetentionDays?: number };
       if (!res.ok || !data.hotelInfo) throw new Error(data.error || "Could not save. Please try again.");
-      setInfo(data.hotelInfo); if (data.currency) setCurrency(data.currency); setSaved(true);
+      setInfo(data.hotelInfo); if (data.currency) setCurrency(data.currency); if (data.conversationRetentionDays) setRetentionDays(data.conversationRetentionDays); setSaved(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save."); }
     finally { setBusy(false); }
   }
@@ -110,6 +111,15 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD", initia
           <Field label="Why you recommend it"><Textarea value={newRecNote} onChange={(e) => setNewRecNote(e.target.value)} rows={2} placeholder="Our favourite café, two streets away. Great croissants." /></Field>
           <div><Button disabled={busy || !newRecTitle.trim()} onClick={() => { const next = { ...info, recommendations: [...info.recommendations, { id: crypto.randomUUID(), title: newRecTitle.trim(), note: newRecNote.trim() }] }; setInfo(next); setNewRecTitle(""); setNewRecNote(""); void save(next); }}>Add recommendation</Button></div>
         </div>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">Guest message privacy</h2>
+        <p className="mt-1 text-[13px] text-ink-3">When a guest talks to a person, the chat text is kept only while the conversation is open and for this long after it closes — then it is deleted. It is never used in reports.</p>
+        <div className="mt-3 max-w-xs">
+          <Field label="Keep closed chat text for"><select className="h-11 w-full rounded-lg border border-line bg-white px-3 text-sm sm:h-10" value={retentionDays} onChange={(e) => { setRetentionDays(Number(e.target.value)); setSaved(false); }} aria-label="Keep closed chat text for">{[1, 7, 30].map((d) => <option key={d} value={d}>{d} {d === 1 ? "day" : "days"}</option>)}</select></Field>
+        </div>
+        <Button className="mt-4" size="lg" loading={busy} onClick={() => void save()}>Save hotel info</Button>
       </Card>
 
       <Card className="mt-4 p-5">

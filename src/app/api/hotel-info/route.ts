@@ -77,6 +77,11 @@ export async function PUT(request: Request) {
   if (typeof r.currency === "string" && /^[A-Za-z]{3}$/.test(r.currency.trim())) {
     currency = (await saveSettings({ currency: r.currency.trim() })).currency;
   }
+  // G3: conversation text retention (owner setting: 1, 7 or 30 days).
+  let conversationRetentionDays = (await getHotelData()).settings.conversationRetentionDays;
+  if ([1, 7, 30].includes(r.conversationRetentionDays as number)) {
+    conversationRetentionDays = (await saveSettings({ conversationRetentionDays: r.conversationRetentionDays as number })).conversationRetentionDays;
+  }
   await appendHistory({ actorName: user.name, actorRole: user.roleLabel, room: null, taskId: null, taskTitle: null, taskType: null, action: "Hotel info saved", details: `Hotel info saved by ${user.name}.` });
-  return NextResponse.json({ hotelInfo: saved, currency, saved: true });
+  return NextResponse.json({ hotelInfo: saved, currency, conversationRetentionDays, saved: true });
 }

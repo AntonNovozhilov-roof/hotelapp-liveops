@@ -61,18 +61,21 @@ export function usernameFromSessionToken(token: string | null | undefined): stri
 export interface GuestTokenData {
   room: string;
   taskIds: string[];
+  /** G3: the guest's open "Talk to a person" conversation, if any. */
+  conversationId: string | null;
 }
 
-export function createGuestToken(room: string, taskIds: string[]): string {
-  return signPayload({ kind: "guest", room, taskIds: [...new Set(taskIds)].slice(0, 100), exp: expirySeconds(12) });
+export function createGuestToken(room: string, taskIds: string[], conversationId: string | null = null): string {
+  return signPayload({ kind: "guest", room, taskIds: [...new Set(taskIds)].slice(0, 100), conversationId, exp: expirySeconds(12) });
 }
 
 export function guestDataFromToken(token: string | null | undefined): GuestTokenData | null {
-  const payload = verifyPayload<{ kind?: unknown; room?: unknown; taskIds?: unknown }>(token);
+  const payload = verifyPayload<{ kind?: unknown; room?: unknown; taskIds?: unknown; conversationId?: unknown }>(token);
   if (!payload || payload.kind !== "guest" || typeof payload.room !== "string") return null;
   return {
     room: payload.room,
     taskIds: Array.isArray(payload.taskIds) ? payload.taskIds.filter((id): id is string => typeof id === "string") : [],
+    conversationId: typeof payload.conversationId === "string" ? payload.conversationId : null,
   };
 }
 

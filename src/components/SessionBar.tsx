@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, KeyRound, LogOut } from "lucide-react";
 import { Avatar, Button, Card, Field, Logo, PasswordInput } from "@/components/ui";
@@ -11,20 +11,42 @@ import type { PublicUser } from "@/lib/users";
 const NAV: Record<string, { href: string; label: string }[]> = {
   owner: [
     { href: "/owner", label: "Owner home" }, { href: "/supervisor", label: "Review" },
+    { href: "/guest-messages", label: "Guest messages" },
     { href: "/reports", label: "Reports" }, { href: "/owner/rooms", label: "Rooms" },
     { href: "/owner/hotel-info", label: "Hotel info" }, { href: "/history", label: "History" },
     { href: "/team", label: "Team" },
   ],
   supervisor: [
-    { href: "/supervisor", label: "Supervisor home" }, { href: "/reports", label: "Reports" },
+    { href: "/supervisor", label: "Supervisor home" }, { href: "/guest-messages", label: "Guest messages" },
+    { href: "/reports", label: "Reports" },
     { href: "/owner/rooms", label: "Rooms" }, { href: "/history", label: "History" },
     { href: "/team", label: "Team" },
+  ],
+  front_desk: [
+    { href: "/staff", label: "My board" }, { href: "/guest-messages", label: "Guest messages" },
   ],
 };
 
 export function RoleNav({ user }: { user: PublicUser }) {
   const pathname = usePathname();
   const items = NAV[user.role] ?? [{ href: "/staff", label: "My board" }];
+  const canHandoff = items.some((i) => i.href === "/guest-messages");
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    if (!canHandoff) return;
+    let live = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/conversations/badge", { cache: "no-store" });
+        if (!res.ok || !live) return;
+        const data = (await res.json()) as { waiting?: number };
+        if (live) setWaiting(typeof data.waiting === "number" ? data.waiting : 0);
+      } catch { /* keep last */ }
+    };
+    void load();
+    const t = setInterval(() => void load(), 5000);
+    return () => { live = false; clearInterval(t); };
+  }, [canHandoff]);
   return (
     <nav aria-label="Your pages" className="mt-4 flex flex-wrap gap-1.5">
       {items.map((item) => {
@@ -33,6 +55,9 @@ export function RoleNav({ user }: { user: PublicUser }) {
           <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
             className={`inline-flex min-h-11 items-center rounded-lg px-3 text-[13.5px] font-semibold transition-colors ${active ? "bg-brand-700 text-white" : "bg-white text-ink-2 ring-1 ring-line hover:border-brand-500 hover:text-brand-700"}`}>
             {item.label}
+            {item.href === "/guest-messages" && waiting > 0 && (
+              <span aria-label={`${waiting} guests waiting`} className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white">{waiting}</span>
+            )}
           </Link>
         );
       })}

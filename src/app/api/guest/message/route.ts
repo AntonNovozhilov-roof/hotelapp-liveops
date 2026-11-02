@@ -7,6 +7,7 @@ import { applyGuardrails, buildSystemPrompt, mockAssistant, type AssistantResult
 import { GUEST_COOKIE, checkRateLimit, clientIp, consumeAiCall, createGuestToken, guestCookieOptions, guestDataFromToken, rateLimitResponse, type GuestTokenData } from "@/lib/security";
 import type { StoredTask } from "@/lib/tasks";
 import { foreignOriginResponse } from "@/lib/security";
+import { appendGuestMessage, getConversation, guestConversationView, startConversation } from "@/lib/conversations";
 
 function existingGuest(request: Request): GuestTokenData | null {
   const header = request.headers.get("cookie") ?? "";
@@ -18,16 +19,17 @@ function existingGuest(request: Request): GuestTokenData | null {
 }
 
 /** Guest responses carry only id/title/status, plus the signed guest cookie. */
-function guestResponse(request: Request, room: string, saved: StoredTask[], body: Record<string, unknown>): NextResponse {
+function guestResponse(request: Request, room: string, saved: StoredTask[], body: Record<string, unknown>, conversationId: string | null = null): NextResponse {
   const response = NextResponse.json({
     ...body,
     room,
     tasks: saved.map((t) => ({ id: t.id, title: t.title, status: t.status })),
   });
-  if (saved.length) {
+  if (saved.length || conversationId) {
     const previous = existingGuest(request);
     const ids = [...(previous && previous.room === room ? previous.taskIds : []), ...saved.map((t) => t.id)];
-    response.cookies.set(GUEST_COOKIE, createGuestToken(room, ids), guestCookieOptions());
+    const convId = conversationId ?? (previous && previous.room === room ? previous.conversationId : null);
+    response.cookies.set(GUEST_COOKIE, createGuestToken(room, ids, convId), guestCookieOptions());
   }
   return response;
 }
@@ -116,13 +118,33 @@ export async function POST(request: Request) {
 
   const { hotelInfo } = await getHotelData();
 
+  // G3: while a person is in the chat (or one is on the way) the AI stays
+  // silent — the guest's words go straight into the open conversation.
+  const guestCookie = existingGuest(request);
+  if (guestCookie?.conversationId && guestCookie.room === room) {
+    const open = await getConversation(guestCookie.conversationId);
+    if (open && open.status !== "closed") {
+      const updated = await appendGuestMessage(open.id, message);
+      if (updated) return guestResponse(request, room, [], { mode: null, reply: null, handoff: "active", conversation: guestConversationView(updated, hotelInfo.receptionPhone) }, updated.id);
+    }
+  }
+
   // Daily AI cap (SEC1): over the cap we answer with a marked MOCK instead.
   const useLiveAi = Boolean(process.env.MODEL_API_KEY) && consumeAiCall("guest message");
+  async function withHandoff(result: AssistantResult, mode: "MOCK" | "LIVE", saved: StoredTask[]) {
+    if (!result.handoff) return null;
+    const { conversation, created } = await startConversation(room, result.handoff, message, result.reply);
+    if (created) {
+      await appendHistory({ actorName: "Guest", actorRole: "Guest", room, taskId: null, taskTitle: null, taskType: null, action: "Handoff started", details: `Handoff started for room ${room} (${result.handoff}).` });
+    }
+    return guestResponse(request, room, saved, { mode, ...(mode === "LIVE" ? { model: MODEL_NAME } : {}), reply: result.reply, handoff: result.handoff, conversation: guestConversationView(conversation, hotelInfo.receptionPhone) }, conversation.id);
+  }
+
   if (!useLiveAi) {
     const result = mockAssistant(message, hotelInfo, room);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
     for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });
-    return guestResponse(request, room, saved, { mode: "MOCK", reply: result.reply, handoff: result.handoff ?? null });
+    return (await withHandoff(result, "MOCK", saved)) ?? guestResponse(request, room, saved, { mode: "MOCK", reply: result.reply, handoff: null });
   }
 
   try {
@@ -130,7 +152,7 @@ export async function POST(request: Request) {
     const result = applyGuardrails(message, hotelInfo, room, raw);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
     for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });
-    return guestResponse(request, room, saved, { mode: "LIVE", model: MODEL_NAME, reply: result.reply, handoff: result.handoff ?? null });
+    return (await withHandoff(result, "LIVE", saved)) ?? guestResponse(request, room, saved, { mode: "LIVE", model: MODEL_NAME, reply: result.reply, handoff: null });
   } catch (error) {
     console.error("Model call failed:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "The AI service did not answer. Please try again in a moment." }, { status: 502 });

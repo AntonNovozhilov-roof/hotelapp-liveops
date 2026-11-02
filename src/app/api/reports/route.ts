@@ -8,6 +8,9 @@ import { listReports, saveReport } from "@/lib/reports-store";
 import { consumeAiCall } from "@/lib/security";
 import { foreignOriginResponse } from "@/lib/security";
 
+// Report writing (up to two model tries) can take tens of seconds.
+export const maxDuration = 60;
+
 /**
  * Reports API (M10/S6). Owner + Supervisor only — staff get 403.
  * Model: Muse Wonder — official Meta docs (dev.meta.ai/docs/models):

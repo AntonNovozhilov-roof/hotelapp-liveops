@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/api/tasks/[id]/ai-check/route.ts": { "maxDuration": 60 },
+    "src/app/api/rooms/[id]/reference/photos/route.ts": { "maxDuration": 60 },
+    "src/app/api/reports/route.ts": { "maxDuration": 60 },
+    "src/app/api/guest/message/route.ts": { "maxDuration": 60 },
+    "src/app/api/guest/transcribe/route.ts": { "maxDuration": 60 },
+    "src/app/api/cron/daily/route.ts": { "maxDuration": 60 }
+  },
+  "crons": [{ "path": "/api/cron/daily", "schedule": "0 12 * * *" }]
+}

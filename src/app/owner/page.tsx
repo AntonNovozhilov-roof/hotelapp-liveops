@@ -13,6 +13,7 @@ import { listStoredTasks } from "@/lib/store";
 import { ensureAutoCheckoutTasks, listBookings, todayStr, addDaysStr } from "@/lib/bookings";
 import { loadDemoHotel } from "@/lib/demo-hotel";
 import { isDemoMode, isDemoResetAllowed } from "@/lib/security";
+import { isDbEnabled } from "@/lib/db";
 
 /**
  * Owner home — simple for now (D2 / ANT-38). The real morning report is
@@ -129,7 +130,7 @@ export default async function OwnerPage() {
         <Card className="mt-4 p-5">
           <h2 className="text-[15px] font-semibold">Demo data</h2>
           <p className="mt-1.5 text-[13.5px] text-ink-3">
-            Reset demo data is turned off on this copy (server setting <code>ALLOW_DEMO_RESET</code>). Turn it on only for a throwaway demo sandbox.
+            Reset demo data is turned off on this copy (server setting <code>{isDbEnabled() ? "ALLOW_DB_RESET" : "ALLOW_DEMO_RESET"}</code>). Turn it on only for a throwaway demo sandbox.{isDbEnabled() ? " This copy uses the shared database, so the demo setting alone can never open reset." : ""}
           </p>
         </Card>
       )}

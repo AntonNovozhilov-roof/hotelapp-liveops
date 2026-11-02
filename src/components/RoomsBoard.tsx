@@ -5,8 +5,10 @@ import { Button, Card, Empty, Input, Badge } from "@/components/ui";
 import LoadDemoHotel from "@/components/LoadDemoHotel";
 import type { HotelSettings, Room } from "@/lib/hotel-data";
 
-function linkFor(room: Room) {
-  const base = typeof window !== "undefined" ? window.location.origin : "";
+function linkFor(room: Room, appUrl?: string | null) {
+  // APP_URL (public online address) wins so printed QR codes never point at
+  // localhost or a preview URL; without it, the current origin (local dev).
+  const base = appUrl || (typeof window !== "undefined" ? window.location.origin : "");
   return `${base}/r/${encodeURIComponent(room.number)}?t=${encodeURIComponent(room.token)}`;
 }
 
@@ -191,7 +193,7 @@ export function ReferenceSection({ room, onChanged, allRooms = [] }: { room: Roo
   );
 }
 
-export default function RoomsBoard({ initialRooms, initialSettings, hotelName, canEdit }: { initialRooms: Room[]; initialSettings: HotelSettings; hotelName: string; canEdit: boolean }) {
+export default function RoomsBoard({ initialRooms, initialSettings, hotelName, canEdit, appUrl = null }: { initialRooms: Room[]; initialSettings: HotelSettings; hotelName: string; canEdit: boolean; appUrl?: string | null }) {
   const [rooms, setRooms] = useState(initialRooms);
   const [settings, setSettings] = useState(initialSettings);
   const [qr, setQr] = useState<Record<string, string>>({});
@@ -216,11 +218,11 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
     let alive = true;
     (async () => {
       const out: Record<string, string> = {};
-      for (const room of rooms) out[room.id] = await QRCode.toDataURL(linkFor(room), { width: 320, margin: 1 });
+      for (const room of rooms) out[room.id] = await QRCode.toDataURL(linkFor(room, appUrl), { width: 320, margin: 1 });
       if (alive) setQr(out);
     })();
     return () => { alive = false; };
-  }, [rooms]);
+  }, [rooms, appUrl]);
 
   async function act(fn: () => Promise<Response>, okMsg: string) {
     setBusy(true); setError(null); setMsg(null);
@@ -233,7 +235,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
   }
 
   async function brandedQrImage(room: Room): Promise<string> {
-    const qrUrl = await QRCode.toDataURL(linkFor(room), { width: 640, margin: 1 });
+    const qrUrl = await QRCode.toDataURL(linkFor(room, appUrl), { width: 640, margin: 1 });
     try {
       const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
       const [qrImg, logoImg] = await Promise.all([load(qrUrl), load("/brand/readybell-logo.png")]);
@@ -349,7 +351,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
               <p className="text-center text-[12.5px] text-ink-3">Scan to message the hotel</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <Button size="sm" variant="secondary" onClick={() => void (async () => { const img = await brandedQrImage(room); const a = document.createElement("a"); a.href = img; a.download = `room-${room.number}-qr.png`; a.click(); setMsg(`QR image for room ${room.number} downloaded (Readybell + ${hotelName}).`); })()}>Download PNG</Button>
-                <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(linkFor(room)).then(() => setMsg(`Link for room ${room.number} copied.`))}>Copy link</Button>
+                <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(linkFor(room, appUrl)).then(() => setMsg(`Link for room ${room.number} copied.`))}>Copy link</Button>
                 <Button size="sm" variant="secondary" onClick={() => setFullRoom(room)}>Show full screen</Button>
               </div>
               {canEdit && (

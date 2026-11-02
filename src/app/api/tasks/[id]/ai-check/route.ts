@@ -9,6 +9,9 @@ import { appendHistory } from "@/lib/history";
 import { consumeAiCall } from "@/lib/security";
 import { foreignOriginResponse } from "@/lib/security";
 
+// Photo check (SAM + second opinion) can take ~15s; Hobby cap is 60s.
+export const maxDuration = 60;
+
 /**
  * POST /api/tasks/[id]/ai-check — SAM 3.1 photo check (M5) + perfect
  * reference comparison (P1). With an active room reference, all cleaner

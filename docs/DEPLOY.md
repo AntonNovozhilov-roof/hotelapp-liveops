@@ -98,6 +98,9 @@ only for testing the real database from the Mac.
 | `DEMO_MODE` | SEC1 | Same places; value `true` or `false` | No. `true` = public demo sandbox (demo accounts shown on /login, demo hotel auto-loads when empty, guest links work without QR token). Use `true` for the hackathon demo link |
 | `ALLOW_DEMO_RESET` | SEC1 | Same places; value `true` or `false` | No. Default off. `true` shows + enables the Owner "Reset demo data" button. Keep `false` unless the link is a throwaway sandbox |
 | `AI_DAILY_LIMIT` | SEC1 | Same places; a number, default 500 | No. Daily cap on real AI calls; over the cap the app answers with clearly marked MOCK and logs one line |
+| `ALLOW_DB_RESET` | M11 (ANT-27) | Local database testing only — **never in Vercel** | No. When `DATABASE_URL` is set, `ALLOW_DEMO_RESET` is ignored and only `ALLOW_DB_RESET=true` opens the Owner reset. The Mac and the online app share one database, so a demo flag must never wipe it |
+| `APP_URL` | M11 | Vercel (after the first deploy); optional in `.env.local` | No — it is the public link itself. QR codes and printed login cards use it, so they never point at localhost or a preview address |
+| `CRON_SECRET` | M11 | Vercel; optional locally | Yes — protects `/api/cron/daily`. Vercel sends it by itself when it runs the daily job. Make it like `SESSION_SECRET`: long random, from a password manager |
 
 That is the whole list. The M2 agent may only add a var by updating this
 table, `.env.example`, and the issue comment — no silent new secrets.
@@ -156,61 +159,85 @@ Do this once, on your own computer. Never paste any value into chat or Linear.
 9. Restart `npm run dev` and use the app normally: everything now saves to the database. To prove it, restart the app — your tasks, rooms and photos are still there. (To go back to local files, empty `DATABASE_URL` again and restart.)
 10. Tell the agent in Linear (ANT-18): "schema done". Do not send any key or password.
 
-## Part B — Owner: create the Vercel project (about 10 minutes, at M11 time)
+## Part B — Owner: create the Vercel project (about 15 minutes, M11 / ANT-27)
 
-The agent will tell you when M2 is done and the code is ready. Do not
-deploy before that message — today's code saves tasks to a local file,
-which does not survive on Vercel.
+The code is ready: `vercel.json` in the repo already sets Framework =
+Next.js, build = `npm run build`, start = Next.js default, function
+region **iad1**, 60-second timeouts for the slow AI routes (photo check,
+reports, guest message, voice), and one daily cron job. You only click
+through Vercel and paste the values below.
 
 0. First say **"push"** to the agent (agents never push without your word),
    wait until the agent confirms the newest code is on GitHub.
 1. Go to https://vercel.com and click **Sign Up**, then
-   **Continue with GitHub** (same GitHub account). Authorize if asked.
-   Pick the **Hobby (free)** plan if asked.
+   **Continue with GitHub** (the GitHub account that owns
+   `AntonNovozhilov-roof/hotelapp-liveops`). Authorize if asked.
+   Pick the **Hobby (free)** plan if asked. No bank card — if a page
+   asks for a card, stop and tell the agent in Linear.
 2. On the Vercel dashboard click **Add New… → Project**.
 3. In "Import Git Repository", find **`hotelapp-liveops`** and click
    **Import**. (If it is not listed, click **Adjust GitHub App
    Permissions** / "Install" and allow Vercel to see that repository,
    then come back.)
-4. On "Configure Project": leave Framework Preset = **Next.js**,
-   Root Directory = `./`, and the build settings untouched. After the
-   project exists, set the function region to **iad1**: project →
-   **Settings → Functions → Function Region → Washington, D.C. (iad1)**.
-5. Click open **Environment Variables** and add the first variable:
-   - Name: `MODEL_API_KEY`
-   - Value: open `.env.local` **on your own Mac** (in this repo folder),
-     copy the text after `MODEL_API_KEY=` on that line, and paste it
-     into Vercel. Never paste it into chat or Linear.
-   - Environment: **Production** (tick Preview too if shown — harmless).
-   - Click **Add**.
-6. Add the second variable the same way:
-   - Name: `DATABASE_URL`
-   - Value: in Supabase go to your `readybell` project, click
-     **Connect** (top bar). Choose the **Transaction pooler** URI
-     (port **6543**; the address contains `pooler.supabase.com`. Server
-     apps on Vercel must use the transaction pooler, not the direct
-     connection on port 5432). Copy the
-     URI. If it contains `[YOUR-PASSWORD]`, replace that part (including
-     the brackets) with the database password from your password manager.
-     Paste the finished URI into Vercel as the value. Never into chat.
-   - Click **Add**.
-7. (From M2, photos already use Supabase Storage) add `SUPABASE_URL`,
-   `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_PHOTOS_BUCKET` the same way.
-   In Supabase, `SUPABASE_URL` and the service role key are under
-   **Project Settings (gear) → API**. The service role key is the one
-   labelled **service_role / secret** — not the `anon` / publishable key.
-8. Click **Deploy**. Wait until Vercel shows "Congratulations" with a
-   picture of the site.
-9. Click the big site link (or **Visit**). Your online address looks like
-   `https://hotelapp-liveops-….vercel.app`. Copy that link into the
-   Linear issue ANT-27 (the link is not a secret).
-10. From now on: every time the agent pushes new code to GitHub (only
-    when you said "push"), Vercel rebuilds and updates that same link
-    by itself in about a minute. Nothing to click.
+4. On "Configure Project": Framework Preset = **Next.js** (it reads
+   `vercel.json` by itself), Root Directory = `./`, build settings
+   untouched. Do not change the region here — `vercel.json` sets
+   **iad1**. After the project exists you can check it under
+   **Settings → Functions → Function Region** = Washington, D.C. (iad1).
+5. Open **Environment Variables** and add each row of this table the same
+   way: type the Name, paste the Value, Environment = **Production**
+   (tick Preview too if shown — harmless), click **Add**. Values come
+   only from your own Mac / password manager / Supabase — never from
+   chat or Linear.
+
+   | Name | Value — where it comes from (one line) |
+   |---|---|
+   | `MODEL_API_KEY` | Copy the text after `MODEL_API_KEY=` in `.env.local` on your Mac. |
+   | `DATABASE_URL` | Supabase `readybell` → **Connect** → **Transaction pooler** URI (port **6543**, `pooler.supabase.com`); replace `[YOUR-PASSWORD]` with the database password from your password manager. |
+   | `SUPABASE_URL` | Supabase `readybell` → **Project Settings (gear) → API** → **Project URL**. |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Same API page → the **service_role / secret** key (never the anon/publishable one). |
+   | `SUPABASE_PHOTOS_BUCKET` | Type exactly: `task-photos` |
+   | `SESSION_SECRET` | A NEW long random value (do not reuse the local one): on the Mac open Terminal in this repo folder and run `openssl rand -hex 32`, copy the 64 characters it prints — or generate 32+ random characters in your password manager. Save it in the password manager too. |
+   | `DEMO_MODE` | Type exactly: `true` (public demo: demo accounts shown on /login, demo hotel auto-loads). |
+   | `ALLOW_DEMO_RESET` | Type exactly: `false` (in database mode it is ignored anyway — see `ALLOW_DB_RESET`). |
+   | `AI_DAILY_LIMIT` | Type exactly: `500` |
+   | `CRON_SECRET` | A new long random value, made exactly like `SESSION_SECRET` above (a different one). |
+   | `APP_URL` | Add this one AFTER the first deploy (step 7): the public `https://….vercel.app` address Vercel gives you, nothing after it. |
+
+   Do **NOT** add `ALLOW_DB_RESET` in Vercel, ever. It is the only
+   switch that could open "Reset demo data" against the shared online
+   database, and it stays unset online on purpose.
+6. Click **Deploy**. Wait until Vercel shows "Congratulations" with a
+   picture of the site (about 1–2 minutes).
+7. Click the big site link (or **Visit**). Your online address looks like
+   `https://hotelapp-liveops-….vercel.app`. Now add the last variable:
+   **Settings → Environment Variables → Add** `APP_URL` = that address,
+   then **Deployments → ⋯ on the newest deployment → Redeploy** (env
+   values only count after a redeploy). QR codes and login cards now
+   point at this public address.
+8. Copy the public link into the Linear issue ANT-27 (the link is not a
+   secret) and tell the agent "deployed: <link>". The agent then runs
+   the Part D smoke test against it.
+9. From now on: every time the agent pushes new code to GitHub (only
+   when you said "push"), Vercel rebuilds and updates that same link
+   by itself in about a minute. Nothing to click.
 
 Changing a secret later: Vercel dashboard → project `hotelapp-liveops` (the Vercel project name may differ from the Supabase project `readybell`) →
 **Settings → Environment Variables** → edit the value → then
 **Deployments → ⋯ on the newest deployment → Redeploy**.
+
+### Timers on Vercel — what runs when (M11)
+
+There is no always-on server online, so nothing runs "in the
+background". All three timed jobs work the same way they do locally —
+on page load — and the first two also get a daily backstop:
+
+| Job | How it works online |
+|---|---|
+| Guest conversation retention cleanup (closed chat text deleted after the owner-set 1/7/30 days) | On read: every time conversations are loaded, expired closed chats are deleted (`pruneExpiredConversations`, same code as local). Plus the daily cron below. |
+| Check-out-day cleaning tasks (after 11:00 on check-out day, exactly once) | On page load: the first staff/supervisor/owner/rooms page open creates them (`ensureAutoCheckoutTasks`, claim in the database, never twice — same as local). Plus the daily cron below. |
+| Daily report | On page load, deliberately NOT on a timer: the first Reports page open after 07:00 makes it from the facts at that moment. No report is lost if nobody opens the page early — it is made when first needed. |
+| Daily cron backstop (`vercel.json`, Hobby = one run per day) | Vercel calls `GET /api/cron/daily` at 12:00 UTC every day (protected by `CRON_SECRET`): it runs the retention cleanup and creates any due check-out cleaning tasks for days when nobody opened the app. Times are UTC on Vercel; the page-load rules above still fire first in normal use. |
 
 ## Part C — After the first deploy (M11 checks, on a real phone)
 
@@ -235,6 +262,40 @@ Changing a secret later: Vercel dashboard → project `hotelapp-liveops` (the Ve
      hackathon; the agent must say in the M11 comment that it is simple
      and can reset when the server restarts — it stops accidents and
      casual spam, it is not bank-grade protection.
+
+## Part D — Agent smoke test on the public link (after the owner posts it)
+
+Run by the agent against the real `https://….vercel.app` address, in
+this order; results go on ANT-27. Synthetic data only.
+
+1. Guest page: open `/r/204?t=<token from the Owner's QR page>` (and, in
+   DEMO_MODE, plain `/r/204`) on the public link — page loads over
+   HTTPS, MOCK banner state matches whether a key is set.
+2. Guest message: send "There is a leak in the bathroom and please
+   bring towels" — reply arrives, 2 tasks (Maintenance repair +
+   Housekeeping request), guest sees only those two statuses.
+3. Sign-in: `/login` as Owner (`owner` / `demo1234` in DEMO_MODE) —
+   Owner home loads; sign out and in as Aigerim and Ruslan — each sees
+   only their own team's tasks (403 cross-team at the API).
+4. Staff board: Aigerim Accept → Start on the towels request → Done;
+   the guest page status follows to Done by itself.
+5. Photo upload: on a cleaning task (Clean room 204), Aigerim adds a
+   photo from the test set — upload succeeds, photo opens for staff,
+   signed-out photo URL is 401.
+6. AI check: **Run AI photo check** finishes (LIVE or clearly MOCK),
+   verdict is shown simply; Send to review / supervisor Approve flow
+   works; task ends Done.
+7. Reports: Owner opens `/reports` — daily report is made (after
+   07:00 auto, or Regenerate), numbers checked line present.
+8. QR link: Owner → Rooms → QR codes — decode/copy one room link; it
+   starts with the `APP_URL` public address (not localhost, not a
+   preview URL) and opens the right room's guest page. Login card on
+   `/team` shows the same public address.
+9. Safety: Owner home shows Reset demo data **turned off** (no working
+   reset) even though it may be on locally; delete call is refused.
+10. Survival: ask the owner to Redeploy once (Deployments → ⋯ →
+    Redeploy), then repeat steps 3–4 quickly — tasks and the photo are
+    still there.
 
 ## Local dev (must keep working — for every future task)
 

@@ -16,7 +16,7 @@ const ROLE_OPTIONS: { value: RoleKey; label: string }[] = [
   { value: "supervisor", label: "Supervisor" }, { value: "owner", label: "Owner" },
 ];
 
-export default function TeamBoard({ initial, isOwner, currentEmployeeId }: { initial: PublicEmployee[]; isOwner: boolean; currentEmployeeId: string | null }) {
+export default function TeamBoard({ initial, isOwner, currentEmployeeId, appUrl = null }: { initial: PublicEmployee[]; isOwner: boolean; currentEmployeeId: string | null; appUrl?: string | null }) {
   const [people, setPeople] = useState(initial);
   const [name, setName] = useState("");
   const [login, setLogin] = useState("");
@@ -31,7 +31,9 @@ export default function TeamBoard({ initial, isOwner, currentEmployeeId }: { ini
   const [editRole, setEditRole] = useState<RoleKey>("housekeeping");
 
   const roleOptions = ROLE_OPTIONS.filter((o) => isOwner || STAFF_ROLES.includes(o.value));
-  const appLink = typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
+  // Login cards must carry the public address (APP_URL) when set, so a card
+  // printed from localhost still sends staff to the online app.
+  const appLink = appUrl ? `${appUrl}/login` : typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
 
   async function refresh() {
     const res = await fetch("/api/employees", { cache: "no-store" });

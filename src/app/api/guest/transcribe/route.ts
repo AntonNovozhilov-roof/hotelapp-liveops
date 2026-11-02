@@ -3,6 +3,9 @@ import { guessLanguage, languageFromMeta } from "@/lib/language";
 import { checkRateLimit, clientIp, consumeAiCall, rateLimitResponse } from "@/lib/security";
 import { foreignOriginResponse } from "@/lib/security";
 
+// Voice transcription can take several seconds.
+export const maxDuration = 60;
+
 // Official Meta docs (checked 2026-10-29):
 // Speech to text: https://dev.meta.ai/docs/speech-to-text
 // API reference: https://dev.meta.ai/docs/api-reference/voice/transcribe

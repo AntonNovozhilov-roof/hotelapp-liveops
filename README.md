@@ -225,8 +225,17 @@ characters from a password manager. If it is empty, local testing still
 works with a clearly marked development fallback — always set a real value
 online. Demo behaviour is controlled by `DEMO_MODE=true` (demo accounts
 shown on /login, demo hotel auto-loads, room links without QR token) and
-`ALLOW_DEMO_RESET=true` (Owner reset button; default off). `AI_DAILY_LIMIT`
-caps real AI calls per day (default 500; then marked MOCK answers).
+`ALLOW_DEMO_RESET=true` (Owner reset button in file mode only; default
+off). When `DATABASE_URL` is set — the Mac and the online app then share
+one database — `ALLOW_DEMO_RESET` is ignored and only
+`ALLOW_DB_RESET=true` could open reset; never set that online.
+`AI_DAILY_LIMIT` caps real AI calls per day (default 500; then marked
+MOCK answers). Online (Vercel, region iad1 via `vercel.json`), `APP_URL`
+is the public address QR codes and login cards print, and `CRON_SECRET`
+protects the one daily cron backstop (retention cleanup + check-out
+cleaning tasks; both also run on page load, and the daily report is made
+on the first Reports open after 07:00). The click-by-click deploy guide
+is `docs/DEPLOY.md` Part B.
 
 ### 6. Try it on a phone on the same Wi-Fi
 

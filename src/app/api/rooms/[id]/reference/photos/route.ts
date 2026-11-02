@@ -23,6 +23,9 @@ import { randomUUID } from "crypto";
 import { appendHistory } from "@/lib/history";
 import { foreignOriginResponse } from "@/lib/security";
 
+// Upload runs the perfect-photo AI check, which can take ~15s.
+export const maxDuration = 60;
+
 async function guard() {
   const user = await getCurrentUser();
   if (!user) return { error: NextResponse.json({ error: "Please sign in to do this." }, { status: 401 as const }) };

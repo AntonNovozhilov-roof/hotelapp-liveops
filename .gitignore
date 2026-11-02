@@ -150,3 +150,6 @@ vite.config.ts.timestamp-*
 
 # Local app data (saved hotel tasks)
 .data/
+
+# macOS Finder metadata — never commit
+.DS_Store

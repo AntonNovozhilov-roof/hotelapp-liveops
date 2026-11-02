@@ -9,6 +9,7 @@ import PerfectPhotosBoard from "@/components/PerfectPhotosBoard";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData, publicRoom } from "@/lib/hotel-data";
 import { ensureAutoCheckoutTasks, listBookings } from "@/lib/bookings";
+import { publicAppUrl } from "@/lib/app-url";
 
 const TABS = [
   { key: "rooms", label: "Rooms & prices" },
@@ -37,7 +38,7 @@ export default async function RoomsPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
       <div className="mt-5">
-        {tab === "qr" && <RoomsBoard initialRooms={data.rooms.map(publicRoom) as never} initialSettings={data.settings} hotelName={data.hotelInfo.hotelName} canEdit={canEdit} />}
+        {tab === "qr" && <RoomsBoard initialRooms={data.rooms.map(publicRoom) as never} initialSettings={data.settings} hotelName={data.hotelInfo.hotelName} canEdit={canEdit} appUrl={publicAppUrl()} />}
         {tab === "rooms" && <RoomsPricesBoard initialRooms={data.rooms.map(publicRoom) as never} bookings={bookings} currency={data.settings.currency} canEdit={canEdit} aiPhotoCheckEnabled={data.settings.aiPhotoCheckEnabled} />}
         {tab === "bookings" && <BookingsBoard initialBookings={bookings} rooms={data.rooms.map((r) => ({ id: r.id, number: r.number, floor: r.floor, roomType: r.roomType, pricePerNight: r.pricePerNight }))} currency={data.settings.currency} canEdit={user.role === "owner" || user.role === "supervisor"} />}
         {tab === "perfect" && <PerfectPhotosBoard initialRooms={data.rooms.map(publicRoom) as never} initialSettings={data.settings} canEditSettings={canEdit} initialRoomId={roomParam ? (data.rooms.find((r) => r.id === roomParam || r.number === roomParam)?.id ?? null) : null} />}

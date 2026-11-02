@@ -9,6 +9,9 @@ import type { StoredTask } from "@/lib/tasks";
 import { foreignOriginResponse } from "@/lib/security";
 import { appendGuestMessage, getConversation, guestConversationView, startConversation } from "@/lib/conversations";
 
+// Guest AI routing can take several seconds.
+export const maxDuration = 60;
+
 function existingGuest(request: Request): GuestTokenData | null {
   const header = request.headers.get("cookie") ?? "";
   for (const part of header.split(";")) {

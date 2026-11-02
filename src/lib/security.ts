@@ -99,7 +99,15 @@ export function isDemoMode(): boolean {
   return process.env.DEMO_MODE === "true";
 }
 
+/**
+ * Reset gate (SEC1 + M11/ANT-27). File mode (.data): ALLOW_DEMO_RESET only.
+ * Database mode: ALLOW_DEMO_RESET is ignored on purpose — the local Mac and
+ * the online app share the same Supabase database, so a demo flag must never
+ * be able to wipe it. Only the separate ALLOW_DB_RESET=true opens the gate
+ * in DB mode; never set it online.
+ */
 export function isDemoResetAllowed(): boolean {
+  if (isDbEnabled()) return process.env.ALLOW_DB_RESET === "true";
   return process.env.ALLOW_DEMO_RESET === "true";
 }
 

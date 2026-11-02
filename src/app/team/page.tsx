@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import TeamBoard from "@/components/TeamBoard";
 import { getCurrentUser } from "@/lib/auth";
 import { listEmployees, toPublicEmployee } from "@/lib/employees";
+import { publicAppUrl } from "@/lib/app-url";
 
 export default async function TeamPage() {
   const user = await getCurrentUser();
@@ -14,7 +15,7 @@ export default async function TeamPage() {
     <main className="app-main mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="Team" sub={user.role === "owner" ? "Add people, reset passwords, deactivate leavers. History always keeps the real person's name — accounts are never deleted." : "You can add and edit staff (Housekeeping, Maintenance, Front desk, Room service). Supervisors and the Owner are managed by the Owner."} />
-      <div className="mt-5"><TeamBoard initial={employees.map(toPublicEmployee)} isOwner={user.role === "owner"} currentEmployeeId={user.employeeId ?? null} /></div>
+      <div className="mt-5"><TeamBoard initial={employees.map(toPublicEmployee)} isOwner={user.role === "owner"} currentEmployeeId={user.employeeId ?? null} appUrl={publicAppUrl()} /></div>
     </main>
   );
 }

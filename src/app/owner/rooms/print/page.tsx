@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData, guestLink } from "@/lib/hotel-data";
+import { publicAppUrl } from "@/lib/app-url";
 import PrintButton from "./PrintButton";
 
 export default async function PrintRoomsPage() {
@@ -13,7 +14,9 @@ export default async function PrintRoomsPage() {
   const h = await headers();
   const host = h.get("host") || "localhost:3000";
   const proto = host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https";
-  const base = `${proto}://${host}`;
+  // APP_URL (public online address) wins: printed cards must work for guests,
+  // not point at the address the Owner happened to open.
+  const base = publicAppUrl() ?? `${proto}://${host}`;
   const cards = await Promise.all(data.rooms.map(async (room) => ({ room, qr: await QRCode.toDataURL(guestLink(room, base), { width: 360, margin: 1 }) })));
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 print:p-0 print:max-w-none">

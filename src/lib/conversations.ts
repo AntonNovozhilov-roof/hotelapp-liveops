@@ -188,6 +188,11 @@ export async function closeConversation(id: string, by: string): Promise<Convers
   return endConversation(id, by, "closed", `This conversation was closed by ${by}`);
 }
 
+/** Run the retention prune now (readAll deletes expired closed chats). */
+export async function pruneExpiredConversations(): Promise<void> {
+  await readAll();
+}
+
 export async function clearConversations(): Promise<void> {
   await withLock(async () => writeAll([]));
 }

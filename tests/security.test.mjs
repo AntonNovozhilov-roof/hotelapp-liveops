@@ -19,6 +19,9 @@ const testEnv = {
   SESSION_SECRET: "test-session-secret-for-sec1-tests-1234567890",
   DEMO_MODE: "true",
   ALLOW_DEMO_RESET: "false",
+  ALLOW_DB_RESET: "",
+  APP_URL: "",
+  CRON_SECRET: "test-cron-secret",
   MODEL_API_KEY: "",
   AI_DAILY_LIMIT: "500",
   // These tests always prove the local file mode, even on a Mac whose
@@ -144,6 +147,14 @@ test("reset is blocked without ALLOW_DEMO_RESET", async () => {
   const cookie = await login("owner");
   const res = await call("/api/tasks", { method: "DELETE", cookie });
   assert.equal(res.status, 403);
+});
+
+test("daily cron needs CRON_SECRET and runs with it (M11)", async () => {
+  const noSecret = await call("/api/cron/daily");
+  assert.equal(noSecret.status, 401);
+  const ok = await call("/api/cron/daily", { headers: { Authorization: "Bearer test-cron-secret" } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.ok, true);
 });
 
 test("foreign Origin is rejected on mutating requests", async () => {

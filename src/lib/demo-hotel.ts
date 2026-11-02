@@ -38,6 +38,7 @@ export async function loadDemoHotel(actorName = "Owner"): Promise<{ roomsAdded: 
   const floor1 = await addRoomsBulk(1, 101, 110);
   const floor2 = await addRoomsBulk(2, 201, 210);
   await saveHotelInfo(DEMO_HOTEL_INFO);
+  try { const { seedDemoPerfectPhotos } = await import("./demo-photos"); await seedDemoPerfectPhotos(); } catch { /* photos are a bonus */ }
 
   const existing = await listStoredTasks();
   const hasDemo = existing.some((t) => DEMO_TASKS.some((d) => d.title === t.title && d.room === t.room));

@@ -104,6 +104,20 @@ AI operations layer for hotels: guest voice messages and staff photos become rou
 - Pages are responsive: one column on phones (from 375px), wider layouts
   with status columns on desktop (up to 1440px).
 
+## Demo photos
+
+Small room photos in `public/demo` let judges try the AI photo check without
+their own photos. All are from Wikimedia Commons:
+
+- `room-perfect-bed.jpg`, `sample-matching.jpg` — "Bed in hotel room 3", CC0
+- `room-perfect-bathroom.jpg`, `repair-proof.jpg` — "Phoenix bathroom Residence Inn Marriott hotel with towels and shower", CC0
+- `sample-towels-missing.jpg` — crop of the bathroom photo above, CC0
+- `sample-bed-not-made.jpg` — "Unmade bed seen from desk, Comfort Inn, Waynesboro, Virginia", CC BY-SA 4.0
+
+Their AI results were checked once and saved in the repo
+(`src/lib/demo-ai-data.json`, `src/lib/demo-photo-cache.json`), so loading
+the demo hotel again needs no AI calls.
+
 ## Run it on your computer
 
 For a non-developer tester. You do not need a database, an account, or an

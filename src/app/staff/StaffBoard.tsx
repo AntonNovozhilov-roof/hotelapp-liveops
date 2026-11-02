@@ -125,7 +125,7 @@ function cleanerVerdict(task: StoredTask): { text: string; good: boolean } | nul
   return { text: "AI not sure. A supervisor will look at the photos.", good: false };
 }
 
-export default function StaffBoard({ user }: { user: PublicUser }) {
+export default function StaffBoard({ user, demoSamples = [] }: { user: PublicUser; demoSamples?: { id: string; label: string }[] }) {
   const [tasks, setTasks] = useState<StoredTask[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -169,6 +169,17 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
     }, POLL_MS);
     return () => clearInterval(timer);
   }, [loadTasks]);
+
+  async function useSamplePhoto(task: StoredTask, sampleId: string) {
+    if (photoBusyId) return;
+    setPhotoBusyId(task.id); setError(null);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/sample-photo`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sampleId }) });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Could not save the photo.");
+      await loadTasks();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the photo."); } finally { setPhotoBusyId(null); }
+  }
 
   async function uploadPhoto(task: StoredTask, file: File) {
     if (photoBusyId) return;
@@ -540,6 +551,14 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                   Max 3 photos. Delete one to add another.
                                 </p>
                               ))}
+                            {task.status === "in_progress" && task.photos.length < 3 && demoSamples.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <span className="w-full text-[12.5px] text-ink-4">Use a sample photo:</span>
+                                {demoSamples.map((s) => (
+                                  <button key={s.id} type="button" onClick={() => void useSamplePhoto(task, s.id)} disabled={photoBusyId === task.id} className="min-h-11 rounded-lg border border-line bg-white px-3 text-[13px] font-semibold text-ink disabled:opacity-50">{s.label}</button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                         {aiOn && rule.aiCheckRequired &&

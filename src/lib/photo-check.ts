@@ -82,9 +82,15 @@ function cacheSet<V>(cache: Map<string, V>, key: string, value: V): void {
  * so a photo + prompt checked on one server is never re-checked on
  * another. The in-memory map stays as the fast first level in both modes.
  */
+import demoCacheJson from "./demo-photo-cache.json";
+const DEMO_CACHE = demoCacheJson as unknown as { sam: Record<string, unknown>; spark: Record<string, unknown> };
+
 async function cacheGetDb<V>(kind: string, key: string, mem: Map<string, V>): Promise<V | undefined> {
   const hit = mem.get(key);
-  if (hit !== undefined || !isDbEnabled()) return hit;
+  if (hit !== undefined) return hit;
+  const bundled = (kind === "sam" ? DEMO_CACHE.sam[key] : DEMO_CACHE.spark[key]) as V | undefined;
+  if (bundled !== undefined) { cacheSet(mem, key, bundled); return bundled; }
+  if (!isDbEnabled()) return undefined;
   try {
     const rows = await dbQuery<{ result: V }>(
       "SELECT result FROM photo_check_cache WHERE kind = $1 AND cache_key = $2",
@@ -95,6 +101,12 @@ async function cacheGetDb<V>(kind: string, key: string, mem: Map<string, V>): Pr
     return rows[0].result;
   } catch { return undefined; }
 }
+
+/** One-time precompute export (bundled demo cache generation). */
+export function exportDemoPhotoCache(): { sam: Record<string, unknown>; spark: Record<string, unknown> } {
+  return { sam: Object.fromEntries(samCache), spark: Object.fromEntries(sparkCache) };
+}
+export function demoDataUrlHash(dataUrl: string): string { return dataUrlHash(dataUrl); }
 
 async function cacheSetDb<V>(kind: string, key: string, value: V, mem: Map<string, V>): Promise<void> {
   cacheSet(mem, key, value);

@@ -1,0 +1,269 @@
+{
+  "sam": {
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|nightstand": {
+      "count": 1,
+      "confidence": 0.8750000596046448
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|bed": {
+      "count": 0,
+      "confidence": null
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|headboard": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|lamp": {
+      "count": 1,
+      "confidence": 0.9298245906829834
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|lamp": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|headboard": {
+      "count": 2,
+      "confidence": 0.9569892287254333
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|nightstand": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|phone": {
+      "count": 1,
+      "confidence": 0.5428571701049805
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|bed": {
+      "count": 2,
+      "confidence": 0.9024390578269958
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|phone": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|pillow": {
+      "count": 5,
+      "confidence": 0.9336099624633789
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|pillow": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|picture": {
+      "count": 1,
+      "confidence": 0.7064220309257507
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|door": {
+      "count": 1,
+      "confidence": 0.8709677457809448
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|door": {
+      "count": 2,
+      "confidence": 0.8709677457809448
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|curtain": {
+      "count": 1,
+      "confidence": 0.8672199249267578
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|bathtub": {
+      "count": 0,
+      "confidence": null
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|picture": {
+      "count": 0,
+      "confidence": null
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|bathtub": {
+      "count": 1,
+      "confidence": 0.9452055096626282
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|curtain": {
+      "count": 0,
+      "confidence": null
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|towel": {
+      "count": 4,
+      "confidence": 0.9375000596046448
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|toilet": {
+      "count": 0,
+      "confidence": null
+    },
+    "c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|toilet": {
+      "count": 1,
+      "confidence": 0.96875
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|bath towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|folded towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|hanging towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|bed": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|bathtub": {
+      "count": 1,
+      "confidence": 0.9336099624633789
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|toilet": {
+      "count": 1,
+      "confidence": 0.9259259104728699
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|door": {
+      "count": 1,
+      "confidence": 0.9024390578269958
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|curtain": {
+      "count": 1,
+      "confidence": 0.8827838897705078
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|lamp": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|towel": {
+      "count": 1,
+      "confidence": 0.9024390578269958
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|headboard": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|nightstand": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|pillow": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|made bed": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|bath towel": {
+      "count": 1,
+      "confidence": 0.6289855241775513
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|bed pillow": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|bed with pillows": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|folded towel": {
+      "count": 1,
+      "confidence": 0.9452055096626282
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|pillow on a bed": {
+      "count": 0,
+      "confidence": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3|hanging towel": {
+      "count": 1,
+      "confidence": 0.8672199249267578
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|bed": {
+      "count": 1,
+      "confidence": 0.9064327478408813
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|door": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|bathtub": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|toilet": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|lamp": {
+      "count": 2,
+      "confidence": 0.8439024686813354
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|curtain": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|headboard": {
+      "count": 1,
+      "confidence": 0.9569892287254333
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|nightstand": {
+      "count": 2,
+      "confidence": 0.9298245906829834
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|pillow": {
+      "count": 4,
+      "confidence": 0.9064327478408813
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|bath towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|made bed": {
+      "count": 1,
+      "confidence": 0.9259259104728699
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|bed pillow": {
+      "count": 4,
+      "confidence": 0.8947368264198303
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|folded towel": {
+      "count": 0,
+      "confidence": null
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|bed with pillows": {
+      "count": 1,
+      "confidence": 0.8827838897705078
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|pillow on a bed": {
+      "count": 4,
+      "confidence": 0.9064327478408813
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039|hanging towel": {
+      "count": 0,
+      "confidence": null
+    }
+  },
+  "spark": {
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7|53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74": {
+      "ready": true,
+      "differences": [],
+      "confidence": 0.95
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7|4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3": {
+      "ready": false,
+      "differences": [
+        "towels missing"
+      ],
+      "confidence": 0.9
+    },
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74|c46ee0d997734cc6404998df93b4def6e95916af20f7a8173149fdae0c1d3468|cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7|be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039": {
+      "ready": false,
+      "differences": [
+        "bed not made"
+      ],
+      "confidence": 0.95
+    }
+  }
+}

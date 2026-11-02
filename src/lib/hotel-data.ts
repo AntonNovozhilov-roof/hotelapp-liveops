@@ -418,6 +418,16 @@ function normalizeReference(raw: unknown): ReferenceRecord | null {
   };
 }
 
+export async function setRoomReference(roomId: string, rec: ReferenceRecord): Promise<Room | null> {
+  return withLock(async () => {
+    const data = await readAll();
+    const room = data.rooms.find((r) => r.id === roomId);
+    if (!room) return null;
+    room.reference = rec; room.pendingReference = null; room.updatedAt = new Date().toISOString();
+    await writeAll(data); return room;
+  });
+}
+
 export async function setPendingReference(roomId: string, rec: ReferenceRecord): Promise<Room | null> {
   return withLock(async () => {
     const data = await readAll();

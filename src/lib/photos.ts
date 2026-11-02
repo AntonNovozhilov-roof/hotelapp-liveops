@@ -279,6 +279,15 @@ export async function readPhoto(
   }
 }
 
+/** Save already-normalized JPEG bytes under an exact name (demo seeding). */
+export async function saveRawPhoto(name: string, bytes: Buffer): Promise<{ name: string; url: string; contentType: string; size: number; uploadedAt: string }> {
+  const safe = safeFileName(name);
+  if (!safe) throw new Error("Bad photo name");
+  if (isStorageEnabled()) await storageSave(safe, bytes, "image/jpeg");
+  else { await fs.mkdir(PHOTOS_DIR, { recursive: true }); await fs.writeFile(path.join(PHOTOS_DIR, safe), bytes); }
+  return { name: safe, url: photoUrl(safe), contentType: "image/jpeg", size: bytes.length, uploadedAt: new Date().toISOString() };
+}
+
 /** Delete one photo file. Returns true when a file was removed. */
 export async function deletePhoto(name: string): Promise<boolean> {
   const safe = safeFileName(name);

@@ -88,6 +88,8 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
   await setGroup(["109", "110"], "Double", 110);
   await setGroup(["201", "202", "203", "204", "205", "206", "207", "208"], "Double", 120);
   await setGroup(["209", "210"], "Suite", 210);
+  const { seedDemoPerfectPhotos } = await import("./demo-photos");
+  await seedDemoPerfectPhotos();
 
   // 3) A week of tasks in every stage (new / in progress / in review /
   // done) across all four teams, with matching dated history.

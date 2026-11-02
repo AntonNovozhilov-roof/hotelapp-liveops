@@ -1,0 +1,410 @@
+{
+  "reference": {
+    "items": [
+      {
+        "key": "bed",
+        "label": "Bed",
+        "status": "found",
+        "confidence": 0.9024390578269958,
+        "count": 2,
+        "expectedCount": null
+      },
+      {
+        "key": "pillow",
+        "label": "Pillow",
+        "status": "found",
+        "confidence": 0.9336099624633789,
+        "count": 5,
+        "expectedCount": null
+      },
+      {
+        "key": "headboard",
+        "label": "headboard",
+        "status": "found",
+        "confidence": 0.9569892287254333,
+        "count": 2,
+        "expectedCount": null
+      },
+      {
+        "key": "lamp",
+        "label": "Lamp",
+        "status": "found",
+        "confidence": 0.9298245906829834,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "nightstand",
+        "label": "nightstand",
+        "status": "found",
+        "confidence": 0.8750000596046448,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "phone",
+        "label": "phone",
+        "status": "unsure",
+        "confidence": 0.5428571701049805,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "picture",
+        "label": "picture",
+        "status": "unsure",
+        "confidence": 0.7064220309257507,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "door",
+        "label": "door",
+        "status": "found",
+        "confidence": 0.8709677457809448,
+        "count": 2,
+        "expectedCount": null
+      },
+      {
+        "key": "bathtub",
+        "label": "bathtub",
+        "status": "found",
+        "confidence": 0.9452055096626282,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "curtain",
+        "label": "Curtain",
+        "status": "found",
+        "confidence": 0.8672199249267578,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "toilet",
+        "label": "Toilet",
+        "status": "found",
+        "confidence": 0.96875,
+        "count": 1,
+        "expectedCount": null
+      },
+      {
+        "key": "towel",
+        "label": "Towel",
+        "status": "found",
+        "confidence": 0.9375000596046448,
+        "count": 4,
+        "expectedCount": null
+      }
+    ],
+    "itemSource": "vision",
+    "model": "sam-3.1"
+  },
+  "variants": {
+    "53cb1411b9247f9880587c71bd4baceb6bb0b96b93c3fa142d0efcf0d4db7a74": {
+      "score": 55,
+      "checks": [
+        {
+          "key": "bed",
+          "label": "Bed",
+          "status": "found",
+          "confidence": 0.9024390578269958,
+          "count": 2,
+          "expectedCount": 2
+        },
+        {
+          "key": "pillow",
+          "label": "Pillow",
+          "status": "found",
+          "confidence": 0.9336099624633789,
+          "count": 5,
+          "expectedCount": 5
+        },
+        {
+          "key": "headboard",
+          "label": "headboard",
+          "status": "found",
+          "confidence": 0.9569892287254333,
+          "count": 2,
+          "expectedCount": 2
+        },
+        {
+          "key": "lamp",
+          "label": "Lamp",
+          "status": "found",
+          "confidence": 0.9298245906829834,
+          "count": 1,
+          "expectedCount": 1
+        },
+        {
+          "key": "nightstand",
+          "label": "nightstand",
+          "status": "found",
+          "confidence": 0.8750000596046448,
+          "count": 1,
+          "expectedCount": 1
+        },
+        {
+          "key": "door",
+          "label": "door",
+          "status": "unsure",
+          "confidence": 0.8709677457809448,
+          "count": 1,
+          "expectedCount": 2
+        },
+        {
+          "key": "bathtub",
+          "label": "bathtub",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "curtain",
+          "label": "Curtain",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "toilet",
+          "label": "Toilet",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "towel",
+          "label": "Towel",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 4
+        }
+      ],
+      "issues": [
+        "Not found: bathtub, curtain, toilet, towel. Not sure: door. Fix the room and take a new photo."
+      ],
+      "model": "sam-3.1",
+      "mode": "LIVE",
+      "checkedAt": "2026-11-02T07:59:35.499Z",
+      "verdict": "unsure",
+      "comparedToReference": true,
+      "highConfidence": false,
+      "spark": {
+        "ready": true,
+        "differences": [],
+        "confidence": 0.95
+      },
+      "hint": null
+    },
+    "4e9c85140bca9a586ffefaef68cb95f11bdffb82901805423ab41f09accee5e3": {
+      "score": 40,
+      "checks": [
+        {
+          "key": "bed",
+          "label": "Bed",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 2
+        },
+        {
+          "key": "pillow",
+          "label": "Pillow",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 5
+        },
+        {
+          "key": "headboard",
+          "label": "headboard",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 2
+        },
+        {
+          "key": "lamp",
+          "label": "Lamp",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "nightstand",
+          "label": "nightstand",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "door",
+          "label": "door",
+          "status": "unsure",
+          "confidence": 0.9024390578269958,
+          "count": 1,
+          "expectedCount": 2
+        },
+        {
+          "key": "bathtub",
+          "label": "bathtub",
+          "status": "found",
+          "confidence": 0.9336099624633789,
+          "count": 1,
+          "expectedCount": 1
+        },
+        {
+          "key": "curtain",
+          "label": "Curtain",
+          "status": "found",
+          "confidence": 0.8827838897705078,
+          "count": 1,
+          "expectedCount": 1
+        },
+        {
+          "key": "toilet",
+          "label": "Toilet",
+          "status": "found",
+          "confidence": 0.9259259104728699,
+          "count": 1,
+          "expectedCount": 1
+        },
+        {
+          "key": "towel",
+          "label": "Towel",
+          "status": "unsure",
+          "confidence": 0.9452055096626282,
+          "count": 1,
+          "expectedCount": 4
+        }
+      ],
+      "issues": [
+        "Not found: bed, pillow, headboard, lamp, nightstand. Not sure: door, towel. Fix the room and take a new photo."
+      ],
+      "model": "sam-3.1",
+      "mode": "LIVE",
+      "checkedAt": "2026-11-02T08:00:06.536Z",
+      "verdict": "different",
+      "comparedToReference": true,
+      "highConfidence": false,
+      "spark": {
+        "ready": false,
+        "differences": [
+          "towels missing"
+        ],
+        "confidence": 0.9
+      },
+      "hint": "Check: towels missing"
+    },
+    "be41aab58fba5d49b5fbeafdbad147a0704e05c2220a6aebf9b8bf4871cfd039": {
+      "score": 35,
+      "checks": [
+        {
+          "key": "bed",
+          "label": "Bed",
+          "status": "unsure",
+          "confidence": 0.9259259104728699,
+          "count": 1,
+          "expectedCount": 2
+        },
+        {
+          "key": "pillow",
+          "label": "Pillow",
+          "status": "unsure",
+          "confidence": 0.9064327478408813,
+          "count": 4,
+          "expectedCount": 5
+        },
+        {
+          "key": "headboard",
+          "label": "headboard",
+          "status": "unsure",
+          "confidence": 0.9569892287254333,
+          "count": 1,
+          "expectedCount": 2
+        },
+        {
+          "key": "lamp",
+          "label": "Lamp",
+          "status": "found",
+          "confidence": 0.8439024686813354,
+          "count": 2,
+          "expectedCount": 1
+        },
+        {
+          "key": "nightstand",
+          "label": "nightstand",
+          "status": "found",
+          "confidence": 0.9298245906829834,
+          "count": 2,
+          "expectedCount": 1
+        },
+        {
+          "key": "door",
+          "label": "door",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 2
+        },
+        {
+          "key": "bathtub",
+          "label": "bathtub",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "curtain",
+          "label": "Curtain",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "toilet",
+          "label": "Toilet",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 1
+        },
+        {
+          "key": "towel",
+          "label": "Towel",
+          "status": "not_found",
+          "confidence": null,
+          "count": 0,
+          "expectedCount": 4
+        }
+      ],
+      "issues": [
+        "Not found: door, bathtub, curtain, toilet, towel. Not sure: bed, pillow, headboard. Fix the room and take a new photo."
+      ],
+      "model": "sam-3.1",
+      "mode": "LIVE",
+      "checkedAt": "2026-11-02T08:00:36.684Z",
+      "verdict": "different",
+      "comparedToReference": true,
+      "highConfidence": false,
+      "spark": {
+        "ready": false,
+        "differences": [
+          "bed not made"
+        ],
+        "confidence": 0.95
+      },
+      "hint": "Check: bed not made"
+    }
+  }
+}

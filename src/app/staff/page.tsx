@@ -22,7 +22,7 @@ export default async function StaffPage() {
       <PageHeader title={user.screenTitle} sub={<>{user.screenSub} Move each task forward by its type: requests finish with Done (no photo), repairs need a proof photo, cleaning needs a photo and an AI check before a supervisor review.</>} />
 
       <div className="mt-5">
-        <StaffBoard user={user} />
+        <StaffBoard user={user} demoSamples={process.env.DEMO_MODE === "true" ? (await import("@/lib/demo-photos")).DEMO_SAMPLE_PHOTOS.map(({ id, label }) => ({ id, label })) : []} />
       </div>
     </main>
   );

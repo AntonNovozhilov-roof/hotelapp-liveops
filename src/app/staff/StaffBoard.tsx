@@ -137,6 +137,7 @@ export default function StaffBoard({ user, demoSamples = [] }: { user: PublicUse
   const [loading, setLoading] = useState(true);
   const [cleaningSettings, setCleaningSettings] = useState<CleaningSettingsState>({ aiPhotoCheckEnabled: true, cleanerPhotoRequired: true });
   const [perfectAreas, setPerfectAreas] = useState<Record<string, string[]>>({});
+  const [phoneTab, setPhoneTab] = useState<"new" | "working" | "review" | "done">("new");
 
   // The signed-in person decides the team: no picker, no other teams.
   const department = user.department;
@@ -382,7 +383,13 @@ export default function StaffBoard({ user, demoSamples = [] }: { user: PublicUse
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-5 flex gap-1.5 overflow-x-auto xl:hidden" role="tablist" aria-label="Task status">
+        {([["new", "New", tasks.filter((t) => t.status === "new").length], ["working", "In progress", tasks.filter((t) => t.status === "accepted" || t.status === "in_progress").length], ["review", "Review", tasks.filter((t) => t.status === "review").length], ["done", "Done", tasks.filter((t) => t.status === "done").length]] as const).map(([key, label, count]) => (
+          <button key={key} type="button" role="tab" aria-selected={phoneTab === key} onClick={() => setPhoneTab(key)} className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold ring-1 ${phoneTab === key ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-ink-2 ring-line"}`}>{label} <span className="tabular-nums">{count}</span></button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:mt-6 xl:grid-cols-5">
         {TASK_STATUSES.map((status) => {
           const columnTasks = sortForColumn(
             tasks.filter((task) => task.status === status),
@@ -392,7 +399,7 @@ export default function StaffBoard({ user, demoSamples = [] }: { user: PublicUse
           return (
             <section
               key={status}
-              className={`rounded-xl2 border p-3 sm:p-3.5 ${
+              className={`${(phoneTab === "working" ? status === "accepted" || status === "in_progress" : status === phoneTab) ? "" : "hidden"} xl:block rounded-xl2 border p-3 sm:p-3.5 ${
                 isReview
                   ? "border-insp/40 bg-insp-soft ring-2 ring-insp/20"
                   : "border-line bg-line-2/70"

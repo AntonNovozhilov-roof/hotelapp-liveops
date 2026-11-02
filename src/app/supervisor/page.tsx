@@ -47,7 +47,7 @@ export default async function SupervisorPage() {
   return (
     <main className="app-main mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
-      <PageHeader title="Supervisor review" sub={<>Cleaning work waiting for your check. Approve it, or send it back with a short note. AI problems come first, then the oldest task.{user.role === "owner" ? " You are signed in as the Owner — you can review here too." : ""}</>} />
+      <PageHeader title="Supervisor review" sub="Cleaning waiting for your check — approve it, or send it back with a note." />
       <TodayGlance tasks={tasks} bookings={await listBookings()} roomsTotal={hotel.rooms.length} />
       <p className="mt-3 text-[13px] text-ink-3">{reviewTasks.length} cleaning tasks waiting for you · {open} open in total · {done} done altogether.</p>
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import GuestForm from "./GuestForm";
 import { Logo, PoweredByReadybell } from "@/components/ui";
 import { getRoomByNumber, guestLinkAllowed } from "@/lib/hotel-data";
@@ -57,6 +58,13 @@ export default async function RoomPage({
         </header>
 
         <main className="flex-1 px-4 pb-10 -mt-10 relative">
+          {isDemoMode() && (
+            <p className="mb-3 flex items-center justify-between gap-2 rounded-full bg-brand-950 px-3.5 py-2 text-[12.5px] font-semibold text-white shadow-card">
+              <span>Demo</span>
+              <Link href="/" className="hover:underline">← Back to Readybell</Link>
+              <Link href="/login" className="hover:underline">Sign in as staff</Link>
+            </p>
+          )}
           <GuestForm room={room} />
           <PoweredByReadybell />
         </main>

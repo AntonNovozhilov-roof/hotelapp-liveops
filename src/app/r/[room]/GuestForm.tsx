@@ -329,6 +329,11 @@ export default function GuestForm({ room }: { room: string }) {
         <form onSubmit={handleSend} className="mt-3">
           <label htmlFor="guest-message" className="sr-only">What do you need?</label>
           {voiceReady && <p className="mb-2 rounded-xl bg-brand-50 px-3.5 py-3 text-[13.5px] font-semibold text-brand-800">Check the text and fix it if needed, then press Send.</p>}
+          <div className="mb-2 flex flex-wrap gap-1.5" aria-label="Quick replies">
+            {[["Towels", "Please bring towels"], ["Wi-Fi", "What is the Wi-Fi password?"], ["Breakfast", "What time is breakfast?"], ["Late check-out", "Can I have a late check-out?"]].map(([label, text]) => (
+              <button key={label} type="button" onClick={() => setMessage(text)} className="inline-flex min-h-11 items-center rounded-full bg-brand-50 px-3.5 text-[13px] font-semibold text-brand-800 ring-1 ring-brand-100 hover:bg-brand-100">{label}</button>
+            ))}
+          </div>
           <Textarea id="guest-message" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} maxLength={2000} placeholder="Example: There is a leak in the bathroom and please bring towels" className="text-[15px]" />
           <div className="mt-3 flex gap-2">
             <Button type="button" size="lg" variant={isRecording ? "danger" : "dark"} onClick={() => void toggleRecording()} disabled={isTranscribing || isSending} aria-pressed={isRecording} icon={<Mic className="size-4" />}>{isRecording ? "Stop" : isTranscribing ? "Listening..." : "Mic"}</Button>
@@ -336,7 +341,7 @@ export default function GuestForm({ room }: { room: string }) {
           </div>
           {isRecording && <p aria-live="polite" className="mt-3 text-center text-[13.5px] font-semibold text-dirty-deep">Recording… {formatSeconds(recordingSeconds)} / {formatSeconds(MAX_RECORD_SECONDS)}</p>}
           {isTranscribing && <p aria-live="polite" className="mt-3 text-center text-[13.5px] text-ink-3">Turning your voice into text...</p>}
-          <p className="mt-3 text-center text-[12.5px] text-ink-4">Your requests go to hotel staff. Chat with a person stays open if you refresh; other chat lives only in this tab.</p>
+          <p className="mt-3 text-center text-[12.5px] text-ink-4">Your messages go to the hotel team.</p>
         </form>
       </Card>
 

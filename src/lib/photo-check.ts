@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import type {
   AiCheckItem,
   Department,
@@ -28,7 +29,98 @@ import type {
 
 export const SAM_MODEL = "sam-3.1";
 const MODEL_BASE_URL = "https://api.meta.ai/v1";
-const REQUEST_TIMEOUT_MS = 60_000;
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/* ------------------------------------------------------------------ */
+/* PC1 part 3: retries, per-photo cache, concurrency, live progress.  */
+/* ------------------------------------------------------------------ */
+
+/** Retry on 5xx/timeout only: up to maxRetries extra tries, then throw. */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= PHOTO_CHECK_CONFIG.maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (response.status < 500 || attempt === PHOTO_CHECK_CONFIG.maxRetries) {
+        return response;
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === PHOTO_CHECK_CONFIG.maxRetries) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+  }
+  throw lastError instanceof Error ? lastError : new Error("Request failed");
+}
+
+/** Same photo + prompt is never checked twice (in-memory, bounded). */
+const samCache = new Map<string, { count: number; confidence: number | null }>();
+const sparkCache = new Map<string, SparkOpinion>();
+const CACHE_LIMIT = 300;
+
+function cacheSet<V>(cache: Map<string, V>, key: string, value: V): void {
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+  cache.set(key, value);
+}
+
+function dataUrlHash(dataUrl: string): string {
+  return createHash("sha256").update(dataUrl).digest("hex");
+}
+
+/** Tiny semaphore: at most `concurrency` SAM/Spark calls in flight. */
+let inFlight = 0;
+const waiters: Array<() => void> = [];
+async function withConcurrency<T>(work: () => Promise<T>): Promise<T> {
+  if (inFlight >= PHOTO_CHECK_CONFIG.concurrency) {
+    await new Promise<void>((resolve) => waiters.push(resolve));
+  } else {
+    inFlight += 1;
+  }
+  try {
+    return await work();
+  } finally {
+    const next = waiters.shift();
+    if (next) next();
+    else inFlight -= 1;
+  }
+}
+
+/** Live progress for the staff screen: "Checking photo… 3 of 9 items". */
+export interface CheckProgress {
+  done: number;
+  total: number;
+  startedAt: number;
+}
+const progressByTask = new Map<string, CheckProgress>();
+
+export function beginCheckProgress(taskId: string): void {
+  progressByTask.set(taskId, { done: 0, total: 0, startedAt: Date.now() });
+}
+export function updateCheckProgress(
+  taskId: string,
+  done: number,
+  total: number,
+): void {
+  const current = progressByTask.get(taskId);
+  if (current) progressByTask.set(taskId, { ...current, done, total });
+}
+export function endCheckProgress(taskId: string): void {
+  progressByTask.delete(taskId);
+}
+export function getCheckProgress(taskId: string): CheckProgress | null {
+  return progressByTask.get(taskId) ?? null;
+}
 
 /**
  * PC1 — THE one place for photo-check items, prompts and thresholds.
@@ -148,7 +240,7 @@ export async function listRoomItemsFromPhotos(
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey || dataUrls.length === 0) return null;
   try {
-    const response = await fetch(`${MODEL_BASE_URL}/chat/completions`, {
+    const response = await fetchWithRetry(`${MODEL_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -173,7 +265,6 @@ export async function listRoomItemsFromPhotos(
           },
         ],
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) return null;
     const data = (await response.json()) as {
@@ -216,31 +307,35 @@ export async function listRoomItemsFromPhotos(
   }
 }
 
-/** One item's best SAM result across prompts/photos (part 3 parallelizes). */
+/** One item's best SAM result across prompts/photos (all in parallel). */
 async function bestSamForDef(
   apiKey: string,
   def: PhotoCheckDef,
   dataUrls: string[],
 ): Promise<{ count: number; confidence: number | null }> {
-  let count = 0;
-  let confidence: number | null = null;
+  const jobs: Array<Promise<{ count: number; confidence: number | null }>> = [];
   for (const prompt of promptsFor(def)) {
     for (const dataUrl of dataUrls) {
-      const result = await segmentConcept(apiKey, prompt, dataUrl);
-      // Count = the most seen in one photo; confidence = that result's best.
-      if (
-        result.count > count ||
-        (result.count === count &&
-          result.count > 0 &&
-          (confidence === null ||
-            (result.confidence !== null && result.confidence > confidence)))
-      ) {
-        count = result.count;
+      jobs.push(segmentConcept(apiKey, prompt, dataUrl));
+    }
+  }
+  const results = await Promise.all(jobs);
+  let count = 0;
+  let confidence: number | null = null;
+  for (const result of results) {
+    // Count = the most seen in one photo; confidence = that result's best.
+    if (
+      result.count > count ||
+      (result.count === count &&
+        result.count > 0 &&
+        (confidence === null ||
+          (result.confidence !== null && result.confidence > confidence)))
+    ) {
+      count = result.count;
+      confidence = result.confidence;
+    } else if (count === 0 && result.confidence !== null) {
+      if (confidence === null || result.confidence > confidence) {
         confidence = result.confidence;
-      } else if (count === 0 && result.confidence !== null) {
-        if (confidence === null || result.confidence > confidence) {
-          confidence = result.confidence;
-        }
       }
     }
   }
@@ -259,28 +354,31 @@ export async function runSamOverPhotos(
 ): Promise<AiCheckItem[]> {
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey) throw new Error("MODEL_API_KEY is not set");
-  const checks: AiCheckItem[] = [];
   let done = 0;
-  for (const def of defs) {
-    const { count, confidence } = await bestSamForDef(apiKey, def, dataUrls);
-    const expected = options?.expectedCounts?.get(def.key) ?? null;
-    let status = statusFor(count, confidence);
-    // PC1: fewer of an item than the perfect photo -> "AI not sure",
-    // never a pass (e.g. 1 pillow instead of 2).
-    if (expected !== null && count > 0 && count < expected) {
-      status = "unsure";
-    }
-    checks.push({
-      key: def.key,
-      label: def.label,
-      status,
-      confidence,
-      count,
-      expectedCount: expected,
-    });
-    done += 1;
-    options?.onProgress?.(done, defs.length);
-  }
+  // PC1 part 3: items run in parallel (shared ~6-in-flight limit inside
+  // segmentConcept); progress fires as each item finishes.
+  const checks = await Promise.all(
+    defs.map(async (def) => {
+      const { count, confidence } = await bestSamForDef(apiKey, def, dataUrls);
+      const expected = options?.expectedCounts?.get(def.key) ?? null;
+      let status = statusFor(count, confidence);
+      // PC1: fewer of an item than the perfect photo -> "AI not sure",
+      // never a pass (e.g. 1 pillow instead of 2).
+      if (expected !== null && count > 0 && count < expected) {
+        status = "unsure";
+      }
+      done += 1;
+      options?.onProgress?.(done, defs.length);
+      return {
+        key: def.key,
+        label: def.label,
+        status,
+        confidence,
+        count,
+        expectedCount: expected,
+      } as AiCheckItem;
+    }),
+  );
   return checks;
 }
 
@@ -348,6 +446,7 @@ export async function runReferenceCheck(
 export async function compareWithReference(
   cleanerDataUrls: string[],
   referenceItems: AiCheckItem[],
+  onProgress?: (done: number, total: number) => void,
 ): Promise<TaskAiCheck> {
   const considered = referenceItems.filter((item) => item.status === "found");
   if (!process.env.MODEL_API_KEY) {
@@ -385,6 +484,7 @@ export async function compareWithReference(
   );
   const checks = await runSamOverPhotos(defs, cleanerDataUrls, {
     expectedCounts,
+    onProgress,
   });
   const base = buildAiCheck(checks, SAM_MODEL, "LIVE");
   const { verdict, highConfidence } = verdictFor(checks);
@@ -404,47 +504,55 @@ export async function runSecondOpinion(
 ): Promise<SparkOpinion | null> {
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey || cleanerDataUrls.length === 0) return null;
+  const cacheKey = [...perfectDataUrls, "|", ...cleanerDataUrls]
+    .map(dataUrlHash)
+    .join("|");
+  const cached = sparkCache.get(cacheKey);
+  if (cached) return cached;
   try {
-    const response = await fetch(`${MODEL_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: VISION_MODEL,
-        temperature: 0,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text:
-                  perfectDataUrls.length > 0
-                    ? 'The first photo(s) show a hotel room cleaned perfectly (the reference). The last photo(s) show the same room after cleaning. Compare them strictly. Reply with ONLY JSON, no markdown: {"ready":true,"differences":[],"confidence":0.9}. ready is true only if the cleaned room matches the perfect room (bed made, towels present, nothing left on the floor, no missing items). differences is a short list like ["towels missing","bed not made","items left on the floor"] — empty when ready. confidence is 0 to 1.'
-                    : 'These photo(s) show a hotel room after cleaning. Judge strictly whether the room looks ready for a guest (bed made, towels present, nothing left on the floor, no clutter). Reply with ONLY JSON, no markdown: {"ready":true,"differences":[],"confidence":0.9}. differences is a short list like ["towels missing","bed not made","items left on the floor"] — empty when ready. confidence is 0 to 1.',
-              },
-              ...perfectDataUrls.map((url) => ({
-                type: "image_url",
-                image_url: { url },
-              })),
-              ...cleanerDataUrls.map((url) => ({
-                type: "image_url",
-                image_url: { url },
-              })),
-            ],
-          },
-        ],
+    const response = await withConcurrency(() =>
+      fetchWithRetry(`${MODEL_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: VISION_MODEL,
+          temperature: 0,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text:
+                    perfectDataUrls.length > 0
+                      ? 'The first photo(s) show a hotel room cleaned perfectly (the reference). The last photo(s) show the same room after cleaning. Compare them strictly. Reply with ONLY JSON, no markdown: {"ready":true,"differences":[],"confidence":0.9}. ready is true only if the cleaned room matches the perfect room (bed made, towels present, nothing left on the floor, no missing items). differences is a short list like ["towels missing","bed not made","items left on the floor"] — empty when ready. confidence is 0 to 1.'
+                      : 'These photo(s) show a hotel room after cleaning. Judge strictly whether the room looks ready for a guest (bed made, towels present, nothing left on the floor, no clutter). Reply with ONLY JSON, no markdown: {"ready":true,"differences":[],"confidence":0.9}. differences is a short list like ["towels missing","bed not made","items left on the floor"] — empty when ready. confidence is 0 to 1.',
+                },
+                ...perfectDataUrls.map((url) => ({
+                  type: "image_url",
+                  image_url: { url },
+                })),
+                ...cleanerDataUrls.map((url) => ({
+                  type: "image_url",
+                  image_url: { url },
+                })),
+              ],
+            },
+          ],
+        }),
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    );
     if (!response.ok) return null;
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
     };
     const content = data.choices?.[0]?.message?.content;
-    return parseSparkOpinion(typeof content === "string" ? content : "");
+    const opinion = parseSparkOpinion(typeof content === "string" ? content : "");
+    if (opinion) cacheSet(sparkCache, cacheKey, opinion);
+    return opinion;
   } catch {
     return null;
   }
@@ -593,33 +701,39 @@ async function segmentConcept(
   prompt: string,
   dataUrl: string,
 ): Promise<{ count: number; confidence: number | null }> {
-  const response = await fetch(`${MODEL_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: SAM_MODEL,
-      input: [
-        {
-          type: "message",
-          role: "user",
-          content: [
-            { type: "input_text", text: prompt },
-            { type: "input_image", image_url: dataUrl },
-          ],
-        },
-      ],
-      metadata: { include_confidence: "true", mask_encoding: "one_bit" },
-    }),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  const cacheKey = `${dataUrlHash(dataUrl)}|${prompt}`;
+  const cached = samCache.get(cacheKey);
+  if (cached) return cached;
+  const result = await withConcurrency(async () => {
+    const response = await fetchWithRetry(`${MODEL_BASE_URL}/responses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: SAM_MODEL,
+        input: [
+          {
+            type: "message",
+            role: "user",
+            content: [
+              { type: "input_text", text: prompt },
+              { type: "input_image", image_url: dataUrl },
+            ],
+          },
+        ],
+        metadata: { include_confidence: "true", mask_encoding: "one_bit" },
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`SAM API returned HTTP ${response.status}`);
+    }
+    const data: unknown = await response.json();
+    return parseSamOutput(extractOutputText(data));
   });
-  if (!response.ok) {
-    throw new Error(`SAM API returned HTTP ${response.status}`);
-  }
-  const data: unknown = await response.json();
-  return parseSamOutput(extractOutputText(data));
+  cacheSet(samCache, cacheKey, result);
+  return result;
 }
 
 function statusFor(
@@ -710,6 +824,7 @@ export function mockAiCheck(department: Department): TaskAiCheck {
 export async function runLivePhotoCheck(
   department: Department,
   photos: { photo: TaskPhoto; dataUrl: string }[],
+  onProgress?: (done: number, total: number) => void,
 ): Promise<TaskAiCheck> {
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey) throw new Error("MODEL_API_KEY is not set");
@@ -717,6 +832,7 @@ export async function runLivePhotoCheck(
   const checks = await runSamOverPhotos(
     PHOTO_CHECKS[department],
     photos.map((p) => p.dataUrl),
+    { onProgress },
   );
   const base = buildAiCheck(checks, SAM_MODEL, "LIVE");
   const { verdict, highConfidence } = verdictFor(checks);

@@ -137,6 +137,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
   const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [aiFailedIds, setAiFailedIds] = useState<Record<string, boolean>>({});
+  const [aiProgress, setAiProgress] = useState<{ done: number; total: number; seconds: number } | null>(null);
   const [, setNowTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [cleaningSettings, setCleaningSettings] = useState<CleaningSettingsState>({ aiPhotoCheckEnabled: true, cleanerPhotoRequired: true });
@@ -257,6 +258,42 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
       setPhotoBusyId(null);
     }
   }
+
+  // PC1 part 3: while a check runs, poll its progress and count seconds
+  // so the screen never looks frozen.
+  useEffect(() => {
+    if (!aiBusyId) {
+      setAiProgress(null);
+      return;
+    }
+    const startedAt = Date.now();
+    setAiProgress({ done: 0, total: 0, seconds: 0 });
+    const timer = setInterval(() => {
+      setAiProgress((current) => ({
+        done: current?.done ?? 0,
+        total: current?.total ?? 0,
+        seconds: Math.round((Date.now() - startedAt) / 1000),
+      }));
+      void (async () => {
+        try {
+          const res = await fetch(`/api/tasks/${aiBusyId}/ai-check/progress`, { cache: "no-store" });
+          if (!res.ok) return;
+          const data = (await res.json()) as { progress: { done: number; total: number } | null };
+          const progress = data.progress;
+          if (progress) {
+            setAiProgress((current) => ({
+              done: progress.done,
+              total: progress.total,
+              seconds: current?.seconds ?? 0,
+            }));
+          }
+        } catch {
+          // Progress is best-effort; the elapsed timer still runs.
+        }
+      })();
+    }, 700);
+    return () => clearInterval(timer);
+  }, [aiBusyId]);
 
   async function runAiCheck(task: StoredTask) {
     if (aiBusyId) return;
@@ -574,6 +611,13 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                         : "Run AI photo check"}
                                 </Button>
                               )}
+                            {aiBusyId === task.id && (
+                              <p className="mt-2 text-[12.5px] font-semibold text-ink-3" role="status">
+                                {aiProgress && aiProgress.total > 0
+                                  ? `Checking photo… ${aiProgress.done} of ${aiProgress.total} items · ${aiProgress.seconds}s`
+                                  : `Checking photo… ${aiProgress?.seconds ?? 0}s`}
+                              </p>
+                            )}
                             {task.type === "cleaning" &&
                               task.status === "in_progress" &&
                               task.photos.length > 0 && (

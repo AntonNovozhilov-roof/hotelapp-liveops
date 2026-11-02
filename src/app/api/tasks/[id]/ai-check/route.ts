@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStoredTask, saveAiCheckOutcome } from "@/lib/store";
 import { readPhotoDataUrl } from "@/lib/photos";
-import { compareWithReference, fuseWithSpark, mockAiCheck, runLivePhotoCheck, runSecondOpinion, verdictFor } from "@/lib/photo-check";
+import { beginCheckProgress, compareWithReference, endCheckProgress, fuseWithSpark, mockAiCheck, runLivePhotoCheck, runSecondOpinion, updateCheckProgress, verdictFor } from "@/lib/photo-check";
 import type { TaskAiCheck } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
@@ -98,11 +98,15 @@ export async function POST(
       ? { ...mockAiCheck(task.department), comparedToReference: true }
       : mockAiCheck(task.department);
   } else {
+    beginCheckProgress(id);
     try {
+      const onProgress = (done: number, total: number) =>
+        updateCheckProgress(id, done, total);
       aiCheck = reference
-        ? await compareWithReference(photos.map((p) => p.dataUrl), reference.items)
-        : await runLivePhotoCheck(task.department, photos);
+        ? await compareWithReference(photos.map((p) => p.dataUrl), reference.items, onProgress)
+        : await runLivePhotoCheck(task.department, photos, onProgress);
     } catch (error) {
+      endCheckProgress(id);
       // PC1: a failed LIVE check is NOT saved as a fake MOCK success.
       // Nothing is saved; the cleaner sees "Try again" and can retry.
       console.error(
@@ -131,6 +135,7 @@ export async function POST(
       photos.map((p) => p.dataUrl),
     );
     aiCheck = fuseWithSpark(aiCheck, spark);
+    endCheckProgress(id);
   }
   if (!aiCheck.verdict) {
     aiCheck = { ...aiCheck, verdict: verdictFor(aiCheck.checks).verdict };

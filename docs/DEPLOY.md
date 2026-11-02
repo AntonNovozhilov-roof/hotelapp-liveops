@@ -97,7 +97,7 @@ only for testing the real database from the Mac.
 | `SESSION_SECRET` | SEC1 (already in code) | `.env.local`; Vercel env settings | Yes — signs the 12h sign-in cookies. Long random value from a password manager. Always set online; empty only falls back to a marked development secret locally |
 | `DEMO_MODE` | SEC1 | Same places; value `true` or `false` | No. `true` = public demo sandbox (demo accounts shown on /login, demo hotel auto-loads when empty, guest links work without QR token). Use `true` for the hackathon demo link |
 | `ALLOW_DEMO_RESET` | SEC1 | Same places; value `true` or `false` | No. Default off. `true` shows + enables the Owner "Reset demo data" button. Keep `false` unless the link is a throwaway sandbox |
-| `AI_DAILY_LIMIT` | SEC1 | Same places; a number, default 500 | No. Daily cap on real AI calls; over the cap the app answers with clearly marked MOCK and logs one line |
+| `AI_DAILY_LIMIT` | SEC1 | Same places; a number, default 500 in code; **1500 online (owner decision 2026-11-02, see below)** | No. Daily cap on counted AI actions (exact definition below); over the cap the app answers with clearly marked MOCK and logs one line |
 | `ALLOW_DB_RESET` | M11 (ANT-27) | Local database testing only — **never in Vercel** | No. When `DATABASE_URL` is set, `ALLOW_DEMO_RESET` is ignored and only `ALLOW_DB_RESET=true` opens the Owner reset. The Mac and the online app share one database, so a demo flag must never wipe it |
 | `APP_URL` | M11 | Vercel (after the first deploy); optional in `.env.local` | No — it is the public link itself. QR codes and printed login cards use it, so they never point at localhost or a preview address |
 | `CRON_SECRET` | M11 | Vercel; optional locally | Yes — protects `/api/cron/daily`. Vercel sends it by itself when it runs the daily job. Make it like `SESSION_SECRET`: long random, from a password manager |
@@ -105,6 +105,33 @@ only for testing the real database from the Mac.
 
 That is the whole list. The M2 agent may only add a var by updating this
 table, `.env.example`, and the issue comment — no silent new secrets.
+
+## Owner decisions — live deployment (2026-11-02, ANT-27; names only, never values)
+
+- Vercel project: **readybell**, region **iad1**. Public domain:
+  **https://readybell.vercel.app** (`APP_URL` set to it, then redeployed).
+- Variables set in Vercel (names only): `MODEL_API_KEY`, `DATABASE_URL`,
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PHOTOS_BUCKET`,
+  `SESSION_SECRET`, `CRON_SECRET`, `RESTORE_SECRET`, `DEMO_MODE=true`,
+  `ALLOW_DEMO_RESET=false`, `AI_DAILY_LIMIT=1500`, `APP_URL`.
+  `ALLOW_DB_RESET` is deliberately **NOT** set online.
+- `AI_DAILY_LIMIT=1500` (raised from 500 so judges do not hit MOCK).
+  **What counts as one call toward the limit — exactly:** the counter
+  (`consumeAiCall` in `src/lib/security.ts:191`, feeding the Owner AI usage
+  card) goes up by **1 per user action**, once, before the action runs —
+  1 guest text message = 1, 1 voice transcription = 1, 1 report
+  generation = 1, 1 photo check = 1. It does **not** count the separate
+  Meta API requests inside one action. Rough real Meta cost per action:
+  guest message about 1 model call, voice 1–2, report 1–2, photo check
+  10–20 (SAM items + one second opinion; a cached identical photo costs
+  0 and does not re-run the models, but a fresh check action still counts
+  1 toward the limit). Cached photo rechecks, page loads, sign-ins, task
+  moves and photo uploads count 0.
+- The real cost protection is the **spending limit on the Meta account**,
+  not this counter. The owner checks the Meta billing page and the AI
+  usage card (Owner → Hotel info) **daily until submission**.
+- Local Mac and online share the **same Supabase database**: never use
+  Reset locally. Use `/admin/restore` (secret code) to get a clean demo.
 
 **Security already in the app (SEC1 / ANT-57, before M2):** tasks, photos,
 history and reports APIs require sign-in (staff see only their department;
@@ -201,7 +228,7 @@ through Vercel and paste the values below.
    | `SESSION_SECRET` | A NEW long random value (do not reuse the local one): on the Mac open Terminal in this repo folder and run `openssl rand -hex 32`, copy the 64 characters it prints — or generate 32+ random characters in your password manager. Save it in the password manager too. |
    | `DEMO_MODE` | Type exactly: `true` (public demo: demo accounts shown on /login, demo hotel auto-loads). |
    | `ALLOW_DEMO_RESET` | Type exactly: `false` (in database mode it is ignored anyway — see `ALLOW_DB_RESET`). |
-   | `AI_DAILY_LIMIT` | Type exactly: `500` |
+   | `AI_DAILY_LIMIT` | Type exactly: `1500` (owner decision 2026-11-02; was 500) |
    | `CRON_SECRET` | A new long random value, made exactly like `SESSION_SECRET` above (a different one). |
    | `RESTORE_SECRET` | Another new long random value, made the same way. This is the code for the hidden `/admin/restore` wipe page — keep it in your password manager, share it with nobody. |
    | `APP_URL` | Add this one AFTER the first deploy (step 7): the public `https://….vercel.app` address Vercel gives you, nothing after it. |

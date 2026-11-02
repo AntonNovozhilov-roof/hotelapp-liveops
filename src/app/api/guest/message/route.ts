@@ -110,10 +110,17 @@ export async function POST(request: Request) {
   if (!message) return NextResponse.json({ error: "Message is empty. Please write a request." }, { status: 400 });
   if (message.length > 2000) return NextResponse.json({ error: "Message is too long (max 2000 characters)." }, { status: 400 });
 
-  // Rate limit (SEC1): 10 guest texts per minute, per IP and per room.
+  // Rate limits: per-IP limit kept (SEC1, 10/min); per room the guest chat
+  // limit is 30 messages per 10 minutes (G3) with a friendly wait message.
   const ip = clientIp(request);
-  if (!checkRateLimit(`guest-text:ip:${ip}`, 10) || !checkRateLimit(`guest-text:room:${room}`, 10)) {
+  if (!checkRateLimit(`guest-text:ip:${ip}`, 10)) {
     return rateLimitResponse();
+  }
+  if (!checkRateLimit(`guest-chat:room:${room}`, 30, 10 * 60_000)) {
+    return NextResponse.json(
+      { error: "You've sent a lot of messages in a short time. Please wait a little while and try again — or tap “Talk to a person” and the front desk will help you." },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
   }
 
   const { hotelInfo } = await getHotelData();

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { recordAiUsage, type AiUsageKind } from "./ai-usage";
 
 /**
  * Shared security helpers (SEC1 / ANT-57).
@@ -146,6 +147,13 @@ export function aiDailyLimit(): number {
  * In-memory on purpose for the hackathon: it resets on restart, like the
  * rate limits. When it returns false the caller must use a marked MOCK.
  */
+const AI_USAGE_KIND: Record<string, AiUsageKind> = {
+  "guest message": "guestChat",
+  "guest voice transcription": "voice",
+  "photo check": "photoChecks",
+  "owner report": "reports",
+};
+
 export function consumeAiCall(label: string): boolean {
   const day = new Date().toISOString().slice(0, 10);
   if (!aiGlobal.__hotelAiDaily || aiGlobal.__hotelAiDaily.day !== day) {
@@ -157,6 +165,8 @@ export function consumeAiCall(label: string): boolean {
     return false;
   }
   store.count += 1;
+  // G3: the same successful count feeds the Owner AI usage card.
+  recordAiUsage(AI_USAGE_KIND[label] ?? "guestChat");
   return true;
 }
 

@@ -17,7 +17,9 @@ const TEXT_FIELDS: Array<{ key: keyof HotelInfo; label: string; hint?: string }>
 
 const CURRENCIES = ["USD", "EUR", "GBP", "KZT", "AED", "TRY", "RUB", "CNY"];
 
-export default function HotelInfoForm({ initial, initialCurrency = "USD", initialAiPhotoCheckEnabled = true, initialCleanerPhotoRequired = true, initialConversationRetentionDays = 7 }: { initial: HotelInfo; initialCurrency?: string; initialAiPhotoCheckEnabled?: boolean; initialCleanerPhotoRequired?: boolean; initialConversationRetentionDays?: number }) {
+interface AiUsageView { today: { guestChat: number; photoChecks: number; reports: number; voice: number }; month: { guestChat: number; photoChecks: number; reports: number; voice: number } }
+
+export default function HotelInfoForm({ initial, initialCurrency = "USD", initialAiPhotoCheckEnabled = true, initialCleanerPhotoRequired = true, initialConversationRetentionDays = 7, initialAiUsage }: { initial: HotelInfo; initialCurrency?: string; initialAiPhotoCheckEnabled?: boolean; initialCleanerPhotoRequired?: boolean; initialConversationRetentionDays?: number; initialAiUsage?: AiUsageView }) {
   const [info, setInfo] = useState<HotelInfo>(initial);
   const [currency, setCurrency] = useState(initialCurrency);
   const [retentionDays, setRetentionDays] = useState(initialConversationRetentionDays);
@@ -112,6 +114,24 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD", initia
           <div><Button disabled={busy || !newRecTitle.trim()} onClick={() => { const next = { ...info, recommendations: [...info.recommendations, { id: crypto.randomUUID(), title: newRecTitle.trim(), note: newRecNote.trim() }] }; setInfo(next); setNewRecTitle(""); setNewRecNote(""); void save(next); }}>Add recommendation</Button></div>
         </div>
       </Card>
+
+      {initialAiUsage && (
+        <Card className="mt-4 p-5">
+          <h2 className="text-[15px] font-semibold">AI usage</h2>
+          <p className="mt-1 text-[13px] text-ink-3">Real AI calls (MOCK answers are not counted). The daily AI cap still applies.</p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[320px] text-left text-[13.5px]">
+              <thead><tr className="text-ink-3"><th className="py-1 pr-2 font-semibold">Kind</th><th className="py-1 pr-2 font-semibold">Today</th><th className="py-1 font-semibold">This month</th></tr></thead>
+              <tbody>
+                <tr className="border-t border-line"><td className="py-1.5 pr-2">Guest chat</td><td className="py-1.5 pr-2">{initialAiUsage.today.guestChat}</td><td className="py-1.5">{initialAiUsage.month.guestChat}</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 pr-2">Photo checks</td><td className="py-1.5 pr-2">{initialAiUsage.today.photoChecks}</td><td className="py-1.5">{initialAiUsage.month.photoChecks}</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 pr-2">Reports</td><td className="py-1.5 pr-2">{initialAiUsage.today.reports}</td><td className="py-1.5">{initialAiUsage.month.reports}</td></tr>
+                <tr className="border-t border-line"><td className="py-1.5 pr-2">Voice</td><td className="py-1.5 pr-2">{initialAiUsage.today.voice}</td><td className="py-1.5">{initialAiUsage.month.voice}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">Guest message privacy</h2>

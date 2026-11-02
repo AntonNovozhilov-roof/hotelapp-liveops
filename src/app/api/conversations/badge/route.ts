@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { countWaitingConversations } from "@/lib/conversations";
-import { HANDOFF_ROLES } from "../route";
+import { HANDOFF_ROLES } from "@/lib/handoff-auth";
 
 /** Red nav badge count: open conversations still waiting for a person. */
 export async function GET() {

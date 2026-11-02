@@ -36,12 +36,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // Rate limit (SEC1): 5 voice recordings per minute, per IP and per room.
+  // Rate limits: per-IP limit kept (SEC1, 5/min); per room 10 voice
+  // messages per 10 minutes (G3) with a friendly wait message.
   const roomRaw = form.get("room");
   const room = typeof roomRaw === "string" && roomRaw.trim() ? roomRaw.trim().slice(0, 20) : "unknown";
   const ip = clientIp(request);
-  if (!checkRateLimit(`guest-voice:ip:${ip}`, 5) || !checkRateLimit(`guest-voice:room:${room}`, 5)) {
+  if (!checkRateLimit(`guest-voice:ip:${ip}`, 5)) {
     return rateLimitResponse();
+  }
+  if (!checkRateLimit(`guest-voice:room:${room}`, 10, 10 * 60_000)) {
+    return NextResponse.json(
+      { error: "You've sent a lot of voice messages in a short time. Please wait a little while and try again, or type your request instead." },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
   }
 
   const apiKey = process.env.MODEL_API_KEY;

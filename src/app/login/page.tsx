@@ -14,6 +14,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
+  // Demo accounts/password are shown only in DEMO_MODE (SEC1, server flag).
+  const [demoMode, setDemoMode] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/config", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as { demoMode?: boolean };
+        setDemoMode(data.demoMode === true);
+      } catch {
+        // Keep the demo box hidden.
+      }
+    })();
+  }, []);
 
   // Already signed in? Go straight to your own screen.
   useEffect(() => {
@@ -115,6 +130,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            {demoMode && (
             <div className="mt-10 rounded-2xl border border-line bg-canvas/70 p-4">
               <p className="text-[13px] font-semibold flex items-center gap-1.5">
                 <Sparkles className="size-4 text-brand-600" />
@@ -157,6 +173,7 @@ export default function LoginPage() {
                 </Link>
               </p>
             </div>
+            )}
           </div>
         </div>
         <p className="text-[12.5px] text-ink-4">

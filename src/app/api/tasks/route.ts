@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { appendHistory, clearHistory } from "@/lib/history";
 import { clearHotelData } from "@/lib/hotel-data";
 import { clearReports } from "@/lib/reports-store";
+import { isDemoResetAllowed } from "@/lib/security";
 
 /**
  * Tasks are staff data (SEC1): sign-in required. Staff only ever see their
@@ -97,8 +98,14 @@ export async function POST(request: Request) {
   return NextResponse.json({ task }, { status: 201 });
 }
 
-/** Reset demo data: Owner only (D2). The server checks, not just the page. */
+/** Reset demo data: Owner only (D2) and only when ALLOW_DEMO_RESET=true (SEC1). */
 export async function DELETE() {
+  if (!isDemoResetAllowed()) {
+    return NextResponse.json(
+      { error: "Reset demo data is turned off on this copy." },
+      { status: 403 },
+    );
+  }
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json(

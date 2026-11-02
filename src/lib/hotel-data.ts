@@ -210,11 +210,15 @@ export async function getRoomByNumber(number: string): Promise<{ room: Room | nu
   return { room: data.rooms.find((r) => r.number === number) ?? null, data };
 }
 
-/** Guest link check: token matches, or room unknown/demo mode allows no token. */
-export function guestLinkAllowed(room: Room | null, token: string | null, settings: HotelSettings, hasAnyRooms: boolean): boolean {
-  if (!room) return settings.allowLinksWithoutToken || !hasAnyRooms;
-  if (token) return token === room.token;
-  return settings.allowLinksWithoutToken;
+/**
+ * Guest link check (SEC1): a QR token always works when it matches.
+ * A link WITHOUT a token is allowed only in DEMO_MODE (server env), never
+ * just because a setting or an empty room list says so.
+ */
+export function guestLinkAllowed(room: Room | null, token: string | null, _settings?: HotelSettings, _hasAnyRooms?: boolean): boolean {
+  if (room && token) return token === room.token;
+  if (token) return false;
+  return process.env.DEMO_MODE === "true";
 }
 
 export function cleanRoomNumber(v: unknown): string {

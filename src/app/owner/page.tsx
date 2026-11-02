@@ -10,6 +10,8 @@ import LoadDemoHotel from "@/components/LoadDemoHotel";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
 import { listStoredTasks } from "@/lib/store";
+import { loadDemoHotel } from "@/lib/demo-hotel";
+import { isDemoMode, isDemoResetAllowed } from "@/lib/security";
 
 /**
  * Owner home — simple for now (D2 / ANT-38). The real morning report is
@@ -20,7 +22,13 @@ export default async function OwnerPage() {
   if (!user) redirect("/login");
   if (user.role !== "owner") redirect(user.home);
 
-  const hotel = await getHotelData();
+  // DEMO_MODE sandbox: a fresh hotel loads the demo hotel by itself (SEC1).
+  let hotel = await getHotelData();
+  if (isDemoMode() && hotel.rooms.length === 0) {
+    await loadDemoHotel(user.name);
+    hotel = await getHotelData();
+  }
+  const resetAllowed = isDemoResetAllowed();
   const tasks = await listStoredTasks();
   const open = tasks.filter((task) => task.status !== "done").length;
   const inReview = tasks.filter((task) => task.status === "review").length;
@@ -104,15 +112,24 @@ export default async function OwnerPage() {
         </p>
       </Card>
 
-      <Card className="mt-4 p-5">
-        <h2 className="text-[15px] font-semibold">Demo data</h2>
-        <p className="mt-1.5 text-[13.5px] text-ink-3">
-          Only you (the Owner) can clear the demo data. Reset deletes all tasks and photos, rooms and QR codes, the hotel info sheet, history and reports — back to a fresh start. The server refuses this for every other account.
-        </p>
-        <div className="mt-3">
-          <OwnerReset />
-        </div>
-      </Card>
+      {resetAllowed ? (
+        <Card className="mt-4 p-5">
+          <h2 className="text-[15px] font-semibold">Demo data</h2>
+          <p className="mt-1.5 text-[13.5px] text-ink-3">
+            Only you (the Owner) can clear the demo data. Reset deletes all tasks and photos, rooms and QR codes, the hotel info sheet, history and reports — back to a fresh start. The server refuses this for every other account.
+          </p>
+          <div className="mt-3">
+            <OwnerReset />
+          </div>
+        </Card>
+      ) : (
+        <Card className="mt-4 p-5">
+          <h2 className="text-[15px] font-semibold">Demo data</h2>
+          <p className="mt-1.5 text-[13.5px] text-ink-3">
+            Reset demo data is turned off on this copy (server setting <code>ALLOW_DEMO_RESET</code>). Turn it on only for a throwaway demo sandbox.
+          </p>
+        </Card>
+      )}
     </main>
   );
 }

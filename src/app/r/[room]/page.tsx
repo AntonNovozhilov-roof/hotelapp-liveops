@@ -1,6 +1,8 @@
 import GuestForm from "./GuestForm";
 import { Logo } from "@/components/ui";
 import { getRoomByNumber, guestLinkAllowed } from "@/lib/hotel-data";
+import { loadDemoHotel } from "@/lib/demo-hotel";
+import { isDemoMode } from "@/lib/security";
 
 /**
  * Guest room page in the v1.2 look (D1 / ANT-37): on desktop the page is a
@@ -16,6 +18,11 @@ export default async function RoomPage({
 }) {
   const { room } = await params;
   const { t } = await searchParams;
+  // DEMO_MODE sandbox: a fresh hotel loads the demo hotel by itself (SEC1).
+  const before = await getRoomByNumber(room);
+  if (isDemoMode() && before.data.rooms.length === 0) {
+    await loadDemoHotel();
+  }
   const { room: roomRecord, data } = await getRoomByNumber(room);
   const allowed = guestLinkAllowed(roomRecord, t ?? null, data.settings, data.rooms.length > 0);
   const hotelName = data.hotelInfo.hotelName;

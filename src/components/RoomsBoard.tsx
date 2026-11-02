@@ -242,10 +242,9 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
             <label className="block"><span className="block text-[12.5px] font-semibold mb-1">Its floor</span><Input value={singleFloor} onChange={(e) => setSingleFloor(e.target.value)} inputMode="numeric" /></label>
             <Button variant="secondary" disabled={busy || !singleNumber.trim()} onClick={() => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: singleNumber, floor: Number(singleFloor) }) }), `Room ${singleNumber} added.`); if (d) { setSingleNumber(""); await refresh(); } })()}>Add one room</Button>
           </div>
-          <label className="mt-4 flex items-start gap-2 text-[13.5px]">
-            <input type="checkbox" className="mt-1" checked={settings.allowLinksWithoutToken} disabled={busy} onChange={(e) => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ allowLinksWithoutToken: e.target.checked }) }), "Saved."); if (d) await refresh(); })()} />
-            <span><strong>Allow links without QR code (demo mode)</strong><br /><span className="text-ink-3">On: /r/204 works without the secret code. Off: guests must use the QR code.</span></span>
-          </label>
+          <p className="mt-4 rounded-xl bg-brand-50 px-3.5 py-3 text-[13px] text-brand-800">
+            <strong>Guest links:</strong> the QR code link (with its secret code) always works. A plain link like /r/204 without the code works only when this copy runs as a public demo sandbox (server setting DEMO_MODE) — it is not a setting on this page (SEC1).
+          </p>
           <label className="mt-3 flex items-start gap-2 text-[13.5px]">
             <input type="checkbox" className="mt-1" checked={settings.autoApproveCleaning} disabled={busy} onChange={(e) => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autoApproveCleaning: e.target.checked }) }), e.target.checked ? "Auto-approve is on. Sure AI passes now finish cleaning tasks automatically." : "Auto-approve is off."); if (d) await refresh(); })()} />
             <span><strong>Auto-approve cleaning when the AI is sure</strong><br /><span className="text-ink-3">Off by default. When on, a cleaning photo that clearly matches the perfect room photo finishes the task without waiting for a supervisor. A supervisor can still reopen it.</span></span>

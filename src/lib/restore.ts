@@ -71,8 +71,8 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     ...DEMO_HOTEL_INFO,
     recommendations: [
       ...DEMO_HOTEL_INFO.recommendations,
-      { id: "demo-bistro", title: "Demo Bistro (demo)", note: "Fake demo tip: a small bistro by the demo harbour, good for dinner." },
-      { id: "demo-museum", title: "Demo Museum (demo)", note: "Fake demo tip: the demo town museum, a short walk from the hotel." },
+      { id: "demo-bistro", title: "Harbour Bistro", note: "A small bistro by the harbour, good for dinner." },
+      { id: "demo-museum", title: "Old Town Museum", note: "The old town museum, a short walk from the hotel." },
     ],
   };
   await saveHotelInfo(info);
@@ -106,7 +106,7 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     const room = fresh.rooms.find((r) => r.number === number);
     if (!room) continue;
     await createBooking(
-      { roomId: room.id, roomNumber: number, checkIn: addDaysStr(today, startIn), checkOut: addDaysStr(today, startIn + nights), guests: 2, pricePerNight: room.pricePerNight, source: source as "Direct", guestName: "Demo guest (demo)", reference: "DEMO" },
+      { roomId: room.id, roomNumber: number, checkIn: addDaysStr(today, startIn), checkOut: addDaysStr(today, startIn + nights), guests: 2, pricePerNight: room.pricePerNight, source: source as "Direct", guestName: "Guest", reference: "BK-2071" },
       "Admin restore",
       true,
     );
@@ -125,7 +125,7 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     taskTitle: null,
     taskType: null,
     action: "Demo restored",
-    details: "All hotel data was deleted with the secret restore page and a fresh demo hotel was loaded (demo data).",
+    details: "All hotel data was deleted and a fresh hotel was loaded.",
     at: new Date(Math.max(Date.now(), latestSeeded + 1000)).toISOString(),
   });
 

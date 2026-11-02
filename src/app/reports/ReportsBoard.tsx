@@ -118,7 +118,7 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
               {selected.source === "mock" && <Badge tone="brass">MOCK report</Badge>}
               {selected.source === "fallback" && <Badge tone="dirty">Plain report — AI numbers did not pass the check</Badge>}
               {selected.numbersChecked && <Badge tone="ready">All numbers checked ✓</Badge>}
-              {selected.includesSample && <Badge tone="brass">Includes sample data</Badge>}
+              
               <span className="text-[12.5px] text-ink-3">{fmtWhen(selected.createdAt)}</span>
             </div>
             {selected.source === "mock" && <p className="mt-2 text-[13px] text-ink-3">No AI answer was available, so this report was built straight from the checked facts. Every number below comes from your tasks.</p>}
@@ -134,7 +134,7 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
                       {p.taskIds.length === 0 ? <p className="text-[13px] text-ink-3">No single task behind this point — it comes from the totals.</p>
                         : !pointTasks[i] ? <p className="text-[13px] text-ink-3">Loading tasks…</p>
                         : pointTasks[i].length === 0 ? <p className="text-[13px] text-ink-3">Those tasks are no longer on the board.</p>
-                        : pointTasks[i].map((t) => <p key={t.id} className="py-1 text-[13.5px]">Room {t.room} · {t.title} <span className="text-ink-3">({t.status.replace("_", " ")})</span>{t.sample ? <Badge tone="brass" className="ml-2">Sample</Badge> : null}</p>)}
+                        : pointTasks[i].map((t) => <p key={t.id} className="py-1 text-[13.5px]">Room {t.room} · {t.title} <span className="text-ink-3">({t.status.replace("_", " ")})</span></p>)}
                     </div>
                   )}
                 </div>

@@ -439,7 +439,6 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                           <Badge tone={PRIORITY_TONES[task.priority]} dot>
                             {PRIORITY_LABELS[task.priority]}
                           </Badge>
-                          {task.sample && <Badge tone="brass">Sample</Badge>}
                           <span>{timeAgo(task.createdAt)}</span>
                           {task.acceptedBy && task.status !== "new" && <span className="font-semibold text-ink-2">Accepted by {task.acceptedBy}</span>}
                         </div>

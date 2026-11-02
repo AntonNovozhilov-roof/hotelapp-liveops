@@ -131,11 +131,11 @@ export interface HotelData {
 }
 
 export const DEFAULT_HOTEL_INFO: HotelInfo = {
-  hotelName: "Readybell Demo Hotel",
-  address: "1 Demo Street, Demo City",
+  hotelName: "Seaside Hotel",
+  address: "12 Seafront Parade, Brighton",
   receptionPhone: "+1 555 0100",
   emergencyNumber: "112",
-  wifiName: "Readybell-Guest",
+  wifiName: "Seaside-Guest",
   wifiPassword: "welcome123",
   checkIn: "14:00",
   checkOut: "12:00",

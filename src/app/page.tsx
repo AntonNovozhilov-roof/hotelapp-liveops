@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
-  ArrowRight, BarChart3, BedDouble, Camera, LayoutDashboard,
-  MessagesSquare, Route, Sparkles, UserRound,
+  ArrowRight, BarChart3, BedDouble, Camera, ClipboardCheck, Crown,
+  LayoutDashboard, MessagesSquare, Route, Sparkles, SprayCan, UserRound, Wrench,
 } from "lucide-react";
 import { Logo } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
@@ -19,6 +19,15 @@ const FEATURES = [
   { icon: Camera, title: "Photo-proof cleaning", text: "AI compares the cleaner's photo with the room's perfect photo before a supervisor approves with one tap." },
   { icon: BarChart3, title: "Owner reports", text: "Daily and weekly AI reports with occupancy, revenue, problems and suggestions, every number checked against real data." },
   { icon: LayoutDashboard, title: "One place to run the hotel", text: "Rooms and prices, bookings, QR code for every room, team and roles, full history of who did what." },
+];
+
+const ROLES = [
+  { icon: MessagesSquare, title: "Guests", text: "Chat or speak in any language, 24/7.", href: "/r/204", link: "Chat as a guest" },
+  { icon: UserRound, title: "Front desk", text: "Guest messages, requests and handoffs from the AI.", href: "/login", link: "Sign in as Daniyar" },
+  { icon: SprayCan, title: "Housekeeping", text: "Cleaning tasks with photo proof.", href: "/login", link: "Sign in as Aigerim" },
+  { icon: Wrench, title: "Maintenance", text: "Repairs with proof of the finished work.", href: "/login", link: "Sign in as Ruslan" },
+  { icon: ClipboardCheck, title: "Supervisors", text: "One-tap review and full history.", href: "/login", link: "Sign in as Supervisor" },
+  { icon: Crown, title: "Owners", text: "Rooms, prices, bookings, team and AI reports.", href: "/login", link: "Sign in as Owner" },
 ];
 
 const MODELS = [
@@ -40,9 +49,9 @@ export default async function HomePage() {
               <GithubMark className="size-5" /><span className="hidden sm:inline">GitHub</span>
             </a>
             {user ? (
-              <Link href={user.home} className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-[14px] font-semibold text-white hover:bg-brand-800">Open my screen</Link>
+              <Link href={user.home} className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-[14px] font-semibold text-white hover:bg-brand-800">Go to dashboard</Link>
             ) : (
-              <Link href="/login" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-[14px] font-semibold text-white hover:bg-brand-800">Try the demo</Link>
+              <Link href="/login" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-[14px] font-semibold text-white hover:bg-brand-800">Sign in</Link>
             )}
           </div>
         </div>
@@ -54,13 +63,13 @@ export default async function HomePage() {
           <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-2 lg:gap-8 lg:pb-24 lg:pt-20">
             <div>
               <p className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12.5px] font-semibold text-brand-800 ring-1 ring-brand-100"><Sparkles className="size-3.5" /> Built on Meta AI</p>
-              <h1 className="mt-5 font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.02em] sm:text-[52px]">The AI operations team for small hotels.</h1>
-              <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-2">Readybell answers guests in their language, sends every request to the right person, checks the work, and tells the owner what matters.</p>
+              <h1 className="mt-5 font-display text-[40px] font-semibold leading-[1.04] tracking-[-0.02em] sm:text-[52px]">One app to run your whole hotel.</h1>
+              <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-2">Guests, staff, rooms, bookings and reports in one place, with AI that answers guests, sends every job to the right person, checks the work and briefs the owner.</p>
               <div className="mt-7 flex flex-col gap-3 min-[420px]:flex-row">
                 <Link href="/login" className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 text-[15px] font-semibold text-white hover:bg-brand-800 sm:flex-none sm:px-7">Try the demo <ArrowRight className="size-4" /></Link>
-                <Link href="/r/204" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-white px-5 text-[15px] font-semibold text-ink ring-1 ring-line hover:ring-brand-400 sm:flex-none sm:px-7">Try as a guest</Link>
+                <Link href="/r/204" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-white px-5 text-[15px] font-semibold text-ink ring-1 ring-line hover:ring-brand-400 sm:flex-none sm:px-7">Chat as a guest</Link>
               </div>
-              <p className="mt-3 text-[13px] text-ink-3">No sign-in for guests. Demo accounts are on the sign-in page.</p>
+              <p className="mt-3 text-[13px] text-ink-3">No setup needed. Demo accounts are ready.</p>
             </div>
             <div className="relative mx-auto w-full max-w-[560px]" aria-label="Screenshots of the Readybell app">
               <div className="rounded-[22px] border border-line bg-white p-2 shadow-pop sm:mr-24">
@@ -74,6 +83,21 @@ export default async function HomePage() {
               </div>
               <p className="mt-12 text-[12px] font-semibold text-ink-3 sm:ml-2">Guest chat, room 204 · Real screenshots from this demo</p>
             </div>
+          </div>
+        </section>
+
+        {/* Everyone in your hotel */}
+        <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16" aria-labelledby="everyone">
+          <h2 id="everyone" className="font-display text-[30px] font-semibold tracking-[-0.01em]">Everyone in your hotel, in one app</h2>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {ROLES.map((r) => (
+              <Link key={r.title} href={r.href} className="group rounded-xl2 border border-line bg-white p-5 shadow-card transition-colors hover:border-brand-400">
+                <span className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-700"><r.icon className="size-5" /></span>
+                <h3 className="mt-3 text-[16px] font-semibold">{r.title}</h3>
+                <p className="mt-1 text-[14px] leading-relaxed text-ink-3">{r.text}</p>
+                <span className="mt-3 inline-flex min-h-6 items-center gap-1 text-[13.5px] font-semibold text-brand-700 group-hover:underline">{r.link} <ArrowRight className="size-3.5" /></span>
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -133,7 +157,7 @@ export default async function HomePage() {
 
           <div className="mt-10 rounded-xl2 border border-dashed border-line bg-canvas p-5">
             <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-ink-3">Coming next <span className="ml-1 rounded-md bg-occ-soft px-2 py-0.5 text-[11px] font-bold text-occ-deep">Not built yet</span></p>
-            <p className="mt-2 text-[14.5px] text-ink-2">AI staff scheduling · Telegram notifications for staff</p>
+            <p className="mt-2 text-[14.5px] text-ink-2">AI staff scheduling · Telegram notifications for staff · More modules: finance, inventory, integrations</p>
           </div>
         </section>
       </main>

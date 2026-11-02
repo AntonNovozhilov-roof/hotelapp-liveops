@@ -43,9 +43,11 @@ function supervisorVerdict(task: StoredTask): string {
 export default function SupervisorBoard({
   tasks,
   references = {},
+  aiPhotoCheckEnabled = true,
 }: {
   tasks: StoredTask[];
   references?: ReferenceByRoom;
+  aiPhotoCheckEnabled?: boolean;
 }) {
   const router = useRouter();
   const [items, setItems] = useState(tasks);
@@ -139,12 +141,12 @@ export default function SupervisorBoard({
                       </p>
                     </div>
                     <span className="flex flex-wrap gap-1.5">
-                      {task.flaggedTwice && (
+                      {aiPhotoCheckEnabled && task.flaggedTwice && (
                         <Badge tone="dirty" dot>
                           Failed AI check twice
                         </Badge>
                       )}
-                      {needsAttention && !task.flaggedTwice && (
+                      {aiPhotoCheckEnabled && needsAttention && !task.flaggedTwice && (
                         <Badge tone="dirty" dot>
                           AI: check this
                         </Badge>
@@ -157,8 +159,8 @@ export default function SupervisorBoard({
                     {timeAgo(task.updatedAt)}
                   </p>
 
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
+                  <div className={`mt-3 grid grid-cols-1 gap-3 ${aiPhotoCheckEnabled ? "sm:grid-cols-2" : ""}`}>
+                    {aiPhotoCheckEnabled && <div>
                       <p className="text-[12px] font-semibold text-ink-3">Perfect photo</p>
                       {reference && reference.photos.length > 0 ? (
                         <ul className="mt-1.5 grid grid-cols-3 gap-2">
@@ -174,7 +176,7 @@ export default function SupervisorBoard({
                       ) : (
                         <p className="mt-1.5 text-[12.5px] text-ink-4">No perfect photo for room {task.room} yet. Ask the owner to add one.</p>
                       )}
-                    </div>
+                    </div>}
                     <div>
                       <p className="text-[12px] font-semibold text-ink-3">Latest photos</p>
                       {task.photos.length > 0 ? (
@@ -194,10 +196,14 @@ export default function SupervisorBoard({
                     </div>
                   </div>
 
-                  <p className={`mt-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold ${task.aiCheck?.verdict === "ready" ? "bg-ready-soft text-ready-deep" : task.aiCheck?.verdict === "different" ? "bg-dirty-soft text-dirty-deep" : "bg-occ-soft text-occ-deep"}`}>
-                    {verdict}
-                    {task.aiCheck?.mode === "MOCK" && <span className="ml-2"><Badge tone="occ">MOCK</Badge></span>}
-                  </p>
+                  {aiPhotoCheckEnabled ? (
+                    <p className={`mt-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold ${task.aiCheck?.verdict === "ready" ? "bg-ready-soft text-ready-deep" : task.aiCheck?.verdict === "different" ? "bg-dirty-soft text-dirty-deep" : "bg-occ-soft text-occ-deep"}`}>
+                      {verdict}
+                      {task.aiCheck?.mode === "MOCK" && <span className="ml-2"><Badge tone="occ">MOCK</Badge></span>}
+                    </p>
+                  ) : (
+                    <p className="mt-3 rounded-xl bg-brand-50 px-3 py-2.5 text-[13.5px] font-semibold text-brand-800">AI photo check is off — please check the photos yourself.</p>
+                  )}
 
                   <p className="mt-2 text-[12.5px]">
                     <Link href={`/history?task=${task.id}`} className="font-semibold text-brand-700 hover:underline">

@@ -57,15 +57,27 @@ export async function PUT(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const r = (body ?? {}) as Record<string, unknown>;
-  if (typeof r.allowLinksWithoutToken === "boolean" || typeof r.autoApproveCleaning === "boolean") {
-    if (typeof r.autoApproveCleaning === "boolean" && g.user?.role !== "owner") {
-      return NextResponse.json({ error: "Only the Owner can change the auto-approve setting." }, { status: 403 });
+  const hasSetting = ["allowLinksWithoutToken", "autoApproveCleaning", "aiPhotoCheckEnabled", "cleanerPhotoRequired"].some((k) => typeof r[k] === "boolean");
+  if (hasSetting) {
+    if (g.user?.role !== "owner") {
+      return NextResponse.json({ error: "Only the Owner can change these settings." }, { status: 403 });
     }
+    const before = (await getHotelData()).settings;
     const { saveSettings } = await import("@/lib/hotel-data");
     const settings = await saveSettings({
       ...(typeof r.allowLinksWithoutToken === "boolean" ? { allowLinksWithoutToken: r.allowLinksWithoutToken } : {}),
       ...(typeof r.autoApproveCleaning === "boolean" ? { autoApproveCleaning: r.autoApproveCleaning } : {}),
+      ...(typeof r.aiPhotoCheckEnabled === "boolean" ? { aiPhotoCheckEnabled: r.aiPhotoCheckEnabled } : {}),
+      ...(typeof r.cleanerPhotoRequired === "boolean" ? { cleanerPhotoRequired: r.cleanerPhotoRequired } : {}),
     });
+    // P2: every change of these settings is written to History.
+    const changes: string[] = [];
+    if (typeof r.aiPhotoCheckEnabled === "boolean" && r.aiPhotoCheckEnabled !== before.aiPhotoCheckEnabled) changes.push(`AI photo check for cleaning turned ${r.aiPhotoCheckEnabled ? "On" : "Off"}`);
+    if (typeof r.cleanerPhotoRequired === "boolean" && r.cleanerPhotoRequired !== before.cleanerPhotoRequired) changes.push(`Cleaners must add a photo turned ${r.cleanerPhotoRequired ? "On" : "Off"}`);
+    if (typeof r.autoApproveCleaning === "boolean" && r.autoApproveCleaning !== before.autoApproveCleaning) changes.push(`Auto-approve cleaning when the AI is sure turned ${r.autoApproveCleaning ? "On" : "Off"}`);
+    for (const change of changes) {
+      await appendHistory({ actorName: g.user?.name ?? "Owner", actorRole: g.user?.roleLabel ?? "Owner", room: null, taskId: null, taskTitle: null, taskType: null, action: "Setting changed", details: `${change} by ${g.user?.name ?? "Owner"}.` });
+    }
     return NextResponse.json({ settings });
   }
   return NextResponse.json({ error: "Nothing to save." }, { status: 400 });

@@ -2,7 +2,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge, Button, Card, Empty, Field, Input, Textarea } from "@/components/ui";
-import { ReferenceSection } from "@/components/RoomsBoard";
 import type { Room } from "@/lib/hotel-data";
 import type { Booking } from "@/lib/booking-types";
 import { roomStatusToday } from "@/lib/booking-types";
@@ -11,7 +10,7 @@ import { formatMoney } from "@/lib/money";
 const TYPE_OPTIONS = ["Standard", "Double", "Suite"];
 const STATUS_TONE: Record<string, string> = { Free: "ready", Occupied: "occ", "Arriving today": "brand", "Leaving today": "dirty" };
 
-export default function RoomsPricesBoard({ initialRooms, bookings, currency, canEdit }: { initialRooms: Room[]; bookings: Booking[]; currency: string; canEdit: boolean }) {
+export default function RoomsPricesBoard({ initialRooms, bookings, currency, canEdit, aiPhotoCheckEnabled = true }: { initialRooms: Room[]; bookings: Booking[]; currency: string; canEdit: boolean; aiPhotoCheckEnabled?: boolean }) {
   const [rooms, setRooms] = useState(initialRooms);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState("");
@@ -120,9 +119,9 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <Badge tone={STATUS_TONE[status]}>{status}</Badge>
-                    <Badge tone={hasPerfect ? "ready" : "neutral"}>{hasPerfect ? "Perfect photo ✓" : "No perfect photo"}</Badge>
+                    {aiPhotoCheckEnabled && <Badge tone={hasPerfect ? "ready" : "neutral"}>{hasPerfect ? "Perfect photo ✓" : "No perfect photo"}</Badge>}
                   </div>
-                  <p className="mt-2 text-[12.5px] text-ink-3">Tap the room for type, price, notes, perfect photos and QR.</p>
+                  <p className="mt-2 text-[12.5px] text-ink-3">Tap the room for type, price, notes and QR.</p>
                 </Card>
               );
             })}
@@ -148,7 +147,13 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
           <Field label="Notes" className="mt-3"><Textarea value={dNotes} onChange={(e) => setDNotes(e.target.value)} rows={2} placeholder="e.g. Sea view, quiet floor, renovated 2026" disabled={!canEdit} /></Field>
           {dNotes && <p className="mt-1 text-[12.5px] text-ink-3">Saved notes: {dNotes}</p>}
           {canEdit && <Button className="mt-3" loading={busy} onClick={() => void saveDetail()}>Save room</Button>}
-          <ReferenceSection room={detail} onChanged={refresh} />
+          {aiPhotoCheckEnabled && (
+            <div className="mt-3 border-t border-line pt-3">
+              <p className="text-[13px] font-semibold text-ink-2">Perfect photos</p>
+              <p className="mt-1 text-[12.5px] text-ink-3">{(() => { const d = detail as Room & { reference?: { photos: unknown[] } | null; pendingReference?: unknown }; return d.pendingReference ? "Waiting for approval — new perfect photos are waiting to be set." : d.reference ? `Set ✓ (${d.reference.photos.length} photo${d.reference.photos.length === 1 ? "" : "s"})` : "Not set yet."; })()}</p>
+              <Link href={`/owner/rooms?tab=perfect&room=${encodeURIComponent(detail.id)}`}><Button variant="secondary" size="sm" className="mt-2">Open Perfect photos tab</Button></Link>
+            </div>
+          )}
           <div className="mt-3 border-t border-line pt-3">
             <p className="text-[13px] font-semibold text-ink-2">QR code</p>
             <p className="mt-1 text-[12.5px] text-ink-3">Print or download this room&apos;s QR from the QR codes tab.</p>

@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
   const { listBookings } = await import("@/lib/bookings");
   const [tasks, history, hotel, bookings] = await Promise.all([listStoredTasks(), listHistory({ range: "all", limit: 5000 }), getHotelData(), listBookings()]);
-  const facts = computeReportFacts(kind, tasks, history, hotel.rooms, new Date(), bookings, hotel.settings.currency);
+  const facts = computeReportFacts(kind, tasks, history, hotel.rooms, new Date(), bookings, hotel.settings.currency, hotel.settings.aiPhotoCheckEnabled);
   const validIds = new Set(facts.taskIds);
   const plain = buildPlainReport(facts);
   const breakNumbers = process.env.REPORT_TEST_BREAK_NUMBERS === "1"; // test-only hook: proves the fallback works

@@ -17,9 +17,23 @@ const TEXT_FIELDS: Array<{ key: keyof HotelInfo; label: string; hint?: string }>
 
 const CURRENCIES = ["USD", "EUR", "GBP", "KZT", "AED", "TRY", "RUB", "CNY"];
 
-export default function HotelInfoForm({ initial, initialCurrency = "USD" }: { initial: HotelInfo; initialCurrency?: string }) {
+export default function HotelInfoForm({ initial, initialCurrency = "USD", initialAiPhotoCheckEnabled = true, initialCleanerPhotoRequired = true }: { initial: HotelInfo; initialCurrency?: string; initialAiPhotoCheckEnabled?: boolean; initialCleanerPhotoRequired?: boolean }) {
   const [info, setInfo] = useState<HotelInfo>(initial);
   const [currency, setCurrency] = useState(initialCurrency);
+  const [aiOn, setAiOn] = useState(initialAiPhotoCheckEnabled);
+  const [photoRequired, setPhotoRequired] = useState(initialCleanerPhotoRequired);
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
+
+  async function saveCleaningSetting(patch: { aiPhotoCheckEnabled?: boolean; cleanerPhotoRequired?: boolean }) {
+    setError(null); setSettingsMsg(null);
+    try {
+      const res = await fetch("/api/rooms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; settings?: { aiPhotoCheckEnabled: boolean; cleanerPhotoRequired: boolean } };
+      if (!res.ok || !data.settings) throw new Error(data.error || "Could not save the setting.");
+      setAiOn(data.settings.aiPhotoCheckEnabled); setPhotoRequired(data.settings.cleanerPhotoRequired);
+      setSettingsMsg("Saved ✓ (also on the Rooms → Perfect photos tab)");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the setting."); }
+  }
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +73,16 @@ export default function HotelInfoForm({ initial, initialCurrency = "USD" }: { in
         </div>
         <Field label="House rules" className="mt-3"><Textarea value={info.houseRules} onChange={(e) => set("houseRules", e.target.value)} rows={3} /></Field>
         <Button className="mt-4" size="lg" loading={busy} onClick={() => void save()}>Save hotel info</Button>
+      </Card>
+
+      <Card className="mt-4 p-5">
+        <h2 className="text-[15px] font-semibold">Cleaning photo settings</h2>
+        <p className="mt-1 text-[13px] text-ink-3">The same switches as on Rooms → Perfect photos. Turning the AI check off never deletes saved perfect photos.</p>
+        {settingsMsg && <p className="mt-2 rounded-xl bg-ready-soft px-3 py-2 text-[12.5px] text-ready-deep" role="status">{settingsMsg}</p>}
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="flex items-start gap-3 rounded-xl border border-line p-3.5"><input type="checkbox" className="mt-0.5 size-5 shrink-0" checked={aiOn} onChange={(e) => void saveCleaningSetting({ aiPhotoCheckEnabled: e.target.checked })} /><span><strong className="text-[14px]">AI photo check for cleaning: {aiOn ? "On" : "Off"}</strong><br /><span className="text-[12.5px] text-ink-3">When off, no AI check runs and perfect photos are not used.</span></span></label>
+          <label className="flex items-start gap-3 rounded-xl border border-line p-3.5"><input type="checkbox" className="mt-0.5 size-5 shrink-0" checked={photoRequired} onChange={(e) => void saveCleaningSetting({ cleanerPhotoRequired: e.target.checked })} /><span><strong className="text-[14px]">Cleaners must add a photo: {photoRequired ? "On" : "Off"}</strong><br /><span className="text-[12.5px] text-ink-3">When off, cleaning can be sent to review with no photo.</span></span></label>
+        </div>
       </Card>
 
       <Card className="mt-4 p-5">

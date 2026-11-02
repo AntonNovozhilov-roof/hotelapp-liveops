@@ -9,7 +9,8 @@ import { randomBytes, randomUUID } from "crypto";
  * only this file (same pattern as src/lib/store.ts for tasks).
  */
 
-export const REFERENCE_LABELS = ["Bed area", "Bathroom", "Other"] as const;
+export const REFERENCE_LABELS = ["Bed area", "Bathroom", "Desk", "Entrance", "Balcony", "Other"] as const;
+export const MAX_REFERENCE_PHOTOS = 6;
 export type ReferenceLabel = (typeof REFERENCE_LABELS)[number];
 
 export interface ReferencePhoto {
@@ -44,6 +45,8 @@ export interface ReferenceRecord {
   uploadedByRole: string;
   uploadedAt: string;
   reason: string | null;
+  /** P2: room number this set was copied from, or null for own photos. */
+  copiedFromRoom: string | null;
 }
 
 export const STANDARD_ROOM_TYPES = ["Standard", "Double", "Suite"] as const;
@@ -99,6 +102,10 @@ export interface HotelSettings {
   autoApproveCleaning: boolean;
   /** R2: currency code used for all prices (setting in Hotel info). */
   currency: string;
+  /** P2: AI photo check for cleaning. On by default. Off never deletes photos. */
+  aiPhotoCheckEnabled: boolean;
+  /** P2: cleaners must add a photo before sending cleaning to review. On by default. */
+  cleanerPhotoRequired: boolean;
 }
 
 export interface HotelData {
@@ -139,7 +146,7 @@ function defaults(): HotelData {
   return {
     rooms: [],
     hotelInfo: { ...DEFAULT_HOTEL_INFO, faqs: [] },
-    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false, currency: "USD" },
+    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false, currency: "USD", aiPhotoCheckEnabled: true, cleanerPhotoRequired: true },
   };
 }
 
@@ -195,7 +202,7 @@ function normalize(raw: unknown): HotelData {
       houseRules: str("houseRules", d.hotelInfo.houseRules),
       faqs,
     },
-    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true, currency: typeof settingsRaw.currency === "string" && /^[A-Za-z]{3}$/.test(settingsRaw.currency) ? settingsRaw.currency.toUpperCase() : "USD" },
+    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true, currency: typeof settingsRaw.currency === "string" && /^[A-Za-z]{3}$/.test(settingsRaw.currency) ? settingsRaw.currency.toUpperCase() : "USD", aiPhotoCheckEnabled: settingsRaw.aiPhotoCheckEnabled !== false, cleanerPhotoRequired: settingsRaw.cleanerPhotoRequired !== false },
   };
 }
 
@@ -340,6 +347,8 @@ export async function saveSettings(settings: Partial<HotelSettings>): Promise<Ho
       allowLinksWithoutToken: settings.allowLinksWithoutToken !== undefined ? Boolean(settings.allowLinksWithoutToken) : data.settings.allowLinksWithoutToken,
       autoApproveCleaning: settings.autoApproveCleaning !== undefined ? Boolean(settings.autoApproveCleaning) : data.settings.autoApproveCleaning,
       currency: typeof settings.currency === "string" && /^[A-Za-z]{3}$/.test(settings.currency) ? settings.currency.toUpperCase() : data.settings.currency,
+      aiPhotoCheckEnabled: settings.aiPhotoCheckEnabled !== undefined ? Boolean(settings.aiPhotoCheckEnabled) : data.settings.aiPhotoCheckEnabled,
+      cleanerPhotoRequired: settings.cleanerPhotoRequired !== undefined ? Boolean(settings.cleanerPhotoRequired) : data.settings.cleanerPhotoRequired,
     };
     await writeAll(data);
     return data.settings;
@@ -371,6 +380,7 @@ function normalizeReference(raw: unknown): ReferenceRecord | null {
     uploadedByRole: typeof r.uploadedByRole === "string" ? r.uploadedByRole : "",
     uploadedAt: typeof r.uploadedAt === "string" ? r.uploadedAt : new Date().toISOString(),
     reason: typeof r.reason === "string" && r.reason.trim() ? r.reason : null,
+    copiedFromRoom: typeof r.copiedFromRoom === "string" && r.copiedFromRoom ? r.copiedFromRoom : null,
   };
 }
 
@@ -394,6 +404,39 @@ export async function approvePendingReference(roomId: string, reason: string | n
     room.reference = { ...room.pendingReference, reason };
     room.pendingReference = null; room.updatedAt = new Date().toISOString();
     await writeAll(data); return { room, archived };
+  });
+}
+
+/**
+ * P2: copy a room's approved reference (photos + cached AI result) to other
+ * rooms of the same type. The target's old active set is archived, never
+ * deleted. Photo files are shared with the source (active/history files are
+ * never deleted), so a later own set simply replaces the copy on approve.
+ */
+export async function copyReferenceToRooms(sourceId: string, targetIds: string[], actorName: string, actorRole: string): Promise<{ copied: Room[]; skipped: string[] } | null> {
+  return withLock(async () => {
+    const data = await readAll();
+    const source = data.rooms.find((r) => r.id === sourceId);
+    if (!source || !source.reference) return null;
+    const copied: Room[] = []; const skipped: string[] = [];
+    const now = new Date().toISOString();
+    for (const targetId of targetIds) {
+      const target = data.rooms.find((r) => r.id === targetId);
+      if (!target || target.id === source.id || target.roomType !== source.roomType) { skipped.push(targetId); continue; }
+      if (target.reference) target.referenceHistory = [target.reference, ...target.referenceHistory];
+      target.reference = {
+        ...source.reference,
+        id: randomUUID(),
+        photos: source.reference.photos.map((p) => ({ ...p })),
+        items: source.reference.items.map((i) => ({ ...i })),
+        uploadedBy: actorName, uploadedByRole: actorRole, uploadedAt: now,
+        reason: `Copied from room ${source.number}`, copiedFromRoom: source.number,
+      };
+      target.updatedAt = now;
+      copied.push(target);
+    }
+    if (copied.length) await writeAll(data);
+    return { copied, skipped };
   });
 }
 

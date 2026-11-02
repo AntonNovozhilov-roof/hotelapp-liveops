@@ -72,7 +72,7 @@ export function problemKey(title: string): string {
 
 function avg(nums: number[]): number | null { return nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10 : null; }
 
-export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], history: HistoryEvent[], rooms: Room[], now = new Date(), bookings: Booking[] = [], currency = "USD"): ReportFacts {
+export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], history: HistoryEvent[], rooms: Room[], now = new Date(), bookings: Booking[] = [], currency = "USD", aiPhotoCheckEnabled = true): ReportFacts {
   const { start, end, label } = periodFor(kind, now);
   const inPeriod = (iso: string) => { const t = new Date(iso).getTime(); return t >= start.getTime() && t <= end.getTime(); };
   const periodTasks = tasks.filter((t) => inPeriod(t.createdAt));
@@ -132,7 +132,7 @@ export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], histor
 
   const unanswered = periodTasks.filter((t) => t.department === "front_desk" && /guest question/i.test(t.title))
     .map((t) => ({ question: t.title.replace(/^.*guest question:\s*/i, "").slice(0, 120), taskId: t.id, room: t.room }));
-  const roomsWithoutPerfect = rooms.filter((r) => !r.reference).map((r) => r.number);
+  const roomsWithoutPerfect = aiPhotoCheckEnabled ? rooms.filter((r) => !r.reference).map((r) => r.number) : [];
   const includesSample = tasks.some((t) => t.sample && periodIds.has(t.id));
 
   // ---- R2 booking facts (aggregates only) ----

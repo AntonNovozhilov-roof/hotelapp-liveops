@@ -124,11 +124,14 @@ export async function PATCH(
     );
   }
 
+  const { getHotelData } = await import("@/lib/hotel-data");
+  const hotelSettings = (await getHotelData()).settings;
   const result = await updateStoredTaskStatus(
     id,
     requested as TaskStatus,
     note,
     user.name,
+    hotelSettings,
   );
 
   if (!result.ok && result.reason === "not_found") {

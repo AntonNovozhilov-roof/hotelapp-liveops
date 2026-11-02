@@ -7,7 +7,7 @@ import {
 import { sortTasks } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { appendHistory, clearHistory } from "@/lib/history";
-import { clearHotelData } from "@/lib/hotel-data";
+import { clearHotelData, getHotelData } from "@/lib/hotel-data";
 import { clearReports } from "@/lib/reports-store";
 import { isDemoResetAllowed } from "@/lib/security";
 import { clearBookings } from "@/lib/bookings";
@@ -35,6 +35,20 @@ export async function GET(request: Request) {
         .slice(0, 50)
     : undefined;
 
+  // P2: boards need the owner cleaning switches + which areas to photograph.
+  const hotel = await getHotelData();
+  const settings = {
+    aiPhotoCheckEnabled: hotel.settings.aiPhotoCheckEnabled,
+    cleanerPhotoRequired: hotel.settings.cleanerPhotoRequired,
+    autoApproveCleaning: hotel.settings.autoApproveCleaning,
+  };
+  const perfectAreas: Record<string, string[]> = {};
+  if (settings.aiPhotoCheckEnabled) {
+    for (const r of hotel.rooms) {
+      if (r.reference) perfectAreas[r.number] = [...new Set(r.reference.photos.map((p) => p.label))];
+    }
+  }
+
   if (user.department) {
     if (department && department !== user.department) {
       return NextResponse.json(
@@ -52,11 +66,11 @@ export async function GET(request: Request) {
       }
     }
     const tasks = sortTasks(await listStoredTasks({ room, department: user.department, ids }));
-    return NextResponse.json({ tasks });
+    return NextResponse.json({ tasks, settings, perfectAreas });
   }
 
   const tasks = sortTasks(await listStoredTasks({ room, department, ids }));
-  return NextResponse.json({ tasks });
+  return NextResponse.json({ tasks, settings, perfectAreas });
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  MAX_REFERENCE_PHOTOS,
   REFERENCE_LABELS,
   getHotelData,
   publicRoom,
@@ -71,26 +72,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!isSupportedPhotoType(file.type)) return NextResponse.json({ error: "That file is not a photo. Please send a JPG, PNG, WEBP, GIF or HEIC photo." }, { status: 415 });
   if (file.size > MAX_PHOTO_BYTES) return NextResponse.json({ error: "That photo is too big (max 10 MB). Please try again." }, { status: 413 });
 
+  const replaceNameRaw = form.get("replaceName");
+  const replaceName = typeof replaceNameRaw === "string" && replaceNameRaw ? replaceNameRaw : null;
   const existing = room.pendingReference;
-  if (existing && existing.photos.length >= 3) {
-    return NextResponse.json({ error: "A perfect room set has at most 3 photos. Remove one first." }, { status: 409 });
+  if (replaceName && (!existing || !existing.photos.some((p) => p.name === replaceName))) {
+    return NextResponse.json({ error: "Photo not found." }, { status: 404 });
+  }
+  if (!replaceName && existing && existing.photos.length >= MAX_REFERENCE_PHOTOS) {
+    return NextResponse.json({ error: `A perfect room set has at most ${MAX_REFERENCE_PHOTOS} photos. Remove one first.` }, { status: 409 });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const saved = await savePhoto(`ref-${room.id}`, bytes, file.type);
   const now = new Date().toISOString();
-  const pending: ReferenceRecord = existing
-    ? { ...existing, photos: [...existing.photos, { ...saved, label }], items: [], checkedAt: null, uploadedAt: now }
-    : {
+  let pending: ReferenceRecord;
+  if (existing && replaceName) {
+    pending = { ...existing, photos: existing.photos.map((p) => (p.name === replaceName ? { ...saved, label } : p)), items: [], checkedAt: null, uploadedAt: now };
+    await deletePhoto(replaceName);
+  } else if (existing) {
+    pending = { ...existing, photos: [...existing.photos, { ...saved, label }], items: [], checkedAt: null, uploadedAt: now };
+  } else {
+    pending = {
         id: randomUUID(),
         photos: [{ ...saved, label }],
         items: [], itemSource: "mock", checkedAt: null,
-        uploadedBy: g.user.name, uploadedByRole: g.user.roleLabel, uploadedAt: now, reason: null,
+        uploadedBy: g.user.name, uploadedByRole: g.user.roleLabel, uploadedAt: now, reason: null, copiedFromRoom: null,
       };
+  }
   await setPendingReference(room.id, pending);
   // Spec: right after upload, run the check on the perfect photo(s).
   await checkPending(room.id, pending);
-  await appendHistory({ actorName: g.user.name, actorRole: g.user.roleLabel, room: room.number, taskId: null, taskTitle: null, taskType: null, action: "Reference photo added", details: `Perfect room photo (${label}) added for room ${room.number} by ${g.user.name}. Not active until set as the reference.` });
+  await appendHistory({ actorName: g.user.name, actorRole: g.user.roleLabel, room: room.number, taskId: null, taskTitle: null, taskType: null, action: replaceName ? "Reference photo replaced" : "Reference photo added", details: `Perfect room photo (${label}) ${replaceName ? "replaced" : "added"} for room ${room.number} by ${g.user.name}. Not active until set as the reference.` });
   const fresh = await roomOr404(room.id);
   return NextResponse.json({ room: fresh ? publicRoom(fresh) : null }, { status: 201 });
 }

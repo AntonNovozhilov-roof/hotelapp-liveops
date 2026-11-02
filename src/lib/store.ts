@@ -11,7 +11,7 @@ import {
   type TaskStatus,
 } from "./tasks";
 import { MAX_PHOTOS_PER_TASK, deleteAllPhotos } from "./photos";
-import { TASK_TYPE_RULES, resolveTaskType } from "./task-types";
+import { TASK_TYPE_RULES, effectiveRule, resolveTaskType, type CleaningSettings } from "./task-types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "tasks.json");
@@ -433,6 +433,7 @@ export async function updateStoredTaskStatus(
   nextStatus: TaskStatus,
   note?: string,
   actorName?: string,
+  cleaningSettings?: CleaningSettings,
 ): Promise<UpdateResult> {
   return withLock(async () => {
     const all = await readAll();
@@ -449,7 +450,8 @@ export async function updateStoredTaskStatus(
     }
 
     const cleanNote = typeof note === "string" ? note.trim().slice(0, MAX_REVIEW_NOTE_LENGTH) : "";
-    const rule = TASK_TYPE_RULES[current.type];
+    const rule = effectiveRule(current.type, cleaningSettings);
+    const aiEnabled = cleaningSettings?.aiPhotoCheckEnabled !== false;
     const isFinalStep =
       current.status === "in_progress" &&
       nextStatus === (rule.goesToReview ? "review" : "done");
@@ -460,6 +462,7 @@ export async function updateStoredTaskStatus(
     // P1: a failed AI check blocks review — retake (1st) or the 2nd-fail
     // auto-review in saveAiCheckOutcome are the only ways forward.
     if (
+      aiEnabled &&
       current.status === "in_progress" &&
       nextStatus === "review" &&
       current.aiCheck?.verdict === "different"
@@ -470,7 +473,9 @@ export async function updateStoredTaskStatus(
         task: current,
       } as const;
     }
-    if (isFinalStep && rule.aiCheckRequired && !current.aiCheck) {
+    // P2: with photos present (or photos required) an AI check is needed
+    // when AI is on; with no photo allowed, there is nothing to check.
+    if (isFinalStep && rule.aiCheckRequired && !current.aiCheck && (rule.photoRequired || current.photos.length > 0)) {
       return {
         ok: false,
         reason: "ai_check_required",

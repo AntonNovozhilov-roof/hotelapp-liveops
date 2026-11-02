@@ -8,6 +8,7 @@ import {
   TASK_STATUSES,
   TASK_TYPE_LABELS,
   TASK_TYPE_RULES,
+  effectiveRule,
   sortForColumn,
   sortTasks,
   timeAgo,
@@ -63,15 +64,23 @@ function failedOnce(task: StoredTask): boolean {
   );
 }
 
+type CleaningSettingsState = { aiPhotoCheckEnabled: boolean; cleanerPhotoRequired: boolean };
+
 /** Why the final button is blocked, in plain words (null = not blocked). */
-function finishHint(task: StoredTask): string | null {
+function finishHint(task: StoredTask, settings: CleaningSettingsState): string | null {
   if (task.status !== "in_progress") return null;
-  const rule = TASK_TYPE_RULES[task.type];
-  if (!rule.photoRequired) return "No photo needed. Press Done when finished.";
+  const rule = effectiveRule(task.type, settings);
+  const aiOn = settings.aiPhotoCheckEnabled;
+  if (!rule.photoRequired && task.type !== "cleaning") return "No photo needed. Press Done when finished.";
+  if (!rule.photoRequired && task.type === "cleaning") {
+    if (task.photos.length === 0) return aiOn ? "No photo is required. You can add photos and run the AI check, or send straight to review." : "No photo is required. Press Send to review when finished.";
+    if (aiOn && !task.aiCheck) return "Run the AI photo check to send to review, because you added photos.";
+    return "You can send to review.";
+  }
   if (task.photos.length === 0) {
     return task.type === "repair"
       ? "Add a proof photo to finish. No AI check needed."
-      : "Add at least 1 photo, then run the AI photo check.";
+      : aiOn ? "Add at least 1 photo, then run the AI photo check." : "Add at least 1 photo, then send to review.";
   }
   if (rule.aiCheckRequired && !task.aiCheck) {
     return "Run the AI photo check to send to review.";
@@ -81,17 +90,17 @@ function finishHint(task: StoredTask): string | null {
   }
   return task.type === "repair"
     ? "Proof photo added. Press Done when finished."
-    : "AI check done. You can send to review.";
+    : aiOn ? "AI check done. You can send to review." : "Photo added. You can send to review.";
 }
 
 /** The final button stays disabled until the type rules are met. */
-function finishBlocked(task: StoredTask): boolean {
+function finishBlocked(task: StoredTask, settings: CleaningSettingsState): boolean {
   if (task.status !== "in_progress") return false;
-  const rule = TASK_TYPE_RULES[task.type];
+  const rule = effectiveRule(task.type, settings);
   if (rule.photoRequired && task.photos.length === 0) return true;
-  if (rule.aiCheckRequired && !task.aiCheck) return true;
+  if (rule.aiCheckRequired && !task.aiCheck && (rule.photoRequired || task.photos.length > 0)) return true;
   // P1: after a failed AI check the only way forward is Retake photos.
-  if (failedOnce(task)) return true;
+  if (settings.aiPhotoCheckEnabled && failedOnce(task)) return true;
   return false;
 }
 
@@ -121,6 +130,8 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [, setNowTick] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [cleaningSettings, setCleaningSettings] = useState<CleaningSettingsState>({ aiPhotoCheckEnabled: true, cleanerPhotoRequired: true });
+  const [perfectAreas, setPerfectAreas] = useState<Record<string, string[]>>({});
 
   // The signed-in person decides the team: no picker, no other teams.
   const department = user.department;
@@ -131,7 +142,9 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
       // and the "Who are you?" badges need NEW counts for every team.
       const response = await fetch("/api/tasks", { cache: "no-store" });
       if (!response.ok) throw new Error("Could not load tasks");
-      const data = (await response.json()) as { tasks: StoredTask[] };
+      const data = (await response.json()) as { tasks: StoredTask[]; settings?: CleaningSettingsState; perfectAreas?: Record<string, string[]> };
+      if (data.settings) setCleaningSettings(data.settings);
+      if (data.perfectAreas) setPerfectAreas(data.perfectAreas);
       setTasks(
         sortTasks(data.tasks.filter((task) => task.department === department)),
       );
@@ -361,8 +374,10 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                 <ul className="mt-3 space-y-3">
                   {columnTasks.map((task) => {
                     const action = nextActionFor(task);
-                    const hint = finishHint(task);
-                    const rule = TASK_TYPE_RULES[task.type];
+                    const hint = finishHint(task, cleaningSettings);
+                    const rule = effectiveRule(task.type, cleaningSettings);
+                    const aiOn = cleaningSettings.aiPhotoCheckEnabled;
+                    const photoAreas = task.type === "cleaning" && aiOn ? (perfectAreas[task.room] ?? []) : [];
                     return (
                       <li key={task.id}>
                         <Card className="p-4">
@@ -401,7 +416,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                             {task.reviewNote}
                           </div>
                         )}
-                        {rule.photoRequired &&
+                        {(rule.photoRequired || task.type === "cleaning") &&
                           (task.status === "in_progress" ||
                             task.photos.length > 0) && (
                           <div className="mt-3 border-t border-line-2 pt-3">
@@ -411,6 +426,12 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                 : "Photos"}{" "}
                               ({task.photos.length}/3)
                             </p>
+                            {photoAreas.length > 0 && task.status === "in_progress" && (
+                              <p className="mt-1.5 rounded-xl bg-brand-50 px-3 py-2 text-[12.5px] font-semibold text-brand-800">Take photos of: {photoAreas.join(", ")}</p>
+                            )}
+                            {task.type === "cleaning" && !rule.photoRequired && task.status === "in_progress" && (
+                              <p className="mt-1 text-[12.5px] text-ink-4">A photo is not required for this cleaning.</p>
+                            )}
                             {task.photos.length > 0 && (
                               <ul className="mt-2 grid grid-cols-3 gap-2">
                                 {task.photos.map((photo) => (
@@ -477,7 +498,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                               ))}
                           </div>
                         )}
-                        {rule.aiCheckRequired &&
+                        {aiOn && rule.aiCheckRequired &&
                           (task.photos.length > 0 || task.aiCheck) && (
                           <div className="mt-3 border-t border-line-2 pt-3">
                             <p className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">
@@ -550,7 +571,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                               size="lg"
                               loading={busyId === task.id}
                               onClick={() => void moveTask(task)}
-                              disabled={finishBlocked(task)}
+                              disabled={finishBlocked(task, cleaningSettings)}
                               className="mt-3 w-full"
                             >
                               {busyId === task.id ? "Saving..." : action.label}

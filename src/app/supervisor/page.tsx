@@ -57,7 +57,7 @@ export default async function SupervisorPage() {
           Problems first, then oldest first
         </p>
         <div className="mt-3">
-          <SupervisorBoard tasks={reviewTasks} references={references} />
+          <SupervisorBoard tasks={reviewTasks} references={hotel.settings.aiPhotoCheckEnabled ? references : {}} aiPhotoCheckEnabled={hotel.settings.aiPhotoCheckEnabled} />
         </div>
       </Card>
 

@@ -46,6 +46,24 @@ export const TASK_TYPE_RULES: Record<TaskType, TaskTypeRule> = {
   },
 };
 
+export interface CleaningSettings {
+  aiPhotoCheckEnabled?: boolean;
+  cleanerPhotoRequired?: boolean;
+}
+
+/**
+ * P2: cleaning rules change with the owner switches. AI off = no AI check
+ * needed; photo not required = a cleaning task may go to review with no
+ * photo (and then no AI check is needed either — there is nothing to check).
+ */
+export function effectiveRule(type: TaskType, settings?: CleaningSettings): TaskTypeRule {
+  const base = TASK_TYPE_RULES[type];
+  if (type !== "cleaning") return base;
+  const photoRequired = settings?.cleanerPhotoRequired !== false;
+  const aiCheckRequired = settings?.aiPhotoCheckEnabled !== false;
+  return { ...base, photoRequired, aiCheckRequired };
+}
+
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   request: TASK_TYPE_RULES.request.label,
   cleaning: TASK_TYPE_RULES.cleaning.label,

@@ -4,7 +4,8 @@ import {
   type TaskType,
 } from "./task-types";
 
-export { TASK_TYPES, TASK_TYPE_LABELS, TASK_TYPE_RULES } from "./task-types";
+export { TASK_TYPES, TASK_TYPE_LABELS, TASK_TYPE_RULES, effectiveRule } from "./task-types";
+export type { CleaningSettings } from "./task-types";
 export type { TaskType } from "./task-types";
 
 export const DEPARTMENTS = [

@@ -45,6 +45,13 @@ export async function POST(
       { status: 403 },
     );
   }
+  const hotelEarly = await getHotelData();
+  if (!hotelEarly.settings.aiPhotoCheckEnabled) {
+    return NextResponse.json(
+      { error: "The AI photo check is turned off by the Owner. Add a photo if needed, then send the task to review.", task },
+      { status: 409 },
+    );
+  }
   if (task.type !== "cleaning") {
     return NextResponse.json(
       {
@@ -112,7 +119,7 @@ export async function POST(
     aiCheck = { ...aiCheck, verdict: verdictFor(aiCheck.checks).verdict };
   }
 
-  const result = await saveAiCheckOutcome(id, aiCheck, hotel.settings.autoApproveCleaning);
+  const result = await saveAiCheckOutcome(id, aiCheck, hotel.settings.aiPhotoCheckEnabled && hotel.settings.autoApproveCleaning);
   if (!result) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }

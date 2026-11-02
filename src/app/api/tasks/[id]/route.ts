@@ -3,6 +3,7 @@ import { getStoredTask, updateStoredTaskStatus } from "@/lib/store";
 import { FLOW_TEXT, TASK_STATUSES, type TaskStatus } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { appendHistory } from "@/lib/history";
+import { foreignOriginResponse } from "@/lib/security";
 
 const ACTION_TO_STATUS: Record<string, TaskStatus> = {
   accept: "accepted",
@@ -19,6 +20,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const { id } = await params;
 
   let body: unknown;

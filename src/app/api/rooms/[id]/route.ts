@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { cleanRoomNumber, deleteRoom, getHotelData, publicRoom, regenerateRoomToken, updateRoom, validRoomNumber } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
 import { getCurrentUser as getUser2 } from "@/lib/auth";
+import { foreignOriginResponse } from "@/lib/security";
 
 async function ownerOnly() {
   const user = await getCurrentUser();
@@ -12,6 +13,8 @@ async function ownerOnly() {
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const err = await ownerOnly(); if (err) return err;
   const { id } = await params;
   let body: unknown;
@@ -35,6 +38,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const foreignOrigin = foreignOriginResponse(_request);
+  if (foreignOrigin) return foreignOrigin;
   const err = await ownerOnly(); if (err) return err;
   const { id } = await params;
   const beforeDel = (await getHotelData()).rooms.find((x) => x.id === id);

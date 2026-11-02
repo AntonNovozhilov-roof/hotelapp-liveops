@@ -10,6 +10,7 @@ import { appendHistory, clearHistory } from "@/lib/history";
 import { clearHotelData } from "@/lib/hotel-data";
 import { clearReports } from "@/lib/reports-store";
 import { isDemoResetAllowed } from "@/lib/security";
+import { foreignOriginResponse } from "@/lib/security";
 
 /**
  * Tasks are staff data (SEC1): sign-in required. Staff only ever see their
@@ -63,6 +64,8 @@ export async function GET(request: Request) {
  * Body: {"room":"204"}
  */
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json(
@@ -99,7 +102,9 @@ export async function POST(request: Request) {
 }
 
 /** Reset demo data: Owner only (D2) and only when ALLOW_DEMO_RESET=true (SEC1). */
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   if (!isDemoResetAllowed()) {
     return NextResponse.json(
       { error: "Reset demo data is turned off on this copy." },

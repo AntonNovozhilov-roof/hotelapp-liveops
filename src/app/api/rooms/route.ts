@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { addRoomsBulk, addSingleRoom, cleanRoomNumber, getHotelData, publicRoom, validRoomNumber } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
+import { foreignOriginResponse } from "@/lib/security";
 
 async function guard(viewOnly = false) {
   const user = await getCurrentUser();
@@ -19,6 +20,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const g = await guard(false);
   if (g.error) return g.error;
   let body: unknown;
@@ -47,6 +50,8 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const g = await guard(false);
   if (g.error) return g.error;
   let body: unknown;

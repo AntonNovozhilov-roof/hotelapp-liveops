@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
 import { consumeAiCall } from "@/lib/security";
+import { foreignOriginResponse } from "@/lib/security";
 
 /**
  * POST /api/tasks/[id]/ai-check — SAM 3.1 photo check (M5) + perfect
@@ -20,6 +21,8 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const foreignOrigin = foreignOriginResponse(_request);
+  if (foreignOrigin) return foreignOrigin;
   const { id } = await params;
 
   const task = await getStoredTask(id);

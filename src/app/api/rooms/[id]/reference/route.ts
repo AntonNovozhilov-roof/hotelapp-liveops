@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { approvePendingReference, getHotelData, publicRoom } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
+import { foreignOriginResponse } from "@/lib/security";
 
 /** Set the pending perfect photos as the room's active reference (P1). */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Please sign in to do this." }, { status: 401 });
   if (user.role !== "owner" && user.role !== "supervisor") {

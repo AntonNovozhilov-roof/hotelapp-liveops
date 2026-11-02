@@ -6,6 +6,7 @@ import { appendHistory } from "@/lib/history";
 import { applyGuardrails, buildSystemPrompt, mockAssistant, type ChatMessage } from "@/lib/guest-ai";
 import { GUEST_COOKIE, checkRateLimit, clientIp, consumeAiCall, createGuestToken, guestCookieOptions, guestDataFromToken, rateLimitResponse, type GuestTokenData } from "@/lib/security";
 import type { StoredTask } from "@/lib/tasks";
+import { foreignOriginResponse } from "@/lib/security";
 
 function existingGuest(request: Request): GuestTokenData | null {
   const header = request.headers.get("cookie") ?? "";
@@ -94,6 +95,8 @@ async function assistantFromModel(message: string, room: string, history: ChatMe
 }
 
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const record = (body ?? {}) as Record<string, unknown>;

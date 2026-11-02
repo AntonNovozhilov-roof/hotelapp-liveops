@@ -6,6 +6,7 @@ import { getHotelData } from "@/lib/hotel-data";
 import { buildPlainReport, computeReportFacts, factsForPrompt, verifyReportText, type ReportKind, type ReportPoint, type ReportSource } from "@/lib/reports";
 import { listReports, saveReport } from "@/lib/reports-store";
 import { consumeAiCall } from "@/lib/security";
+import { foreignOriginResponse } from "@/lib/security";
 
 /**
  * Reports API (M10/S6). Owner + Supervisor only — staff get 403.
@@ -73,6 +74,8 @@ ${factsJson}` },
 }
 
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const g = await guard(); if ("error" in g) return g.error;
   let body: Record<string, unknown> = {};
   try { body = (await request.json()) as Record<string, unknown>; } catch { /* default daily */ }

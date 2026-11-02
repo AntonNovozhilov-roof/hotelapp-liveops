@@ -18,6 +18,7 @@ import {
 import { runReferenceCheck } from "@/lib/photo-check";
 import { randomUUID } from "crypto";
 import { appendHistory } from "@/lib/history";
+import { foreignOriginResponse } from "@/lib/security";
 
 async function guard() {
   const user = await getCurrentUser();
@@ -53,6 +54,8 @@ async function checkPending(roomId: string, pending: ReferenceRecord): Promise<R
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const g = await guard();
   if ("error" in g) return g.error;
   const { id } = await params;
@@ -93,6 +96,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const g = await guard();
   if ("error" in g) return g.error;
   const { id } = await params;

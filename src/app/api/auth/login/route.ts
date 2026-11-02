@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE, checkDemoCredentials, createDemoSession } from "@/lib/auth";
 import { sessionCookieOptions } from "@/lib/security";
 import { toPublicUser } from "@/lib/users";
+import { foreignOriginResponse } from "@/lib/security";
 
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   let body: unknown;
   try {
     body = await request.json();

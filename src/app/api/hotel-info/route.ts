@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getHotelData, getRoomByNumber, guestLinkAllowed, guestSafeHotelInfo, saveHotelInfo, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
 import { randomUUID } from "crypto";
 import { appendHistory } from "@/lib/history";
+import { foreignOriginResponse } from "@/lib/security";
 
 /**
  * Hotel info reads (SEC1): the Owner gets the full sheet (for editing).
@@ -33,6 +34,8 @@ export async function GET(request: Request) {
 const FIELDS = ["hotelName", "address", "receptionPhone", "emergencyNumber", "wifiName", "wifiPassword", "checkIn", "checkOut", "breakfastHours", "houseRules"] as const;
 
 export async function PUT(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Please sign in to do this." }, { status: 401 });
   if (user.role !== "owner") return NextResponse.json({ error: "Only the Owner can change the hotel info." }, { status: 403 });

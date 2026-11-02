@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { guessLanguage, languageFromMeta } from "@/lib/language";
 import { checkRateLimit, clientIp, consumeAiCall, rateLimitResponse } from "@/lib/security";
+import { foreignOriginResponse } from "@/lib/security";
 
 // Official Meta docs (checked 2026-10-29):
 // Speech to text: https://dev.meta.ai/docs/speech-to-text
@@ -23,6 +24,8 @@ function isWav(bytes: Uint8Array): boolean {
 }
 
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   let form: FormData;
   try {
     form = await request.formData();

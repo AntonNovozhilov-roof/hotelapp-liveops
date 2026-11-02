@@ -14,6 +14,7 @@ import {
 import { getCurrentUser } from "@/lib/auth";
 import { appendHistory } from "@/lib/history";
 import type { PublicUser } from "@/lib/users";
+import { foreignOriginResponse } from "@/lib/security";
 
 /** Photos are staff work: signed-in member of the task's own team only (D2). */
 async function photoGuard(
@@ -46,6 +47,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const { id } = await params;
 
   const task = await getStoredTask(id);
@@ -127,6 +130,8 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const { id } = await params;
   const name = new URL(request.url).searchParams.get("name") ?? "";
 

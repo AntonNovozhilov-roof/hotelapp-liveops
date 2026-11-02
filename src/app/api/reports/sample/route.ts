@@ -3,9 +3,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { countSampleTasks, deleteSampleTasks, insertSampleTasks } from "@/lib/store";
 import { buildSampleWeek } from "@/lib/sample-week";
 import { deleteHistoryForTasks } from "@/lib/history";
+import { foreignOriginResponse } from "@/lib/security";
 
 /** Sample week (M10): Owner only. Load creates labelled sample data; remove deletes ONLY sample data. */
 export async function POST(request: Request) {
+  const foreignOrigin = foreignOriginResponse(request);
+  if (foreignOrigin) return foreignOrigin;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Please sign in to do this." }, { status: 401 });
   if (user.role !== "owner") return NextResponse.json({ error: "Only the Owner can load or remove sample data." }, { status: 403 });

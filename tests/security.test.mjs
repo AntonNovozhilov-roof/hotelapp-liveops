@@ -144,6 +144,20 @@ test("guest sees only own task statuses, with no photo data", async () => {
   assert.deepEqual(anonymous.json.tasks, []);
 });
 
+test("guest routing: towels = 1 task, leak+towels = 2, gas = 1 urgent (ANT-77)", async () => {
+  const towels = await call("/api/guest/message", { method: "POST", body: { message: "please bring towels", room: "204" } });
+  assert.equal(towels.status, 200);
+  assert.equal((towels.json.tasks ?? []).length, 1);
+  assert.match(towels.json.tasks[0].title, /towel/i);
+  const marked = await call("/api/guest/message", { method: "POST", body: { message: "[SMOKE-2026-11-02] please bring towels", room: "204" } });
+  assert.equal((marked.json.tasks ?? []).length, 1, "a bracketed marker must not add an urgent task");
+  const both = await call("/api/guest/message", { method: "POST", body: { message: "there is a leak in the bathroom and please bring towels", room: "204" } });
+  assert.equal((both.json.tasks ?? []).length, 2);
+  const gas = await call("/api/guest/message", { method: "POST", body: { message: "I smell gas", room: "204" } });
+  assert.equal((gas.json.tasks ?? []).length, 1);
+  assert.match(gas.json.tasks[0].title, /URGENT/);
+});
+
 test("reset is blocked without ALLOW_DEMO_RESET", async () => {
   const cookie = await login("owner");
   const res = await call("/api/tasks", { method: "DELETE", cookie });

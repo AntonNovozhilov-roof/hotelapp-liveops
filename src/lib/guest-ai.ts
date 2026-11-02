@@ -15,8 +15,12 @@ export interface ChatMessage { role: "guest" | "assistant"; content: string }
 
 export function isRussian(text: string): boolean { return /[А-Яа-яЁё]/.test(text); }
 
-const EMERGENCY = /gas smell|smell gas|fire|smoke|flood|flooding|water everywhere|someone (hurt|ill|injured)|hurt|injur|unconscious|bleeding|medical emergency|запах газа|пахнет газом|пожар|горит|дым|потоп|затапливает|травм|без сознания|кровь|человеку плохо|мне плохо/i;
-export function isEmergency(text: string): boolean { return EMERGENCY.test(text); }
+const EMERGENCY = /gas smell|smell gas|smell of gas|smells? like gas|on fire|fire in|there is a fire|smell (of )?smoke|smoke (in|coming|filling)|room (is )?full of smoke|flood|flooding|water everywhere|someone (is )?(hurt|ill|injured)|i am hurt|i'm hurt|injur\w+|unconscious|bleeding|medical emergency|запах газа|пахнет газом|пожар|горит|дым|потоп|затапливает|травм|без сознания|кровь|человеку плохо|мне плохо/i;
+export function isEmergency(text: string): boolean {
+  // Bracketed markers like [SMOKE-2026-11-02] are labels, not guest words:
+  // they must never turn a simple request into an emergency (ANT-77).
+  return EMERGENCY.test(text.replace(/\[[^\]]*\]/g, " "));
+}
 
 const REQUEST_WORDS = /bring|need|want|please send|towel|pillow|blanket|sheet|soap|shampoo|tooth|trash|tissue|clean|leak|broken|fix|repair|not working|taxi|breakfast in|food|coffee|order|hungry|принес|нужн|надо|полотен|подушк|одеял|мыло|уберите|уборк|протекает|сломал|не работает|заказ/i;
 export function hasRequestIntent(text: string): boolean { return REQUEST_WORDS.test(text); }
@@ -190,8 +194,8 @@ export function mockAssistant(message: string, info: HotelInfo, room: string): A
 export function applyGuardrails(message: string, info: HotelInfo, room: string, result: AssistantResult): AssistantResult {
   const ru = isRussian(message);
   if (isEmergency(message)) {
-    const tasks = result.tasks.some((t) => t.priority === "high") ? result.tasks : [urgentTask(message, room), ...result.tasks];
-    return { reply: emergencyReply(info, ru), tasks: tasks.slice(0, 10), handoff: null };
+    // One urgent task only: never add it on top of routine requests.
+    return { reply: emergencyReply(info, ru), tasks: [urgentTask(message, room)], handoff: null };
   }
   if (needsHuman(message)) return { reply: handoffReply(ru), tasks: [], handoff: "human" };
   if (isComplaint(message)) return { reply: handoffReply(ru), tasks: [], handoff: "complaint" };

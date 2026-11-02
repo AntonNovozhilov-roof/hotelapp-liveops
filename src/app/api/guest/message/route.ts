@@ -3,7 +3,7 @@ import { validateTasks, type Task } from "@/lib/tasks";
 import { createStoredTasks } from "@/lib/store";
 import { getHotelData } from "@/lib/hotel-data";
 import { appendHistory } from "@/lib/history";
-import { applyGuardrails, buildSystemPrompt, mockAssistant, type ChatMessage } from "@/lib/guest-ai";
+import { applyGuardrails, buildSystemPrompt, mockAssistant, type AssistantResult, type ChatMessage } from "@/lib/guest-ai";
 import { GUEST_COOKIE, checkRateLimit, clientIp, consumeAiCall, createGuestToken, guestCookieOptions, guestDataFromToken, rateLimitResponse, type GuestTokenData } from "@/lib/security";
 import type { StoredTask } from "@/lib/tasks";
 import { foreignOriginResponse } from "@/lib/security";
@@ -67,7 +67,7 @@ function cleanHistory(raw: unknown): ChatMessage[] {
   }).slice(-6);
 }
 
-async function assistantFromModel(message: string, room: string, history: ChatMessage[], hotelInfo: Parameters<typeof buildSystemPrompt>[0]): Promise<{ reply: string; tasks: Task[] }> {
+async function assistantFromModel(message: string, room: string, history: ChatMessage[], hotelInfo: Parameters<typeof buildSystemPrompt>[0]): Promise<AssistantResult> {
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiKey) throw new Error("MODEL_API_KEY is not set");
   const response = await fetch(`${MODEL_BASE_URL}/chat/completions`, {
@@ -87,11 +87,12 @@ async function assistantFromModel(message: string, room: string, history: ChatMe
   const data = (await response.json()) as { choices?: Array<{ message?: { content?: unknown } }> };
   const text = contentToText(data.choices?.[0]?.message?.content);
   if (!text) throw new Error("Model returned an empty answer");
-  const parsed = extractJson(text) as { reply?: unknown; tasks?: unknown };
+  const parsed = extractJson(text) as { reply?: unknown; tasks?: unknown; handoff?: unknown };
   const reply = typeof parsed.reply === "string" ? parsed.reply.trim().slice(0, 1000) : "";
   const tasks = validateTasks(parsed.tasks);
-  if (!reply && tasks.length === 0) throw new Error("Model returned no valid answer");
-  return { reply, tasks };
+  const handoff = parsed.handoff === "human" || parsed.handoff === "complaint" || parsed.handoff === "cannot_answer" ? parsed.handoff : null;
+  if (!reply && tasks.length === 0 && !handoff) throw new Error("Model returned no valid answer");
+  return { reply, tasks, handoff };
 }
 
 export async function POST(request: Request) {
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     const result = mockAssistant(message, hotelInfo, room);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
     for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });
-    return guestResponse(request, room, saved, { mode: "MOCK", reply: result.reply });
+    return guestResponse(request, room, saved, { mode: "MOCK", reply: result.reply, handoff: result.handoff ?? null });
   }
 
   try {
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
     const result = applyGuardrails(message, hotelInfo, room, raw);
     const saved = result.tasks.length ? await createStoredTasks(room, result.tasks) : [];
     for (const t of saved) await appendHistory({ actorName: "Guest", actorRole: "Guest", room: t.room, taskId: t.id, taskTitle: t.title, taskType: t.type, action: "Task created", details: `Guest asked via the room page (AI): ${t.title}` });
-    return guestResponse(request, room, saved, { mode: "LIVE", model: MODEL_NAME, reply: result.reply });
+    return guestResponse(request, room, saved, { mode: "LIVE", model: MODEL_NAME, reply: result.reply, handoff: result.handoff ?? null });
   } catch (error) {
     console.error("Model call failed:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "The AI service did not answer. Please try again in a moment." }, { status: 502 });

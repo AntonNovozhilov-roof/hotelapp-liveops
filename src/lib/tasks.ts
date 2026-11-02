@@ -21,6 +21,13 @@ export const PRIORITIES = ["high", "medium", "low"] as const;
 
 export type Priority = (typeof PRIORITIES)[number];
 
+/** PC1: the "high" priority is always shown as "Urgent" (data unchanged). */
+export const PRIORITY_LABELS: Record<Priority, string> = {
+  high: "Urgent",
+  medium: "Soon",
+  low: "When possible",
+};
+
 export interface Task {
   department: Department;
   /** Task type (request/cleaning/repair) — rules in src/lib/task-types.ts. */

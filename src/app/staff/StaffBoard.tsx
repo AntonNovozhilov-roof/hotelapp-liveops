@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Camera, Check, Sparkles, TriangleAlert } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
 import {
+  PRIORITY_LABELS,
   STATUS_LABELS,
   TASK_STATUSES,
   TASK_TYPE_LABELS,
@@ -26,12 +27,6 @@ const PRIORITY_TONES: Record<StoredTask["priority"], string> = {
   high: "dirty",
   medium: "occ",
   low: "neutral",
-};
-
-const PRIORITY_LABELS: Record<StoredTask["priority"], string> = {
-  high: "Urgent",
-  medium: "Soon",
-  low: "When possible",
 };
 
 const TYPE_TONES: Record<TaskType, string> = {

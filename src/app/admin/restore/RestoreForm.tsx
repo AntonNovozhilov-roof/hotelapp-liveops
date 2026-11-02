@@ -69,7 +69,7 @@ export default function RestoreForm() {
             if (code.trim()) setStep("confirm");
           }}
         >
-          <Field label="Secret restore code" hint="The RESTORE_SECRET value from the server settings. A normal sign-in is not enough — this is checked only on the server. 5 tries per 10 minutes.">
+          <Field label="Secret restore code" hint="The restore code the owner set for this page. A normal sign-in is not enough. You have 5 tries in 10 minutes.">
             <Input type="password" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" placeholder="Paste the secret code" />
           </Field>
           <Button type="submit" size="lg" className="mt-4 w-full" disabled={!code.trim()}>

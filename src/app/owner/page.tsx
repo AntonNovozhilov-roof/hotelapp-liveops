@@ -49,7 +49,7 @@ export default async function OwnerPage() {
         <Card className="mt-4 border-brand-200 bg-brand-50 p-5">
           <h2 className="text-[15px] font-semibold">Start here: load the demo hotel</h2>
           <p className="mt-1.5 text-[13.5px] text-ink-3">
-            One tap creates demo rooms (floor 1: 101–110, floor 2: 201–210), a sample hotel info sheet and a few sample tasks — all clearly labelled demo data with fake details. Try everything, then remove it all with <strong>Reset demo data</strong> below.
+            One tap creates rooms (floor 1: 101–110, floor 2: 201–210), hotel info and a few tasks, ready to try.
           </p>
           <div className="mt-3"><LoadDemoHotel /></div>
         </Card>

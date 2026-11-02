@@ -17,7 +17,7 @@ export default function LoadDemoHotel({ onLoaded }: { onLoaded?: () => Promise<v
       const response = await fetch("/api/demo", { method: "POST" });
       const data = (await response.json()) as { error?: string; roomsAdded?: number; tasksCreated?: number };
       if (!response.ok) throw new Error(data.error || "Could not load the demo hotel.");
-      setMessage(`Demo hotel loaded: ${data.roomsAdded ?? 0} new rooms (101–110 and 201–210), a sample hotel info sheet and ${data.tasksCreated ?? 0} sample tasks. All of it is demo data — remove it any time with Reset demo data on the Owner home.`);
+      setMessage(`Hotel loaded: ${data.roomsAdded ?? 0} new rooms (101–110 and 201–210), hotel info and ${data.tasksCreated ?? 0} tasks are ready to try.`);
       if (onLoaded) await onLoaded();
       router.refresh();
     } catch (e) {

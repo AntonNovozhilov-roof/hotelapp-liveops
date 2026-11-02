@@ -51,7 +51,7 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
   }
 
   function reportText(r: SavedReport): string {
-    return `${r.kind === "daily" ? "Daily" : "Weekly"} report — ${r.periodLabel}\nMade ${new Date(r.createdAt).toLocaleString()}${r.source === "mock" ? "\nMOCK report (no AI answer — built from the facts)" : ""}${r.includesSample ? "\nIncludes sample data" : ""}\n\n${r.points.map((p) => `${p.section}\n${p.text}`).join("\n\n")}`;
+    return `${r.kind === "daily" ? "Daily" : "Weekly"} report — ${r.periodLabel}\nMade ${new Date(r.createdAt).toLocaleString()}${r.source === "mock" ? "\nMOCK report (no AI answer — built from the facts)" : ""}\n\n${r.points.map((p) => `${p.section}\n${p.text}`).join("\n\n")}`;
   }
   async function copyText() {
     if (!selected) return;
@@ -79,14 +79,14 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
   function downloadMd() { if (!selected) return; const blob = new Blob([reportText(selected)], { type: "text/markdown" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${selected.kind}-report-${selected.createdAt.slice(0, 10)}.md`; a.click(); URL.revokeObjectURL(a.href); }
 
   async function sample(action: "load" | "remove") {
-    if (action === "remove" && !window.confirm("Remove sample data? Only the labelled sample tasks and their history will be deleted. Your real tasks stay.")) return;
+    if (action === "remove" && !window.confirm("Remove the example week? Only those tasks and their history will be deleted. Your other tasks stay.")) return;
     setBusy(true); setError(null);
     try {
       const res = await fetch("/api/reports/sample", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
       const d = (await res.json()) as { created?: number; removed?: number; createdBookings?: number; error?: string };
       if (!res.ok) throw new Error(d.error ?? "Sample data change failed.");
       setSampleCount(action === "load" ? (d.created ?? 0) : 0);
-      setMsg(action === "load" ? `Sample week loaded (${d.created} sample tasks${d.createdBookings ? ` and ${d.createdBookings} sample bookings` : ""}). Now make a Weekly report to see it.` : `Sample data removed (${d.removed} tasks). Your other tasks were not touched.`);
+      setMsg(action === "load" ? `Example week loaded (${d.created} tasks${d.createdBookings ? ` and ${d.createdBookings} bookings` : ""}). Now make a Weekly report to see it.` : `Example week removed (${d.removed} tasks). Your other tasks were not touched.`);
     } catch (e) { setError(e instanceof Error ? e.message : "Sample data change failed."); } finally { setBusy(false); }
   }
 
@@ -109,7 +109,7 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
       {busy && !selected ? <Card className="mt-4"><Empty title="Writing your report…" text="Checking the task facts first, then writing. This can take a few seconds." /></Card>
         : !selected ? (
           <Card className="mt-4"><Empty title={kind === "daily" ? "No daily report yet" : "No weekly report yet"}
-            text={kind === "weekly" && sampleCount === 0 && isOwner ? "A weekly report needs a week of tasks. Load the sample week below, then make the report — or wait for real tasks to build up." : "Tap Regenerate and we will build one from the real task facts right now."}
+            text={kind === "weekly" && sampleCount === 0 && isOwner ? "A weekly report needs a week of tasks. Load the example week below, then make the report — or wait for real tasks to build up." : "Tap Regenerate and we will build one from the real task facts right now."}
             action={<Button loading={busy} onClick={() => void generate(kind)}>Make my {kind} report</Button>} /></Card>
         ) : (
           <Card className="mt-4 p-5">
@@ -153,19 +153,19 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
         {old.length === 0 ? <p className="mt-1.5 text-[13.5px] text-ink-3">No {kind} reports yet. Your first one will appear here and stay here.</p>
           : <ul className="mt-2 divide-y divide-line">{old.map((r) => (
             <li key={r.id}><button type="button" className="flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left" onClick={() => { setSelectedId(r.id); setOpenPoint(null); }}>
-              <span className="text-[14px] font-medium">{fmtWhen(r.createdAt)} · {r.kind === "daily" ? "Daily" : "Weekly"}{r.includesSample ? " · Includes sample data" : ""}</span>
+              <span className="text-[14px] font-medium">{fmtWhen(r.createdAt)} · {r.kind === "daily" ? "Daily" : "Weekly"}</span>
               <span className="text-[12.5px] text-ink-3">{fmtWhen(r.createdAt)}{selected?.id === r.id ? " · showing" : ""}</span></button></li>))}
           </ul>}
       </Card>
 
       {isOwner && (
         <Card className="mt-4 p-5">
-          <h2 className="text-[15px] font-semibold">Sample week (demo)</h2>
-          <p className="mt-1.5 text-[13.5px] text-ink-3">A weekly report needs a week of work. This creates clearly labelled sample tasks and history for the past 7 days (including a repeat problem to spot). Removing it deletes only the sample data.</p>
-          <p className="mt-1.5 text-[13.5px] text-ink-3">{sampleCount ? `${sampleCount} sample tasks are loaded now.` : "No sample data is loaded now."}</p>
+          <h2 className="text-[15px] font-semibold">Example week</h2>
+          <p className="mt-1.5 text-[13.5px] text-ink-3">A weekly report needs a week of work. This creates tasks and history for the past 7 days (including a repeat problem to spot). Removing it deletes only that week.</p>
+          <p className="mt-1.5 text-[13.5px] text-ink-3">{sampleCount ? `${sampleCount} example tasks are loaded now.` : "No example week is loaded now."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="secondary" loading={busy} disabled={sampleCount > 0} onClick={() => void sample("load")} className="min-h-11">Load sample week (demo)</Button>
-            <Button variant="danger" loading={busy} disabled={sampleCount === 0} onClick={() => void sample("remove")} className="min-h-11">Remove sample data</Button>
+            <Button variant="secondary" loading={busy} disabled={sampleCount > 0} onClick={() => void sample("load")} className="min-h-11">Load example week</Button>
+            <Button variant="danger" loading={busy} disabled={sampleCount === 0} onClick={() => void sample("remove")} className="min-h-11">Remove example week</Button>
           </div>
         </Card>
       )}

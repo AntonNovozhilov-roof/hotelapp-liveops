@@ -190,7 +190,7 @@ export default function LoginPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/screenshots/hero-owner.jpg" alt="Owner screen in Readybell" width={900} height={563} className="w-full rounded-2xl" />
           </div>
-          <p className="mt-2 text-[12px] font-semibold text-brand-100/70">The owner screen, from this demo. No made-up results.</p>
+          <p className="mt-2 text-[12px] font-semibold text-brand-100/70">The owner screen in action.</p>
           <ul className="mt-6 space-y-3 text-[15px] leading-relaxed text-brand-50">
             <li className="flex gap-2.5"><span aria-hidden className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-brand-500 text-[11px] font-bold">✓</span>Guests message in their own language — the AI answers and routes each request to the right team.</li>
             <li className="flex gap-2.5"><span aria-hidden className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-brand-500 text-[11px] font-bold">✓</span>Staff prove cleaning with photos; the AI checks them and a person approves.</li>

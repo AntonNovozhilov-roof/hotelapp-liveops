@@ -108,7 +108,7 @@ export default function TeamBoard({ initial, isOwner, currentEmployeeId, appUrl 
       <Card className="mt-4 p-5">
         <h2 className="text-[15px] font-semibold">People ({people.length})</h2>
         {people.length === 0 ? (
-          <Empty title="No employees yet" text="Add the first person above. Demo accounts (when DEMO_MODE is on) still work for trying the app, but real people sign in with the accounts you add here." />
+          <Empty title="No employees yet" text="Add the first person above. Real people sign in with the accounts you add here." />
         ) : (
           <ul className="mt-3 divide-y divide-line">
             {people.map((person) => {

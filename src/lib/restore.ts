@@ -46,10 +46,7 @@ export interface RestoreCounts {
  * "Demo restored" (the History page is newest-first, so it starts there),
  * and the restore is written to the server log with its counts.
  */
-export async function restoreCleanDemo(): Promise<RestoreCounts> {
-  // 1) Wipe everything. Photos go with the tasks (clearStoredTasks deletes
-  // every photo file/object, perfect-room photos included, because the
-  // rooms they belong to are wiped right after).
+async function wipeAll(): Promise<{ tasks: number; employees: number }> {
   const deletedTasks = await clearStoredTasks();
   await clearHotelData();
   await clearHistory();
@@ -61,9 +58,22 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
   await clearAiDailyCounter();
   await clearPhotoCheckCache();
   if (isDbEnabled()) {
-    // Rate-limit hits are counters too (incl. this page's own tries).
     await dbQuery("DELETE FROM rate_limit_hits");
   }
+  return { tasks: deletedTasks, employees: deletedEmployees };
+}
+
+/** Delete everything and load no hotel at all (only demo accounts stay). */
+export async function restoreEmptyHotel(): Promise<RestoreCounts> {
+  const deleted = await wipeAll();
+  await appendHistory({ actorName: "Admin restore", actorRole: "System", room: null, taskId: null, taskTitle: null, taskType: null, action: "Hotel emptied", details: "All hotel data was deleted. No rooms or tasks were loaded.", at: new Date().toISOString() });
+  const counts: RestoreCounts = { deleted, seeded: { rooms: 0, bookings: 0, tasks: 0, historyEvents: 1 } };
+  console.log(`[restore] Empty hotel at ${new Date().toISOString()}: deleted ${deleted.tasks} tasks and ${deleted.employees} employees; seeded 0 rooms, 0 bookings, 0 tasks.`);
+  return counts;
+}
+
+export async function restoreCleanDemo(): Promise<RestoreCounts> {
+  const { tasks: deletedTasks, employees: deletedEmployees } = await wipeAll();
 
   // 2) Fresh demo hotel: rooms 101-110 + 201-210, hotel info, demo tasks.
   await loadDemoHotel("Admin restore");
@@ -126,7 +136,7 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     taskId: null,
     taskTitle: null,
     taskType: null,
-    action: "Demo restored",
+    action: "Hotel restored",
     details: "All hotel data was deleted and a fresh hotel was loaded.",
     at: new Date(Math.max(Date.now(), latestSeeded + 1000)).toISOString(),
   });
@@ -136,6 +146,6 @@ export async function restoreCleanDemo(): Promise<RestoreCounts> {
     deleted: { tasks: deletedTasks, employees: deletedEmployees },
     seeded: { rooms: fresh.rooms.length, bookings: bookings.length, tasks: tasks.length, historyEvents: history.length },
   };
-  console.log(`[restore] Demo restored at ${new Date().toISOString()}: deleted ${counts.deleted.tasks} tasks and ${counts.deleted.employees} employees; seeded ${counts.seeded.rooms} rooms, ${counts.seeded.bookings} bookings, ${counts.seeded.tasks} tasks, ${counts.seeded.historyEvents} history events.`);
+  console.log(`[restore] Hotel restored at ${new Date().toISOString()}: deleted ${counts.deleted.tasks} tasks and ${counts.deleted.employees} employees; seeded ${counts.seeded.rooms} rooms, ${counts.seeded.bookings} bookings, ${counts.seeded.tasks} tasks, ${counts.seeded.historyEvents} history events.`);
   return counts;
 }

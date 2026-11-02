@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, clientIp, foreignOriginResponse, rateLimitResponse } from "@/lib/security";
-import { restoreCleanDemo, restoreSecretConfigured, restoreSecretMatches } from "@/lib/restore";
+import { restoreCleanDemo, restoreEmptyHotel, restoreSecretConfigured, restoreSecretMatches } from "@/lib/restore";
 
 /**
  * POST /api/admin/restore — wipe all hotel data and load a fresh demo
@@ -29,6 +29,7 @@ export async function POST(request: Request) {
   if (body.confirm !== "RESTORE") {
     return NextResponse.json({ error: "Please type RESTORE to confirm. Nothing was changed." }, { status: 400 });
   }
-  const counts = await restoreCleanDemo();
-  return NextResponse.json({ ok: true, counts });
+  const mode = body.mode === "empty" ? "empty" : "demo";
+  const counts = mode === "empty" ? await restoreEmptyHotel() : await restoreCleanDemo();
+  return NextResponse.json({ ok: true, counts, mode });
 }

@@ -152,6 +152,15 @@ export async function touchLastSignIn(id: string): Promise<void> {
   });
 }
 
+/** Admin restore only (/admin/restore): delete every real employee account. Demo accounts are code, not data, and are never touched. Returns how many were removed. */
+export async function clearEmployees(): Promise<number> {
+  return withLock(async () => {
+    const all = await readAll();
+    await writeAll([]);
+    return all.length;
+  });
+}
+
 /** For demo reset: employees are real accounts, NOT demo data — never cleared by Reset. */
 export async function countEmployees(): Promise<number> {
   return (await readAll()).length;

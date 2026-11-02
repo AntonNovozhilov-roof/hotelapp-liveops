@@ -22,6 +22,7 @@ const testEnv = {
   ALLOW_DB_RESET: "",
   APP_URL: "",
   CRON_SECRET: "test-cron-secret",
+  RESTORE_SECRET: "test-restore-secret",
   MODEL_API_KEY: "",
   AI_DAILY_LIMIT: "500",
   // These tests always prove the local file mode, even on a Mac whose
@@ -176,6 +177,28 @@ test("guest rate limit returns 429", async () => {
     }
   }
   assert.ok(saw429, "expected a 429 within 15 guest messages in a minute");
+});
+
+test("admin restore needs the secret code, then seeds a fresh demo", async () => {
+  const wrong = await call("/api/admin/restore", { method: "POST", body: { code: "nope", confirm: "RESTORE" } });
+  assert.equal(wrong.status, 403);
+  const noConfirm = await call("/api/admin/restore", { method: "POST", body: { code: "test-restore-secret", confirm: "yes" } });
+  assert.equal(noConfirm.status, 400);
+  const ok = await call("/api/admin/restore", { method: "POST", body: { code: "test-restore-secret", confirm: "RESTORE" } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.json));
+  assert.equal(ok.json.counts.seeded.rooms, 20);
+  assert.ok(ok.json.counts.seeded.tasks >= 20, "tasks in every stage seeded");
+  assert.ok(ok.json.counts.seeded.bookings >= 6, "past + upcoming bookings seeded");
+  // Signed-in owner alone was never asked — and demo login still works.
+  const cookie = await login("owner");
+  const tasks = await call("/api/tasks", { cookie });
+  assert.equal(tasks.status, 200);
+  const stages = new Set((tasks.json.tasks ?? []).map((t) => t.status));
+  for (const stage of ["new", "in_progress", "review", "done"]) assert.ok(stages.has(stage), `stage ${stage} present`);
+  const rooms = await call("/api/rooms", { cookie });
+  assert.equal((rooms.json.rooms ?? []).length, 20);
+  const history = await call("/api/history?range=all", { cookie });
+  assert.equal(history.json.events?.[0]?.action, "Demo restored");
 });
 
 test("sign-in survives a server restart", async () => {

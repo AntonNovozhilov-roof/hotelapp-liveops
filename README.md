@@ -234,7 +234,12 @@ MOCK answers). Online (Vercel, region iad1 via `vercel.json`), `APP_URL`
 is the public address QR codes and login cards print, and `CRON_SECRET`
 protects the one daily cron backstop (retention cleanup + check-out
 cleaning tasks; both also run on page load, and the daily report is made
-on the first Reports open after 07:00). The click-by-click deploy guide
+on the first Reports open after 07:00). To wipe test data online there is
+a hidden page `/admin/restore` (not linked anywhere): it needs the
+`RESTORE_SECRET` code — checked only on the server, 5 tries per
+10 minutes, a sign-in alone is never enough — plus typing `RESTORE`,
+then it deletes all hotel data and loads a fresh rich demo hotel (demo
+accounts unchanged). The click-by-click deploy guide
 is `docs/DEPLOY.md` Part B.
 
 ### 6. Try it on a phone on the same Wi-Fi

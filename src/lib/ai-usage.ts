@@ -51,6 +51,15 @@ export async function recordAiUsage(kind: AiUsageKind): Promise<void> {
   }
 }
 
+/** Admin restore only: wipe the usage counters (DB table or local file). */
+export async function clearAiUsage(): Promise<void> {
+  if (isDbEnabled()) {
+    await dbQuery("DELETE FROM ai_usage_daily");
+    return;
+  }
+  try { fs.rmSync(DATA_FILE, { force: true }); } catch { /* nothing saved yet */ }
+}
+
 export async function getAiUsage(now = new Date()): Promise<{ today: AiUsageBucket; month: AiUsageBucket }> {
   const todayKey = now.toISOString().slice(0, 10);
   const monthPrefix = todayKey.slice(0, 7);

@@ -222,6 +222,12 @@ export async function consumeAiCall(label: string): Promise<boolean> {
   return true;
 }
 
+/** Admin restore only: reset the daily AI cap counter (memory + DB table). */
+export async function clearAiDailyCounter(): Promise<void> {
+  delete aiGlobal.__hotelAiDaily;
+  if (isDbEnabled()) await dbQuery("DELETE FROM ai_daily_counters");
+}
+
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /** True when a mutating request carries an Origin from another site. */

@@ -108,6 +108,15 @@ async function cacheSetDb<V>(kind: string, key: string, value: V, mem: Map<strin
   } catch { /* the AI check itself must never fail because of its cache */ }
 }
 
+/** Admin restore only: forget every cached check result (memory + DB table). */
+export async function clearPhotoCheckCache(): Promise<void> {
+  samCache.clear();
+  sparkCache.clear();
+  if (isDbEnabled()) {
+    try { await dbQuery("DELETE FROM photo_check_cache"); } catch { /* cache only */ }
+  }
+}
+
 function dataUrlHash(dataUrl: string): string {
   return createHash("sha256").update(dataUrl).digest("hex");
 }

@@ -101,6 +101,7 @@ only for testing the real database from the Mac.
 | `ALLOW_DB_RESET` | M11 (ANT-27) | Local database testing only — **never in Vercel** | No. When `DATABASE_URL` is set, `ALLOW_DEMO_RESET` is ignored and only `ALLOW_DB_RESET=true` opens the Owner reset. The Mac and the online app share one database, so a demo flag must never wipe it |
 | `APP_URL` | M11 | Vercel (after the first deploy); optional in `.env.local` | No — it is the public link itself. QR codes and printed login cards use it, so they never point at localhost or a preview address |
 | `CRON_SECRET` | M11 | Vercel; optional locally | Yes — protects `/api/cron/daily`. Vercel sends it by itself when it runs the daily job. Make it like `SESSION_SECRET`: long random, from a password manager |
+| `RESTORE_SECRET` | M11 follow-up | `.env.local`; Vercel env settings | Yes — the secret code for the hidden `/admin/restore` page (wipe all hotel data + load a fresh demo hotel). Checked only on the server, 5 tries per 10 minutes; a sign-in alone is never enough. Long random, password manager only |
 
 That is the whole list. The M2 agent may only add a var by updating this
 table, `.env.example`, and the issue comment — no silent new secrets.
@@ -202,6 +203,7 @@ through Vercel and paste the values below.
    | `ALLOW_DEMO_RESET` | Type exactly: `false` (in database mode it is ignored anyway — see `ALLOW_DB_RESET`). |
    | `AI_DAILY_LIMIT` | Type exactly: `500` |
    | `CRON_SECRET` | A new long random value, made exactly like `SESSION_SECRET` above (a different one). |
+   | `RESTORE_SECRET` | Another new long random value, made the same way. This is the code for the hidden `/admin/restore` wipe page — keep it in your password manager, share it with nobody. |
    | `APP_URL` | Add this one AFTER the first deploy (step 7): the public `https://….vercel.app` address Vercel gives you, nothing after it. |
 
    Do **NOT** add `ALLOW_DB_RESET` in Vercel, ever. It is the only
@@ -296,6 +298,22 @@ this order; results go on ANT-27. Synthetic data only.
 10. Survival: ask the owner to Redeploy once (Deployments → ⋯ →
     Redeploy), then repeat steps 3–4 quickly — tasks and the photo are
     still there.
+
+## Wiping test data online — /admin/restore (secret, not linked anywhere)
+
+When the online demo is full of test data: open
+`https://<your-app-address>/admin/restore` (type the address — no page
+links to it), paste the `RESTORE_SECRET` code, then type `RESTORE` at
+the "This deletes everything" step. It deletes all hotel data (tasks,
+photos, history, reports, conversations, bookings, rooms, hotel info,
+team accounts, usage counters, photo-check cache) and loads a fresh
+demo hotel: rooms on 2 floors with types and prices, hotel info with
+recommendations, past-week + upcoming bookings, and tasks in every
+stage for each team with matching history (first/newest history event:
+"Demo restored"). Demo accounts stay as they are. A normal sign-in is
+NOT enough to run it — the demo owner password is public, so only the
+secret code opens it (server-checked, 5 tries per 10 minutes). Every
+restore is written to the server log with its counts.
 
 ## Local dev (must keep working — for every future task)
 

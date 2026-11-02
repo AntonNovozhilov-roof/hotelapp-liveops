@@ -26,6 +26,9 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
   const [dCustom, setDCustom] = useState("");
   const [dPrice, setDPrice] = useState("");
   const [dNotes, setDNotes] = useState("");
+  const [dNumber, setDNumber] = useState("");
+  const [aFloor, setAFloor] = useState("1"); const [aFrom, setAFrom] = useState("101"); const [aTo, setATo] = useState("110");
+  const [aSingle, setASingle] = useState(""); const [aSingleFloor, setASingleFloor] = useState("1");
 
   const floors = useMemo(() => [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b), [rooms]);
 
@@ -41,6 +44,7 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
     setDCustom(isStandard ? "" : room.roomType);
     setDPrice(String(room.pricePerNight || ""));
     setDNotes(room.notes || "");
+    setDNumber(room.number);
   }
 
   async function applyBulk() {
@@ -58,13 +62,42 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
     finally { setBusy(false); }
   }
 
+  async function addRooms() {
+    setBusy(true); setError(null); setMsg(null);
+    try {
+      const res = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ floor: Number(aFloor), from: Number(aFrom), to: Number(aTo) }) });
+      const d = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(d.error || "Could not add rooms.");
+      setMsg(`Added rooms ${aFrom}–${aTo} on floor ${aFloor}.`); await refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not add rooms."); } finally { setBusy(false); }
+  }
+  async function addOneRoom() {
+    setBusy(true); setError(null); setMsg(null);
+    try {
+      const res = await fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: aSingle, floor: Number(aSingleFloor) }) });
+      const d = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(d.error || "Could not add the room.");
+      setMsg(`Room ${aSingle} added.`); setASingle(""); await refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not add the room."); } finally { setBusy(false); }
+  }
+  async function removeRoom() {
+    if (!detail || !window.confirm(`Remove room ${detail.number}? Its QR code will stop working.`)) return;
+    setBusy(true); setError(null); setMsg(null);
+    try {
+      const res = await fetch(`/api/rooms/${detail.id}`, { method: "DELETE" });
+      const d = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(d.error || "Could not remove the room.");
+      setMsg(`Room ${detail.number} removed.`); setDetailId(null); await refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not remove the room."); } finally { setBusy(false); }
+  }
+
   async function saveDetail() {
     if (!detail) return;
     const type = dType === "Custom" ? dCustom.trim() : dType;
     if (!type) { setError("Write the custom room type."); return; }
     setBusy(true); setError(null); setMsg(null);
     try {
-      const res = await fetch(`/api/rooms/${detail.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomType: type, pricePerNight: Number(dPrice || 0), notes: dNotes }) });
+      const res = await fetch(`/api/rooms/${detail.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomType: type, pricePerNight: Number(dPrice || 0), notes: dNotes, number: dNumber.trim() || undefined }) });
       const d = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(d.error || "Could not save the room.");
       setMsg(`Room ${detail.number} saved.`);
@@ -75,14 +108,30 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
     finally { setBusy(false); }
   }
 
-  if (rooms.length === 0) {
-    return <Card><Empty title="No rooms yet" text="Add rooms first — then set types and prices here." action={canEdit ? <Link href="/owner/rooms?tab=qr"><Button>Add rooms on the QR codes tab</Button></Link> : undefined} /></Card>;
-  }
 
   return (
     <div>
       {msg && <p className="mb-3 rounded-xl bg-ready-soft px-3.5 py-3 text-[13.5px] text-ready-deep" role="status">{msg}</p>}
       {error && <p className="mb-3 rounded-xl bg-dirty-soft px-3.5 py-3 text-[13.5px] text-dirty-deep" role="alert">{error}</p>}
+
+      {canEdit && (
+        <Card className="mb-4 p-5">
+          <h2 className="text-[15px] font-semibold">Add rooms</h2>
+          <div className="mt-3 grid grid-cols-2 items-end gap-2 sm:grid-cols-4">
+            <label className="block"><span className="mb-1 block text-[12.5px] font-semibold">Floor</span><Input value={aFloor} onChange={(e) => setAFloor(e.target.value)} inputMode="numeric" aria-label="Floor for new rooms" /></label>
+            <label className="block"><span className="mb-1 block text-[12.5px] font-semibold">First room</span><Input value={aFrom} onChange={(e) => setAFrom(e.target.value)} inputMode="numeric" aria-label="First room number" /></label>
+            <label className="block"><span className="mb-1 block text-[12.5px] font-semibold">Last room</span><Input value={aTo} onChange={(e) => setATo(e.target.value)} inputMode="numeric" aria-label="Last room number" /></label>
+            <Button disabled={busy} onClick={() => void addRooms()}>Add rooms</Button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 items-end gap-2 sm:grid-cols-3">
+            <label className="block"><span className="mb-1 block text-[12.5px] font-semibold">One room number</span><Input value={aSingle} onChange={(e) => setASingle(e.target.value)} placeholder="204" aria-label="One room number" /></label>
+            <label className="block"><span className="mb-1 block text-[12.5px] font-semibold">Its floor</span><Input value={aSingleFloor} onChange={(e) => setASingleFloor(e.target.value)} inputMode="numeric" aria-label="Floor for one room" /></label>
+            <Button variant="secondary" disabled={busy || !aSingle.trim()} onClick={() => void addOneRoom()}>Add one room</Button>
+          </div>
+        </Card>
+      )}
+      <p className="mb-3 text-[13px] text-ink-3">Tap a room to edit it.</p>
+      {rooms.length === 0 && <Card className="mb-4"><Empty title="No rooms yet" text="Add your rooms above — for example floor 1: 101–110, floor 2: 201–210." /></Card>}
 
       {canEdit && selected.size > 0 && (
         <Card className="mb-4 border-brand-200 bg-brand-50 p-4">
@@ -121,7 +170,6 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
                     <Badge tone={STATUS_TONE[status]}>{status}</Badge>
                     {aiPhotoCheckEnabled && <Badge tone={hasPerfect ? "ready" : "neutral"}>{hasPerfect ? "Perfect photo ✓" : "No perfect photo"}</Badge>}
                   </div>
-                  <p className="mt-2 text-[12.5px] text-ink-3">Tap the room for type, price, notes and QR.</p>
                 </Card>
               );
             })}
@@ -136,6 +184,7 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
             <Button variant="secondary" size="sm" onClick={() => setDetailId(null)}>Close</Button>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Room number"><Input value={dNumber} onChange={(e) => setDNumber(e.target.value)} disabled={!canEdit} aria-label="Room number" /></Field>
             <Field label="Room type">
               <select className="h-11 w-full rounded-lg border border-line bg-white px-3 text-sm sm:h-10" value={dType} onChange={(e) => setDType(e.target.value)} disabled={!canEdit} aria-label="Room type">
                 {TYPE_OPTIONS.map((t) => <option key={t}>{t}</option>)}<option value="Custom">Custom name…</option>
@@ -146,7 +195,7 @@ export default function RoomsPricesBoard({ initialRooms, bookings, currency, can
           </div>
           <Field label="Notes" className="mt-3"><Textarea value={dNotes} onChange={(e) => setDNotes(e.target.value)} rows={2} placeholder="e.g. Sea view, quiet floor, renovated 2026" disabled={!canEdit} /></Field>
           {dNotes && <p className="mt-1 text-[12.5px] text-ink-3">Saved notes: {dNotes}</p>}
-          {canEdit && <Button className="mt-3" loading={busy} onClick={() => void saveDetail()}>Save room</Button>}
+          {canEdit && <div className="mt-3 flex flex-wrap gap-2"><Button loading={busy} onClick={() => void saveDetail()}>Save room</Button><Button variant="danger" disabled={busy} onClick={() => void removeRoom()}>Remove room</Button></div>}
           {aiPhotoCheckEnabled && (
             <div className="mt-3 border-t border-line pt-3">
               <p className="text-[13px] font-semibold text-ink-2">Perfect photos</p>

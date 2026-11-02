@@ -4,6 +4,15 @@ import { cleanRoomNumber, deleteRoom, getHotelData, publicRoom, regenerateRoomTo
 import { appendHistory } from "@/lib/history";
 import { getCurrentUser as getUser2 } from "@/lib/auth";
 import { foreignOriginResponse } from "@/lib/security";
+import { listBookings } from "@/lib/bookings";
+import { listStoredTasks } from "@/lib/store";
+
+async function roomInUse(roomNumber: string): Promise<string | null> {
+  const [bookings, tasks] = await Promise.all([listBookings(), listStoredTasks()]);
+  if (bookings.some((b) => b.roomNumber === roomNumber && b.status === "active")) return `Room ${roomNumber} has bookings, so this can't be done yet. Cancel those bookings first.`;
+  if (tasks.some((t) => t.room === roomNumber && t.status !== "done")) return `Room ${roomNumber} has open tasks, so this can't be done yet. Finish those tasks first.`;
+  return null;
+}
 
 async function ownerOnly() {
   const user = await getCurrentUser();
@@ -35,6 +44,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (pricePerNight !== undefined && !(pricePerNight >= 0)) return NextResponse.json({ error: "Price per night cannot be negative." }, { status: 400 });
   const notes = typeof r.notes === "string" ? r.notes : undefined;
   const before = (await getHotelData()).rooms.find((x) => x.id === id);
+  if (before && number !== undefined && number !== before.number) {
+    const inUse = await roomInUse(before.number);
+    if (inUse) return NextResponse.json({ error: inUse }, { status: 409 });
+  }
   const result = await updateRoom(id, { number, floor, roomType, pricePerNight, notes });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.error === "Room not found." ? 404 : 409 });
   { const actor = await getUser2(); await appendHistory({ actorName: actor?.name ?? "Owner", actorRole: actor?.roleLabel ?? "Owner", room: result.room.number, taskId: null, taskTitle: null, taskType: null, action: "Rooms changed", details: `Room ${before?.number ?? ""} changed to ${result.room.number}.` }); }
@@ -47,6 +60,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const err = await ownerOnly(); if (err) return err;
   const { id } = await params;
   const beforeDel = (await getHotelData()).rooms.find((x) => x.id === id);
+  if (beforeDel) {
+    const inUse = await roomInUse(beforeDel.number);
+    if (inUse) return NextResponse.json({ error: inUse }, { status: 409 });
+  }
   const ok = await deleteRoom(id);
   if (!ok) return NextResponse.json({ error: "Room not found." }, { status: 404 });
   { const actor = await getUser2(); await appendHistory({ actorName: actor?.name ?? "Owner", actorRole: actor?.roleLabel ?? "Owner", room: beforeDel?.number ?? null, taskId: null, taskTitle: null, taskType: null, action: "Rooms changed", details: `Room ${beforeDel?.number ?? ""} removed.` }); }

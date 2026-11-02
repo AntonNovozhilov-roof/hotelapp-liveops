@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { Button, Card, Empty, Input, Badge } from "@/components/ui";
-import LoadDemoHotel from "@/components/LoadDemoHotel";
 import type { HotelSettings, Room } from "@/lib/hotel-data";
 
 function linkFor(room: Room, appUrl?: string | null) {
@@ -201,10 +200,8 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
   const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [floor, setFloor] = useState("1"); const [from, setFrom] = useState("101"); const [to, setTo] = useState("110");
-  const [singleNumber, setSingleNumber] = useState(""); const [singleFloor, setSingleFloor] = useState("1");
-  const [edit, setEdit] = useState<Record<string, string>>({});
   const [fullRoom, setFullRoom] = useState<Room | null>(null);
+  const [menuRoomId, setMenuRoomId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [dlFormat, setDlFormat] = useState<"pdf" | "zip">("pdf");
@@ -308,27 +305,6 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
       {error && <div className="mb-3 rounded-xl bg-dirty-soft px-3.5 py-3 text-[13.5px] text-dirty-deep" role="alert">{error}</div>}
       {!canEdit && <p className="mb-3 rounded-xl bg-brand-50 px-3.5 py-3 text-[13.5px] text-brand-800">You can view and print QR codes. Only the Owner can change them.</p>}
 
-      {canEdit && (
-        <Card className="p-5 mb-4">
-          <h2 className="text-[15px] font-semibold">{rooms.length === 0 ? "Add your rooms" : "Add rooms"}</h2>
-          {rooms.length === 0 && <p className="mt-1 text-[13.5px] text-ink-3">Tell us your floors and room numbers. We make one QR code per room — print them and put one in each room.</p>}
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
-            <label className="block"><span className="block text-[12.5px] font-semibold mb-1">Floor</span><Input value={floor} onChange={(e) => setFloor(e.target.value)} inputMode="numeric" /></label>
-            <label className="block"><span className="block text-[12.5px] font-semibold mb-1">First room</span><Input value={from} onChange={(e) => setFrom(e.target.value)} inputMode="numeric" /></label>
-            <label className="block"><span className="block text-[12.5px] font-semibold mb-1">Last room</span><Input value={to} onChange={(e) => setTo(e.target.value)} inputMode="numeric" /></label>
-            <Button disabled={busy} onClick={() => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ floor: Number(floor), from: Number(from), to: Number(to) }) }), `Added rooms ${from}–${to} on floor ${floor}.`); if (d) await refresh(); })()}>Add rooms</Button>
-          </div>
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
-            <label className="block"><span className="block text-[12.5px] font-semibold mb-1">One room number</span><Input value={singleNumber} onChange={(e) => setSingleNumber(e.target.value)} placeholder="204" /></label>
-            <label className="block"><span className="block text-[12.5px] font-semibold mb-1">Its floor</span><Input value={singleFloor} onChange={(e) => setSingleFloor(e.target.value)} inputMode="numeric" /></label>
-            <Button variant="secondary" disabled={busy || !singleNumber.trim()} onClick={() => void (async () => { const d = await act(() => fetch("/api/rooms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: singleNumber, floor: Number(singleFloor) }) }), `Room ${singleNumber} added.`); if (d) { setSingleNumber(""); await refresh(); } })()}>Add one room</Button>
-          </div>
-          <p className="mt-4 rounded-xl bg-brand-50 px-3.5 py-3 text-[13px] text-brand-800">
-            <strong>Guest links:</strong> the QR code link (with its secret code) always works. A plain link like /r/204 without the code works only when this copy runs as a public demo sandbox (server setting DEMO_MODE) — it is not a setting on this page (SEC1).
-          </p>
-        </Card>
-      )}
-
       <div className="flex flex-wrap gap-2 mb-3 items-center">
         <Input className="max-w-[220px]" placeholder="Search room number…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search by room number" />
         <select className="h-10 px-3 rounded-lg border border-line bg-white text-sm" value={floorFilter} onChange={(e) => setFloorFilter(e.target.value)} aria-label="Filter by floor">
@@ -339,7 +315,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
       </div>
 
       {rooms.length === 0 ? (
-        <Card><Empty title="No rooms yet" text={canEdit ? "Add your rooms above — for example floor 1: 101–110, floor 2: 201–210 — or load the ready-made demo hotel:" : "The Owner has not added rooms yet."} action={canEdit ? <LoadDemoHotel onLoaded={refresh} /> : undefined} /></Card>
+        <Card><Empty title="No rooms yet" text="Add rooms in Rooms & prices first, then their QR codes will appear here." /></Card>
       ) : visible.length === 0 ? (
         <Card><Empty title="No rooms match" text="Try a different search or floor." /></Card>
       ) : (
@@ -350,19 +326,18 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
               {qr[room.id] ? <img src={qr[room.id]} alt={`QR code for room ${room.number}`} className="mt-3 w-full max-w-[220px] mx-auto aspect-square" /> : <p className="mt-3 text-center text-[13px] text-ink-3 py-10">Making QR…</p>}
               <p className="text-center text-[12.5px] text-ink-3">Scan to message the hotel</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <Button size="sm" variant="secondary" onClick={() => void (async () => { const img = await brandedQrImage(room); const a = document.createElement("a"); a.href = img; a.download = `room-${room.number}-qr.png`; a.click(); setMsg(`QR image for room ${room.number} downloaded (Readybell + ${hotelName}).`); })()}>Download PNG</Button>
+                <Button size="sm" variant="secondary" onClick={() => void (async () => { const img = await brandedQrImage(room); const a = document.createElement("a"); a.href = img; a.download = `room-${room.number}-qr.png`; a.click(); setMsg(`QR image for room ${room.number} downloaded.`); })()}>Download PNG</Button>
                 <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(linkFor(room, appUrl)).then(() => setMsg(`Link for room ${room.number} copied.`))}>Copy link</Button>
-                <Button size="sm" variant="secondary" onClick={() => setFullRoom(room)}>Show full screen</Button>
-              </div>
-              {canEdit && (
-                <div className="mt-3 border-t border-line pt-3 space-y-2">
-                  <div className="flex gap-1.5"><Input value={edit[room.id] ?? room.number} onChange={(e) => setEdit({ ...edit, [room.id]: e.target.value })} aria-label={`Fix room number for room ${room.number}`} /><Button size="sm" disabled={busy} onClick={() => void (async () => { const d = await act(() => fetch(`/api/rooms/${room.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: edit[room.id] ?? room.number }) }), "Room number saved."); if (d) await refresh(); })()}>Save number</Button></div>
-                  <div className="flex gap-1.5">
-                    <Button size="sm" variant="danger" disabled={busy} onClick={() => { if (window.confirm(`Regenerate the QR code for room ${room.number}? The old QR code for room ${room.number} will stop working.`)) void (async () => { const d = await act(() => fetch(`/api/rooms/${room.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "regenerate" }) }), `New QR code for room ${room.number}. The old one no longer works.`); if (d) await refresh(); })(); }}>Regenerate</Button>
-                    <Button size="sm" variant="danger" disabled={busy} onClick={() => { if (window.confirm(`Remove room ${room.number}? Its QR code will stop working.`)) void (async () => { const d = await act(() => fetch(`/api/rooms/${room.id}`, { method: "DELETE" }), `Room ${room.number} removed.`); if (d) await refresh(); })(); }}>Remove</Button>
-                  </div>
+                <div className="relative">
+                  <Button size="sm" variant="secondary" aria-label={`More actions for room ${room.number}`} aria-expanded={menuRoomId === room.id} onClick={() => setMenuRoomId(menuRoomId === room.id ? null : room.id)}>⋯</Button>
+                  {menuRoomId === room.id && (
+                    <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-line bg-white p-1.5 shadow-pop">
+                      <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm font-semibold hover:bg-brand-50" onClick={() => { setMenuRoomId(null); setFullRoom(room); }}>Full screen</button>
+                      {canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm font-semibold text-dirty-deep hover:bg-dirty-soft" onClick={() => { setMenuRoomId(null); if (window.confirm(`Regenerate the QR code for room ${room.number}? The old QR code will stop working.`)) void (async () => { const d = await act(() => fetch(`/api/rooms/${room.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "regenerate" }) }), `New QR code for room ${room.number}. The old one no longer works.`); if (d) await refresh(); })(); }}>Regenerate</button>}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </Card>
           ))}
         </div>

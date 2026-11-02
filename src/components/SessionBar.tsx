@@ -88,7 +88,7 @@ function ProfileMenu({ user, onChangePassword, signOut, compact }: { user: Publi
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-brand-50">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-label={`Account menu for ${user.name}`} aria-haspopup="menu" aria-expanded={open} className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-brand-50">
         <Avatar name={user.name} role={user.role} size={34} />
         {!compact && (
           <span className="min-w-0 flex-1">

@@ -11,9 +11,11 @@ import {
 } from "@/lib/hotel-data";
 import {
   MAX_PHOTO_BYTES,
+  PHOTO_FORMAT_MESSAGE,
+  PhotoFormatError,
   deletePhoto,
-  isSupportedPhotoType,
-  readPhoto,
+  isAcceptedPhotoUpload,
+  readPhotoDataUrl,
   savePhoto,
 } from "@/lib/photos";
 import { runReferenceCheck } from "@/lib/photo-check";
@@ -38,17 +40,18 @@ async function roomOr404(id: string) {
 async function checkPending(roomId: string, pending: ReferenceRecord): Promise<ReferenceRecord> {
   const dataUrls: string[] = [];
   for (const photo of pending.photos) {
-    const stored = await readPhoto(photo.name);
-    if (stored) dataUrls.push(`data:${stored.contentType};base64,${stored.bytes.toString("base64")}`);
+    const dataUrl = await readPhotoDataUrl(photo.name);
+    if (dataUrl) dataUrls.push(dataUrl);
   }
   let checked: ReferenceRecord = pending;
   try {
     const result = await runReferenceCheck(dataUrls);
-    checked = { ...pending, items: result.items, itemSource: result.itemSource, checkedAt: new Date().toISOString() };
+    checked = { ...pending, items: result.items, itemSource: result.itemSource, checkedAt: new Date().toISOString(), checkFailed: false };
   } catch (error) {
+    // PC1: a failed LIVE check is saved as failed — never as a fake MOCK
+    // success. The screen shows "Try again" and blocks approval.
     console.error("Reference check failed:", error instanceof Error ? error.message : "unknown error");
-    const fallback = await runReferenceCheck([]);
-    checked = { ...pending, items: fallback.items, itemSource: "mock", checkedAt: new Date().toISOString() };
+    checked = { ...pending, items: [], itemSource: pending.itemSource, checkedAt: new Date().toISOString(), checkFailed: true };
   }
   await setPendingReference(roomId, checked);
   return checked;
@@ -69,7 +72,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const labelRaw = form.get("label");
   const label: ReferenceLabel = REFERENCE_LABELS.includes(labelRaw as ReferenceLabel) ? (labelRaw as ReferenceLabel) : "Other";
   if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "No photo received. Please choose a photo and try again." }, { status: 400 });
-  if (!isSupportedPhotoType(file.type)) return NextResponse.json({ error: "That file is not a photo. Please send a JPG, PNG, WEBP, GIF or HEIC photo." }, { status: 415 });
   if (file.size > MAX_PHOTO_BYTES) return NextResponse.json({ error: "That photo is too big (max 10 MB). Please try again." }, { status: 413 });
 
   const replaceNameRaw = form.get("replaceName");
@@ -83,7 +85,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const saved = await savePhoto(`ref-${room.id}`, bytes, file.type);
+  if (!isAcceptedPhotoUpload(bytes, file.type, file.name)) {
+    return NextResponse.json({ error: PHOTO_FORMAT_MESSAGE }, { status: 415 });
+  }
+  let saved;
+  try {
+    // HEIC/HEIF is converted to JPEG and resized inside savePhoto (PC1).
+    saved = await savePhoto(`ref-${room.id}`, bytes, file.type, file.name);
+  } catch (error) {
+    if (error instanceof PhotoFormatError) {
+      return NextResponse.json({ error: PHOTO_FORMAT_MESSAGE }, { status: 415 });
+    }
+    throw error;
+  }
   const now = new Date().toISOString();
   let pending: ReferenceRecord;
   if (existing && replaceName) {

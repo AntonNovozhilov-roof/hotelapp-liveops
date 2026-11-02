@@ -41,6 +41,8 @@ export interface ReferenceRecord {
   items: ReferenceItem[];
   itemSource: "vision" | "broad" | "mock";
   checkedAt: string | null;
+  /** PC1: the last LIVE check failed — never shown as success, blocks approval. */
+  checkFailed?: boolean;
   uploadedBy: string;
   uploadedByRole: string;
   uploadedAt: string;
@@ -402,6 +404,7 @@ function normalizeReference(raw: unknown): ReferenceRecord | null {
     photos, items,
     itemSource: r.itemSource === "vision" || r.itemSource === "broad" ? r.itemSource : "mock",
     checkedAt: typeof r.checkedAt === "string" ? r.checkedAt : null,
+    checkFailed: r.checkFailed === true,
     uploadedBy: typeof r.uploadedBy === "string" ? r.uploadedBy : "Unknown",
     uploadedByRole: typeof r.uploadedByRole === "string" ? r.uploadedByRole : "",
     uploadedAt: typeof r.uploadedAt === "string" ? r.uploadedAt : new Date().toISOString(),

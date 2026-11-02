@@ -7,8 +7,10 @@ import {
 } from "@/lib/store";
 import {
   MAX_PHOTO_BYTES,
+  PHOTO_FORMAT_MESSAGE,
+  PhotoFormatError,
   deletePhoto,
-  isSupportedPhotoType,
+  isAcceptedPhotoUpload,
   savePhoto,
 } from "@/lib/photos";
 import { getCurrentUser } from "@/lib/auth";
@@ -81,15 +83,6 @@ export async function POST(
       { status: 400 },
     );
   }
-  if (!isSupportedPhotoType(file.type)) {
-    return NextResponse.json(
-      {
-        error:
-          "That file is not a photo. Please send a JPG, PNG, WEBP, GIF or HEIC photo.",
-      },
-      { status: 415 },
-    );
-  }
   if (file.size > MAX_PHOTO_BYTES) {
     return NextResponse.json(
       { error: "That photo is too big (max 10 MB). Please try again." },
@@ -98,7 +91,25 @@ export async function POST(
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const photo = await savePhoto(id, bytes, file.type);
+  if (!isAcceptedPhotoUpload(bytes, file.type, file.name)) {
+    return NextResponse.json(
+      { error: PHOTO_FORMAT_MESSAGE },
+      { status: 415 },
+    );
+  }
+  let photo;
+  try {
+    // HEIC/HEIF is converted to JPEG and resized inside savePhoto (PC1).
+    photo = await savePhoto(id, bytes, file.type, file.name);
+  } catch (error) {
+    if (error instanceof PhotoFormatError) {
+      return NextResponse.json(
+        { error: PHOTO_FORMAT_MESSAGE },
+        { status: 415 },
+      );
+    }
+    throw error;
+  }
 
   const result = await addStoredTaskPhoto(id, photo);
   if (!result.ok) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStoredTask, saveAiCheckOutcome } from "@/lib/store";
-import { readPhoto } from "@/lib/photos";
+import { readPhotoDataUrl } from "@/lib/photos";
 import { compareWithReference, mockAiCheck, runLivePhotoCheck, verdictFor } from "@/lib/photo-check";
 import type { TaskAiCheck } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
@@ -73,8 +73,8 @@ export async function POST(
 
   const photos: { photo: (typeof task.photos)[number]; dataUrl: string }[] = [];
   for (const photo of task.photos) {
-    const stored = await readPhoto(photo.name);
-    if (!stored) {
+    const dataUrl = await readPhotoDataUrl(photo.name);
+    if (!dataUrl) {
       return NextResponse.json(
         {
           error:
@@ -84,10 +84,7 @@ export async function POST(
         { status: 409 },
       );
     }
-    photos.push({
-      photo,
-      dataUrl: `data:${stored.contentType};base64,${stored.bytes.toString("base64")}`,
-    });
+    photos.push({ photo, dataUrl });
   }
 
   const hotel = await getHotelData();
@@ -106,13 +103,19 @@ export async function POST(
         ? await compareWithReference(photos.map((p) => p.dataUrl), reference.items)
         : await runLivePhotoCheck(task.department, photos);
     } catch (error) {
+      // PC1: a failed LIVE check is NOT saved as a fake MOCK success.
+      // Nothing is saved; the cleaner sees "Try again" and can retry.
       console.error(
-        "SAM photo check failed, saving MOCK result:",
+        "SAM photo check failed:",
         error instanceof Error ? error.message : "unknown error",
       );
-      aiCheck = reference
-        ? { ...mockAiCheck(task.department), comparedToReference: true }
-        : mockAiCheck(task.department);
+      return NextResponse.json(
+        {
+          error: "The AI couldn't check this photo right now. Try again.",
+          task,
+        },
+        { status: 503 },
+      );
     }
   }
   if (!aiCheck.verdict) {

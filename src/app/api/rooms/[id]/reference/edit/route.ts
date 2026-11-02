@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData, publicRoom, setPendingReference, type ReferenceRecord } from "@/lib/hotel-data";
-import { readPhoto, savePhoto } from "@/lib/photos";
+import { readPhoto, readPhotoDataUrl, savePhoto } from "@/lib/photos";
 import { runReferenceCheck } from "@/lib/photo-check";
 import { appendHistory } from "@/lib/history";
 import { foreignOriginResponse } from "@/lib/security";
@@ -34,12 +34,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const dataUrls: string[] = [];
     for (const photo of pending.photos) {
-      const stored = await readPhoto(photo.name);
-      if (stored) dataUrls.push(`data:${stored.contentType};base64,${stored.bytes.toString("base64")}`);
+      const dataUrl = await readPhotoDataUrl(photo.name);
+      if (dataUrl) dataUrls.push(dataUrl);
     }
     const result = await runReferenceCheck(dataUrls);
-    pending = { ...pending, items: result.items, itemSource: result.itemSource, checkedAt: new Date().toISOString() };
-  } catch { pending = { ...pending, checkedAt: new Date().toISOString() }; }
+    pending = { ...pending, items: result.items, itemSource: result.itemSource, checkedAt: new Date().toISOString(), checkFailed: false };
+  } catch { pending = { ...pending, checkedAt: new Date().toISOString(), checkFailed: true }; }
   await setPendingReference(room.id, pending);
   await appendHistory({ actorName: user.name, actorRole: user.roleLabel, room: room.number, taskId: null, taskTitle: null, taskType: null, action: "Reference photo added", details: `Editing perfect photos for room ${room.number} started by ${user.name} from the current reference.` });
   const fresh = (await getHotelData()).rooms.find((r) => r.id === id);

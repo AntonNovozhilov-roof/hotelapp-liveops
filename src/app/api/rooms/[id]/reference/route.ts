@@ -24,6 +24,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!room) return NextResponse.json({ error: "Room not found." }, { status: 404 });
   if (!room.pendingReference) return NextResponse.json({ error: "Add a perfect photo first, then set it as the reference." }, { status: 409 });
   if (!room.pendingReference.checkedAt) return NextResponse.json({ error: "The AI check is still running on these photos. Please wait and try again." }, { status: 409 });
+  // PC1: a MOCK or failed check must never become the perfect reference.
+  if (room.pendingReference.itemSource === "mock" || room.pendingReference.checkFailed) {
+    return NextResponse.json({ error: "The AI couldn't check this photo right now. Try again." }, { status: 409 });
+  }
 
   const result = await approvePendingReference(id, reason);
   if (!result) return NextResponse.json({ error: "Add a perfect photo first, then set it as the reference." }, { status: 409 });

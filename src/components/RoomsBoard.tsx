@@ -18,7 +18,8 @@ const MAX_REF_PHOTOS = 6;
 export function ReferenceSection({ room, onChanged, allRooms = [] }: { room: Room; onChanged: () => Promise<void>; allRooms?: Room[] }) {
   const r = room as RefRoom;
   const active = r.reference as { photos: { name: string; url: string; label: string }[]; uploadedBy: string; uploadedAt: string; reason: string | null; copiedFromRoom?: string | null } | null;
-  const pending = r.pendingReference as { photos: { name: string; url: string; label: string }[]; checked?: boolean } | null;
+  const pending = r.pendingReference as { photos: { name: string; url: string; label: string }[]; checked?: boolean; itemSource?: string; checkFailed?: boolean } | null;
+  const pendingMock = Boolean(pending && pending.checked && (pending.itemSource === "mock" || pending.checkFailed));
   const history = (r.referenceHistory ?? []) as { id: string; photos: { name: string; url: string; label: string }[]; uploadedBy: string; uploadedAt: string; reason: string | null }[];
   const [label, setLabel] = useState("Bed area");
   const [reason, setReason] = useState("");
@@ -37,7 +38,7 @@ export function ReferenceSection({ room, onChanged, allRooms = [] }: { room: Roo
       const res = await fetch(`/api/rooms/${room.id}/reference/photos`, { method: "POST", body: form });
       const d = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(d.error || "Could not save the photo.");
-      setRefMsg(replaceName ? "Photo replaced and checked by the AI." : "Photo added and checked by the AI. If it shows the room perfectly cleaned, set it as the perfect reference.");
+      setRefMsg(replaceName ? "Photo replaced. Check the AI result below before setting the reference." : "Photo added. Check the AI result below — if it shows the room perfectly cleaned, set it as the perfect reference.");
       await onChanged();
     } catch (e) { setRefError(e instanceof Error ? e.message : "Could not save the photo."); }
     finally { setBusyRef(false); }
@@ -137,9 +138,14 @@ export function ReferenceSection({ room, onChanged, allRooms = [] }: { room: Roo
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[12.5px] text-ink-3">{pending.checked ? "AI check done. If the room looks perfect, set this as the reference." : "Checking the photos with the AI…"}</p>
+          {pendingMock ? (
+            <p className="mt-2 rounded-xl bg-occ-soft px-3 py-2 text-[12.5px] font-semibold text-occ-deep">The AI couldn&apos;t check this photo right now. Try again.</p>
+          ) : (
+            <p className="mt-2 text-[12.5px] text-ink-3">{pending.checked ? "AI check done. If the room looks perfect, set this as the reference." : "Checking the photos with the AI…"}</p>
+          )}
           <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why replace? (optional, e.g. new furniture)" aria-label="Reason for replacing the reference" className="mt-2" />
-          <Button size="sm" className="mt-2 w-full" disabled={busyRef || !pending.checked} loading={busyRef} onClick={() => void approve()}>Set as perfect reference</Button>
+          <Button size="sm" className="mt-2 w-full" disabled={busyRef || !pending.checked || pendingMock} loading={busyRef} onClick={() => void approve()}>Set as perfect reference</Button>
+          {pendingMock && <p className="mt-1.5 text-[12.5px] text-ink-3">Add or replace a photo to run the check again — a photo the AI could not check cannot become the perfect reference.</p>}
         </div>
       )}
       {(!pending || pending.photos.length < MAX_REF_PHOTOS) && !(active && !pending) && (

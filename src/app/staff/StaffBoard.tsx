@@ -88,6 +88,9 @@ function finishHint(task: StoredTask, settings: CleaningSettingsState): string |
   if (failedOnce(task)) {
     return "Check the room and take new photos.";
   }
+  if (task.aiCheck?.mode === "MOCK") {
+    return AI_CHECK_FAILED_MESSAGE;
+  }
   return task.type === "repair"
     ? "Proof photo added. Press Done when finished."
     : aiOn ? "AI check done. You can send to review." : "Photo added. You can send to review.";
@@ -104,12 +107,17 @@ function finishBlocked(task: StoredTask, settings: CleaningSettingsState): boole
   return false;
 }
 
+export const AI_CHECK_FAILED_MESSAGE =
+  "The AI couldn't check this photo right now. Try again.";
+
 /** Simple AI words for the cleaner (P1) — never item names or counts. */
 function cleanerVerdict(task: StoredTask): { text: string; good: boolean } | null {
   const check = task.aiCheck;
   if (!check) return null;
   if (task.status === "done")
     return { text: "Done ✓ — approved by a supervisor or finished automatically.", good: true };
+  // PC1: a MOCK result never looks like success.
+  if (check.mode === "MOCK") return { text: AI_CHECK_FAILED_MESSAGE, good: false };
   if (check.verdict === "ready") return { text: "✓ Looks ready", good: true };
   if (check.verdict === "different") {
     return {
@@ -128,6 +136,7 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
+  const [aiFailedIds, setAiFailedIds] = useState<Record<string, boolean>>({});
   const [, setNowTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [cleaningSettings, setCleaningSettings] = useState<CleaningSettingsState>({ aiPhotoCheckEnabled: true, cleanerPhotoRequired: true });
@@ -253,21 +262,19 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
     if (aiBusyId) return;
     setAiBusyId(task.id);
     setError(null);
+    setAiFailedIds((current) => ({ ...current, [task.id]: false }));
     try {
       const response = await fetch(`/api/tasks/${task.id}/ai-check`, {
         method: "POST",
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
-        throw new Error(data.error || "Could not run the AI photo check.");
+        throw new Error(data.error || AI_CHECK_FAILED_MESSAGE);
       }
       await loadTasks();
-    } catch (checkError) {
-      setError(
-        checkError instanceof Error
-          ? checkError.message
-          : "Could not run the AI photo check.",
-      );
+    } catch {
+      // PC1: a failed check shows the Try-again message on the task itself.
+      setAiFailedIds((current) => ({ ...current, [task.id]: true }));
     } finally {
       setAiBusyId(null);
     }
@@ -511,6 +518,11 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                               <Sparkles className="size-4 text-brand-600" />
                               AI photo check
                             </p>
+                            {aiFailedIds[task.id] && (
+                              <p className="mt-2 rounded-xl bg-occ-soft px-3 py-2.5 text-[13.5px] font-semibold text-occ-deep">
+                                {AI_CHECK_FAILED_MESSAGE}
+                              </p>
+                            )}
                             {task.aiCheck ? (
                               <div className="mt-2">
                                 {(() => {
@@ -550,9 +562,11 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                                 >
                                   {aiBusyId === task.id
                                     ? "Checking photo..."
-                                    : task.aiCheck
-                                      ? "Run AI photo check again"
-                                      : "Run AI photo check"}
+                                    : aiFailedIds[task.id] || task.aiCheck?.mode === "MOCK"
+                                      ? "Try again"
+                                      : task.aiCheck
+                                        ? "Run AI photo check again"
+                                        : "Run AI photo check"}
                                 </Button>
                               )}
                             {task.type === "cleaning" &&

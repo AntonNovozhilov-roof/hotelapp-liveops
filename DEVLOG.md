@@ -1,3 +1,32 @@
+## Meta1 — 2026-11-02 — U3: UX polish and demo data quality (ANT-76) + towels bug (ANT-77)
+
+What was built (one commit per numbered part, not pushed):
+1. **Real-looking seed** (`579ef0f`, fix `37fbcde`): hotel is "Seaside Hotel"; no "(sample)"/"(demo)" in titles or hotel name; Sample badges removed from staff/reports (flag stays internal); seeded cleanings have no AI result or a real stored one — the fake MOCK results are gone; no duplicate tasks (checked by title+room); finished repairs carry a proof photo.
+2. **Demo photos + precomputed AI** (`3664685`): CC0/CC BY-SA room photos in `public/demo` (sources in README). Perfect bed+bathroom seeded for rooms 204/205 with a LIVE reference result checked ONCE (12 items, vision) and saved in `src/lib/demo-ai-data.json`; SAM/Spark caches for the 3 variants saved in `src/lib/demo-photo-cache.json` and consulted before any network call, so restore costs zero AI calls. Room 205 cleaning is "In progress" for Aigerim. In DEMO_MODE only, "Add photo" also offers "Use a sample photo" (matching / towels missing / bed not made).
+3. **Rooms** (`7568139`): Add rooms (floor+range) and Add one room moved to the top of Rooms & prices; detail panel gains Change number + Remove room (confirm; server refuses with a friendly message when the room has active bookings or open tasks). One "Tap a room to edit it" hint at the top. QR tab is QR-only: Download PNG, Copy link, and a ⋯ menu (Full screen, Regenerate).
+4. **No developer text** (`e22e576`): removed "server setting", env names, "shared database", ticket numbers and "No made-up results" from user-facing text (restore page, login, team, reports example-week wording, load-hotel message). Verified by source search (only code comments/env reads remain, never rendered).
+5. **Owner home** (`91d48bc`): teal welcome band (greeting, date, Seaside Hotel, "N things need your attention"), 4 tinted stat tiles with round icon chips and CSS 7-day trend bars (teal/blue/amber/violet), Needs-attention rows (icon, room, title, status pill, time, Open button; urgent red / review amber / done green / info teal / guest waiting blue, shared `STATUS_KIND` in TodayGlance), teal report card with gold accent and a 2-line preview of the existing report only (never generates one), then the new cleaning task form. Link cards and the Demo data card are gone. Supervisor home uses the same tiles.
+6. **Staff boards** (`8e953b6`): one-line intros; on phone one status column at a time via New · In progress · Review · Done tabs with counts.
+7. **Guest page** (`d60f74d`): demo bar only in DEMO_MODE ("Demo · ← Back to Readybell · Sign in as staff"), note is now "Your messages go to the hotel team.", 4 quick chips (Towels, Wi-Fi, Breakfast, Late check-out) fill the input without sending.
+8. **Accessibility** (`04312bd`): demo buttons are "Sign in as Owner" etc. (aria-labels verified in the browser); the one icon-only button without a name ( compact profile menu) got one; a scan found no other unlabelled icon-only buttons.
+9. **Restore** (`2af7491`, fix `f2860a4`): success reads "All old data deleted. Fresh demo hotel loaded: X rooms, Y bookings, Z tasks."; new "Empty hotel" option (wipes everything, loads nothing, demo accounts stay). Server log: locally every restore logs `[restore] … deleted N tasks … seeded …` (see below); the live Vercel log for the owner's restore today is not readable from this session, so whether it removed the live smoke-test tasks could NOT be verified here — the counts in the log line are the place to check.
+10. **Bug ANT-77** (`c39e702`): the urgent task came from the test marker `[SMOKE-2026-11-02]` matching the bare word "smoke" in the emergency check. `isEmergency` now ignores bracketed markers and needs real context for smoke/fire/hurt; a true emergency creates exactly one urgent task (never added on top of routine ones). Regression test added.
+
+How it was checked (local file mode, `.data` backed up first and restored after; production build on port 3106):
+- Restore: `{"seeded":{"rooms":20,"bookings":8,"tasks":28,"historyEvents":86}}`, zero AI calls (results come from the bundled JSON); seed audit: Seaside Hotel, no (sample)/(demo) titles, no duplicates, no MOCK AI, all done repairs have a photo, 204+205 references set (Bed area + Bathroom, 12 vision items), room 205 cleaning in progress. Empty hotel: seeded 0/0/0, then demo restored again.
+- As Aigerim: room 205 sample "towels missing" photo → AI check in **0.07 s** (cache) → verdict "different" ("Not ready yet") with hint "Check: towels missing", mode LIVE.
+- Rooms as Owner: add 301 ✓, rename 301→302 ✓, remove ✓; rename/remove of room 204 refused 409 with the friendly open-tasks message.
+- Exactly 3 live guest messages: "please bring towels" → 1 housekeeping task, no urgent front-desk task; "leak + towels" → 2 tasks (maintenance + housekeeping); "I smell gas" → 1 urgent front-desk task. All LIVE.
+- Browser: owner home screenshot checked (welcome band, tiles with trends, Needs attention pills); guest page shows the demo bar, chips and new note; login aria-labels read from the DOM; console 0 errors; iframe-measured 375px and 1440px on 12 pages — scrollWidth equals width everywhere, no sideways scroll.
+- `npm test` 10/10 (includes build and the new ANT-77 routing test), `npm run typecheck` pass.
+
+AI calls used in this session: the one-time precompute (1 reference check + 3 variant checks = 61 SAM requests + 4 Spark/vision requests, all now cached in the repo) plus exactly 3 live guest messages. Nothing else.
+
+NOT checked: the live Vercel server log (see part 9); a real phone (browser at 375/1440 only); the "matching" sample gives "AI not sure" (its bed photo lacks the bathroom items), so it is labelled neutrally "Sample: matching". Not pushed.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-76 (U3) + ANT-77, sub-issues of ANT-5
+
 ## Meta1 — 2026-11-02 — Live smoke test (cheap) + owner decisions logged (ANT-27)
 
 What was done: smoke test of https://readybell.vercel.app with a strict AI budget, owner deployment decisions logged (this entry, docs/DEPLOY.md, ANT-27 comment; names only, never values), and tomorrow's plan created in Linear (see the ANT-5 timeline comment).

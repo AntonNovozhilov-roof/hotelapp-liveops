@@ -50,7 +50,7 @@ export default function SessionBar({ user }: { user: PublicUser }) {
   return (
     <div>
     <div className="flex flex-wrap items-center gap-3">
-      <Logo />
+      <Logo responsiveMark />
       <div className="ml-auto flex items-center gap-3">
         <Avatar name={user.name} role={user.role} size={34} />
         <div className="min-w-0">

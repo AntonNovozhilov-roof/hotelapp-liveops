@@ -1,6 +1,6 @@
-# hotelapp-liveops
+# Readybell
 
-AI operations layer for hotels: guest voice messages and staff photos become routed, verified tasks. And More. Meta AI Hackathon 2026.
+AI operations layer for hotels: guest voice messages and staff photos become routed, verified tasks. Meta AI Hackathon 2026. (Repo: hotelapp-liveops.)
 
 > Look and feel: the design (colors, fonts, buttons, cards, badges) is
 > ported from our earlier v1.2 prototype. Shared pieces live in

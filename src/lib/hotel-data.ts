@@ -98,11 +98,11 @@ export interface HotelData {
 }
 
 export const DEFAULT_HOTEL_INFO: HotelInfo = {
-  hotelName: "HotelApp Demo Hotel",
+  hotelName: "Readybell Demo Hotel",
   address: "1 Demo Street, Demo City",
   receptionPhone: "+1 555 0100",
   emergencyNumber: "112",
-  wifiName: "HotelApp-Guest",
+  wifiName: "Readybell-Guest",
   wifiPassword: "welcome123",
   checkIn: "14:00",
   checkOut: "12:00",

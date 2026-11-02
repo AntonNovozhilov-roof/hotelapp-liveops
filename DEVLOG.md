@@ -1,3 +1,19 @@
+## Meta1 — 2026-11-02 — B1: Brand — app is now called Readybell (ANT-58)
+
+What I built: Copied the Readybell logos from the owner's logo folder into `public/brand/` (full logo, on-dark, stacked, bell mark, favicon-32, apple-touch-icon-180, app icon). The app is now **Readybell** everywhere: browser tab title + favicon/apple-touch-icon (`src/app/layout.tsx`), login page stacked logo, top bar full logo on desktop and bell mark only on phone (`Logo responsiveMark`), MOCK banner with bell mark, QR print sheet and QR PNG downloads (canvas card with small Readybell logo + hotel name + room + QR), report PDF header logo, README title. Guest page keeps the hotel name as the main title and gains a small “Powered by Readybell” footer. App colors unchanged (logo teal already matches).
+
+Files changed: `public/brand/*` (new), `src/components/ui.tsx` (Logo/BrandMark/PoweredByReadybell), `src/components/SessionBar.tsx`, `src/app/layout.tsx`, `src/app/login/page.tsx`, `src/app/r/[room]/page.tsx`, `src/components/RoomsBoard.tsx` (branded QR PNG/PDF), `src/app/owner/rooms/print/page.tsx`, `src/app/reports/ReportsBoard.tsx` (PDF header), `src/lib/hotel-data.ts` (demo defaults renamed), `README.md`, `docs/PROJECT_MAP.md`, `DEVLOG.md`.
+
+How I checked it works:
+- `npm run typecheck` passes, `npm run build` passes.
+- Full visual backtest runs at the end of the B1→E1→R2 session (see the final entry).
+
+NOT working / NOT checked yet:
+- Visual check at 375px/1440px and QR PNG/PDF download check run in the final session backtest.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-58, sub-issue of ANT-5
+
 # Dev Log
 
 ## Meta1 — 2026-11-02 — SEC1: Security fixes before going online (ANT-57)

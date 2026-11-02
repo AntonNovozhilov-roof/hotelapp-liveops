@@ -26,7 +26,9 @@ export default async function PrintRoomsPage() {
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 print:grid-cols-3">
           {cards.map(({ room, qr }) => (
             <div key={room.id} className="border border-line rounded-xl p-4 text-center break-inside-avoid bg-white">
-              <p className="text-[13px] font-semibold">{data.hotelInfo.hotelName}</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/readybell-logo.png" alt="Readybell" className="mx-auto h-6 w-auto" />
+              <p className="mt-1 text-[13px] font-semibold">{data.hotelInfo.hotelName}</p>
               <p className="font-display text-[22px] font-semibold mt-1">Room {room.number}</p>
               <img src={qr} alt={`QR code for room ${room.number}`} className="mx-auto mt-2 w-full max-w-[180px] aspect-square" />
               <p className="text-[13px] mt-1">Scan to message the hotel</p>

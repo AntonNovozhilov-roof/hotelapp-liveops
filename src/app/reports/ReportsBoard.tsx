@@ -68,10 +68,11 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
     if (!selected) return;
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
-    doc.setFontSize(16); doc.text(`${selected.kind === "daily" ? "Daily" : "Weekly"} report`, 14, 18);
+    try { const logoRes = await fetch("/brand/readybell-logo.png"); const blob = await logoRes.blob(); const dataUrl = await new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = reject; r.readAsDataURL(blob); }); doc.addImage(dataUrl, "PNG", 14, 10, 42, 8.4); } catch { doc.setFontSize(11); doc.text("Readybell", 14, 16); }
+    doc.setFontSize(16); doc.text(`${selected.kind === "daily" ? "Daily" : "Weekly"} report`, 14, 26);
     doc.setFontSize(11);
     const lines = doc.splitTextToSize(reportText(selected), 180) as string[];
-    doc.text(lines.slice(1), 14, 28);
+    doc.text(lines.slice(1), 14, 36);
     doc.save(`${selected.kind}-report-${selected.createdAt.slice(0, 10)}.pdf`);
     setMsg("PDF downloaded.");
   }

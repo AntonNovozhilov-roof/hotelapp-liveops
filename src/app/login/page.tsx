@@ -76,15 +76,16 @@ export default function LoginPage() {
     <div className="min-h-screen grid lg:grid-cols-[1fr_minmax(420px,0.9fr)] bg-white">
       <div className="flex flex-col px-6 sm:px-12 py-8">
         <div className="self-start">
-          <Logo />
+          <Logo markOnly />
         </div>
         <div className="flex-1 flex items-center justify-center py-10">
           <div className="w-full max-w-[400px]">
-            <h1 className="font-display text-[30px] font-semibold tracking-[-0.02em]">
+            <div className="flex justify-center"><Logo stacked /></div>
+            <h1 className="mt-2 text-center font-display text-[30px] font-semibold tracking-[-0.02em]">
               Sign in
             </h1>
             <p className="text-ink-3 mt-1.5 text-[15px]">
-              Welcome back. This is a demo sign-in — real accounts come later.
+              Welcome back to Readybell. Sign in with your hotel account.
             </p>
 
             <form
@@ -95,12 +96,12 @@ export default function LoginPage() {
                 void signIn(username, password);
               }}
             >
-              <Field label="Demo username">
+              <Field label="Login">
                 <Input
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   autoComplete="username"
-                  placeholder="for example: aigerim"
+                  placeholder="for example: anna.k"
                   aria-invalid={!!error}
                 />
               </Field>
@@ -177,7 +178,7 @@ export default function LoginPage() {
           </div>
         </div>
         <p className="text-[12.5px] text-ink-4">
-          © {new Date().getFullYear()} HotelApp
+          © {new Date().getFullYear()} Readybell
         </p>
       </div>
 

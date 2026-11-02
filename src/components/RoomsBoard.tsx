@@ -174,16 +174,36 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
     finally { setBusy(false); }
   }
 
+  async function brandedQrImage(room: Room): Promise<string> {
+    const qrUrl = await QRCode.toDataURL(linkFor(room), { width: 640, margin: 1 });
+    try {
+      const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
+      const [qrImg, logoImg] = await Promise.all([load(qrUrl), load("/brand/readybell-logo.png")]);
+      const canvas = document.createElement("canvas"); canvas.width = 800; canvas.height = 980;
+      const ctx = canvas.getContext("2d"); if (!ctx) return qrUrl;
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 800, 980);
+      ctx.drawImage(logoImg, 240, 28, 320, 64);
+      ctx.fillStyle = "#5b6676"; ctx.font = "600 30px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(hotelName, 400, 140);
+      ctx.fillStyle = "#0f1b2a"; ctx.font = "700 52px sans-serif";
+      ctx.fillText(`Room ${room.number}`, 400, 205);
+      ctx.drawImage(qrImg, 110, 230, 580, 580);
+      ctx.fillStyle = "#334155"; ctx.font = "600 32px sans-serif";
+      ctx.fillText("Scan to message the hotel", 400, 865);
+      ctx.fillStyle = "#8d97a5"; ctx.font = "24px sans-serif";
+      ctx.fillText("Powered by Readybell", 400, 915);
+      return canvas.toDataURL("image/png");
+    } catch { return qrUrl; }
+  }
+
   async function downloadAll() {
     const chosen = dlScope === "all" ? rooms : rooms.filter((r) => r.floor === Number(dlScope));
     if (chosen.length === 0) { setError("No rooms to download. Pick another floor."); return; }
     setDownloading(true); setError(null); setMsg(null);
     try {
       // Make sure every chosen room has a QR image first.
-      const images: Record<string, string> = { ...qr };
-      for (const room of chosen) {
-        if (!images[room.id]) images[room.id] = await QRCode.toDataURL(linkFor(room), { width: 640, margin: 1 });
-      }
+      const images: Record<string, string> = {};
+      for (const room of chosen) images[room.id] = await brandedQrImage(room);
       if (dlFormat === "zip") {
         const { default: JSZip } = await import("jszip");
         const zip = new JSZip();
@@ -203,7 +223,8 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
           const x = startX + (slot % cols) * (cardW + gapX);
           const y = startY + Math.floor(slot / cols) * (cardH + gapY);
           doc.setDrawColor(210); doc.roundedRect(x, y, cardW, cardH, 3, 3, "S");
-          doc.setFontSize(9); doc.setTextColor(110); doc.text(hotelName, x + cardW / 2, y + 8, { align: "center" });
+          doc.setFontSize(7); doc.setTextColor(140); doc.text("Readybell", x + cardW / 2, y + 5, { align: "center" });
+          doc.setFontSize(9); doc.setTextColor(110); doc.text(hotelName, x + cardW / 2, y + 10, { align: "center" });
           doc.setFontSize(16); doc.setTextColor(20); doc.text(`Room ${room.number}`, x + cardW / 2, y + 15, { align: "center" });
           doc.addImage(images[room.id], "PNG", x + cardW / 2 - 24, y + 19, 48, 48);
           doc.setFontSize(10); doc.text("Scan to message the hotel", x + cardW / 2, y + 74, { align: "center" });
@@ -273,7 +294,7 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
               {qr[room.id] ? <img src={qr[room.id]} alt={`QR code for room ${room.number}`} className="mt-3 w-full max-w-[220px] mx-auto aspect-square" /> : <p className="mt-3 text-center text-[13px] text-ink-3 py-10">Making QR…</p>}
               <p className="text-center text-[12.5px] text-ink-3">Scan to message the hotel</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <Button size="sm" variant="secondary" onClick={() => { const a = document.createElement("a"); a.href = qr[room.id]; a.download = `room-${room.number}-qr.png`; a.click(); }}>Download PNG</Button>
+                <Button size="sm" variant="secondary" onClick={() => void (async () => { const img = await brandedQrImage(room); const a = document.createElement("a"); a.href = img; a.download = `room-${room.number}-qr.png`; a.click(); setMsg(`QR image for room ${room.number} downloaded (Readybell + ${hotelName}).`); })()}>Download PNG</Button>
                 <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(linkFor(room)).then(() => setMsg(`Link for room ${room.number} copied.`))}>Copy link</Button>
                 <Button size="sm" variant="secondary" onClick={() => setFullRoom(room)}>Show full screen</Button>
               </div>
@@ -323,6 +344,8 @@ export default function RoomsBoard({ initialRooms, initialSettings, hotelName, c
 
       {fullRoom && (
         <div className="fixed inset-0 z-50 bg-brand-950 text-white flex flex-col items-center justify-center p-6" role="dialog" aria-modal="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/readybell-logo-on-dark.png" alt="Readybell" className="mb-3 h-8 w-auto" />
           <p className="text-[14px] text-brand-100/80">{hotelName}</p>
           <h2 className="font-display text-[36px] font-semibold mt-1">Room {fullRoom.number}</h2>
           {qr[fullRoom.id] && <img src={qr[fullRoom.id]} alt={`QR code for room ${fullRoom.number}`} className="mt-5 w-[min(70vw,420px)] aspect-square bg-white p-3 rounded-2xl" />}

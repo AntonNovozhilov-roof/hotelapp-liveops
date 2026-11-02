@@ -283,30 +283,43 @@ export function PageHeader({ title, sub, actions }: { title: React.ReactNode; su
   );
 }
 
-// ---------- Brand (same mark as the v1.2 prototype) ----------
-export function Logo({ light, small }: { light?: boolean; small?: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-2.5">
-      <svg width={small ? 26 : 30} height={small ? 26 : 30} viewBox="0 0 32 32" aria-hidden>
-        <rect width="32" height="32" rx="8" fill={light ? "#fff" : "#0B434C"} />
-        <path
-          d="M9 24V11l7-4 7 4v13"
-          fill="none"
-          stroke={light ? "#0B434C" : "#fff"}
-          strokeWidth="2.2"
-          strokeLinejoin="round"
-        />
-        <rect x="13.5" y="16" width="5" height="8" rx="1.5" fill="#E5A00D" />
-      </svg>
-      <span
-        className={cx(
-          "font-display font-semibold tracking-[-0.01em]",
-          small ? "text-[16px]" : "text-[18px]",
-          light ? "text-white" : "text-ink",
-        )}
-      >
-        HotelApp
+// ---------- Brand: Readybell (B1 / ANT-58) ----------
+/** Small bell mark (public/brand). Used in the MOCK banner, QR cards, footers. */
+export function BrandMark({ size = 20, className }: { size?: number; className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/brand/readybell-mark.svg" alt="" width={size} height={size} className={className} aria-hidden />;
+}
+
+export function Logo({ light, small, stacked, markOnly, responsiveMark }: { light?: boolean; small?: boolean; stacked?: boolean; markOnly?: boolean; responsiveMark?: boolean }) {
+  if (stacked) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src="/brand/readybell-logo-stacked.svg" alt="Readybell" width={180} height={128} className="h-28 w-auto max-w-full" />;
+  }
+  if (markOnly) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src="/brand/readybell-mark.svg" alt="Readybell" width={32} height={32} className="size-8" />;
+  }
+  const src = light ? "/brand/readybell-logo-on-dark.svg" : "/brand/readybell-logo.svg";
+  const full = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="Readybell" width={160} height={32} className={small ? "h-6 w-auto" : "h-7 w-auto"} />
+  );
+  if (responsiveMark) {
+    return (
+      <span className="inline-flex items-center">
+        <span className="sm:hidden"><BrandMark size={30} /></span>
+        <span className="hidden sm:inline-flex">{full}</span>
       </span>
-    </span>
+    );
+  }
+  return <span className="inline-flex items-center">{full}</span>;
+}
+
+/** Tiny footer line for the guest page (B1). */
+export function PoweredByReadybell() {
+  return (
+    <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[12px] text-ink-4">
+      <BrandMark size={14} /> Powered by <span className="font-semibold text-ink-3">Readybell</span>
+    </p>
   );
 }

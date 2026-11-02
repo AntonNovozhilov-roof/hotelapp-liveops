@@ -1,5 +1,5 @@
 import GuestForm from "./GuestForm";
-import { Logo } from "@/components/ui";
+import { Logo, PoweredByReadybell } from "@/components/ui";
 import { getRoomByNumber, guestLinkAllowed } from "@/lib/hotel-data";
 import { loadDemoHotel } from "@/lib/demo-hotel";
 import { isDemoMode } from "@/lib/security";
@@ -58,6 +58,7 @@ export default async function RoomPage({
 
         <main className="flex-1 px-4 pb-10 -mt-10 relative">
           <GuestForm room={room} />
+          <PoweredByReadybell />
         </main>
       </div>
     </div>

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { countSampleTasks, deleteSampleTasks, insertSampleTasks } from "@/lib/store";
-import { buildSampleWeek } from "@/lib/sample-week";
+import { buildSampleBookings, buildSampleWeek } from "@/lib/sample-week";
+import { deleteSampleBookings, insertSampleBookings } from "@/lib/bookings";
+import { getHotelData } from "@/lib/hotel-data";
 import { deleteHistoryForTasks } from "@/lib/history";
 import { foreignOriginResponse } from "@/lib/security";
 
@@ -17,13 +19,17 @@ export async function POST(request: Request) {
   if (body.action === "remove") {
     const removed = await deleteSampleTasks();
     await deleteHistoryForTasks(removed.map((t) => t.id));
-    return NextResponse.json({ ok: true, removed: removed.length });
+    const removedBookings = await deleteSampleBookings();
+    return NextResponse.json({ ok: true, removed: removed.length, removedBookings });
   }
   if (body.action === "load") {
     if ((await countSampleTasks()) > 0) return NextResponse.json({ error: "Sample data is already loaded. Remove it first if you want a fresh week." }, { status: 409 });
     const tasks = await buildSampleWeek();
     await insertSampleTasks(tasks);
-    return NextResponse.json({ ok: true, created: tasks.length });
+    const hotel = await getHotelData();
+    const sampleBookings = buildSampleBookings(hotel.rooms.map((r) => ({ id: r.id, number: r.number, pricePerNight: r.pricePerNight })));
+    if (sampleBookings.length) await insertSampleBookings(sampleBookings);
+    return NextResponse.json({ ok: true, created: tasks.length, createdBookings: sampleBookings.length });
   }
   return NextResponse.json({ error: "Use action load or remove." }, { status: 400 });
 }

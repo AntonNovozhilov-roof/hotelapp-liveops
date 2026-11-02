@@ -46,10 +46,18 @@ export interface ReferenceRecord {
   reason: string | null;
 }
 
+export const STANDARD_ROOM_TYPES = ["Standard", "Double", "Suite"] as const;
+
 export interface Room {
   id: string;
   number: string;
   floor: number;
+  /** R2: Standard / Double / Suite or a custom name. */
+  roomType: string;
+  /** R2: price per night in the hotel currency. */
+  pricePerNight: number;
+  /** R2: free notes (view, renovation, ...). */
+  notes: string;
   /** Random, unguessable QR token. Guest link: /r/<number>?t=<token> */
   token: string;
   /** Booking IDs attach here later (manual bookings are LATER). */
@@ -89,6 +97,8 @@ export interface HotelSettings {
   allowLinksWithoutToken: boolean;
   /** P1: auto-approve cleaning when the AI is sure. Off by default. */
   autoApproveCleaning: boolean;
+  /** R2: currency code used for all prices (setting in Hotel info). */
+  currency: string;
 }
 
 export interface HotelData {
@@ -129,7 +139,7 @@ function defaults(): HotelData {
   return {
     rooms: [],
     hotelInfo: { ...DEFAULT_HOTEL_INFO, faqs: [] },
-    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false },
+    settings: { allowLinksWithoutToken: true, autoApproveCleaning: false, currency: "USD" },
   };
 }
 
@@ -147,6 +157,9 @@ function normalize(raw: unknown): HotelData {
           number: room.number,
           floor: typeof room.floor === "number" ? room.floor : 1,
           token: room.token,
+          roomType: typeof room.roomType === "string" && room.roomType.trim() ? room.roomType.trim().slice(0, 40) : "Standard",
+          pricePerNight: typeof room.pricePerNight === "number" && Number.isFinite(room.pricePerNight) && room.pricePerNight >= 0 ? room.pricePerNight : 0,
+          notes: typeof room.notes === "string" ? room.notes.slice(0, 500) : "",
           bookingIds: Array.isArray(room.bookingIds) ? room.bookingIds.filter((b): b is string => typeof b === "string") : [],
           reference: normalizeReference(room.reference),
           pendingReference: normalizeReference(room.pendingReference),
@@ -182,7 +195,7 @@ function normalize(raw: unknown): HotelData {
       houseRules: str("houseRules", d.hotelInfo.houseRules),
       faqs,
     },
-    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true },
+    settings: { allowLinksWithoutToken: settingsRaw.allowLinksWithoutToken !== false, autoApproveCleaning: settingsRaw.autoApproveCleaning === true, currency: typeof settingsRaw.currency === "string" && /^[A-Za-z]{3}$/.test(settingsRaw.currency) ? settingsRaw.currency.toUpperCase() : "USD" },
   };
 }
 
@@ -237,7 +250,7 @@ export async function addRoomsBulk(floor: number, from: number, to: number): Pro
     for (let n = from; n <= to; n++) {
       const number = String(n);
       if (existing.has(number)) { skipped.push(number); continue; }
-      const room: Room = { id: randomUUID(), number, floor, token: newToken(), bookingIds: [], reference: null, pendingReference: null, referenceHistory: [], createdAt: now, updatedAt: now };
+      const room: Room = { id: randomUUID(), number, floor, token: newToken(), roomType: "Standard", pricePerNight: 0, notes: "", bookingIds: [], reference: null, pendingReference: null, referenceHistory: [], createdAt: now, updatedAt: now };
       data.rooms.push(room); added.push(room); existing.add(number);
     }
     data.rooms.sort((a, b) => a.floor - b.floor || a.number.localeCompare(b.number, undefined, { numeric: true }));
@@ -251,7 +264,7 @@ export async function addSingleRoom(number: string, floor: number): Promise<{ ok
     const data = await readAll();
     if (data.rooms.some((r) => r.number === number)) return { ok: false as const, error: `Room ${number} already exists.` };
     const now = new Date().toISOString();
-    const room: Room = { id: randomUUID(), number, floor, token: newToken(), bookingIds: [], reference: null, pendingReference: null, referenceHistory: [], createdAt: now, updatedAt: now };
+    const room: Room = { id: randomUUID(), number, floor, token: newToken(), roomType: "Standard", pricePerNight: 0, notes: "", bookingIds: [], reference: null, pendingReference: null, referenceHistory: [], createdAt: now, updatedAt: now };
     data.rooms.push(room);
     data.rooms.sort((a, b) => a.floor - b.floor || a.number.localeCompare(b.number, undefined, { numeric: true }));
     await writeAll(data);
@@ -259,7 +272,7 @@ export async function addSingleRoom(number: string, floor: number): Promise<{ ok
   });
 }
 
-export async function updateRoom(id: string, patch: { number?: string; floor?: number }): Promise<{ ok: true; room: Room } | { ok: false; error: string }> {
+export async function updateRoom(id: string, patch: { number?: string; floor?: number; roomType?: string; pricePerNight?: number; notes?: string }): Promise<{ ok: true; room: Room } | { ok: false; error: string }> {
   return withLock(async () => {
     const data = await readAll();
     const room = data.rooms.find((r) => r.id === id);
@@ -269,10 +282,31 @@ export async function updateRoom(id: string, patch: { number?: string; floor?: n
     }
     if (patch.number) room.number = patch.number;
     if (typeof patch.floor === "number") room.floor = patch.floor;
+    if (typeof patch.roomType === "string" && patch.roomType.trim()) room.roomType = patch.roomType.trim().slice(0, 40);
+    if (typeof patch.pricePerNight === "number" && Number.isFinite(patch.pricePerNight) && patch.pricePerNight >= 0) room.pricePerNight = patch.pricePerNight;
+    if (typeof patch.notes === "string") room.notes = patch.notes.slice(0, 500);
     room.updatedAt = new Date().toISOString();
     data.rooms.sort((a, b) => a.floor - b.floor || a.number.localeCompare(b.number, undefined, { numeric: true }));
     await writeAll(data);
     return { ok: true as const, room };
+  });
+}
+
+/** R2: set type and/or price for several rooms in one go. Returns how many changed. */
+export async function bulkUpdateRooms(ids: string[], patch: { roomType?: string; pricePerNight?: number }): Promise<number> {
+  return withLock(async () => {
+    const data = await readAll();
+    const set = new Set(ids);
+    let changed = 0;
+    for (const room of data.rooms) {
+      if (!set.has(room.id)) continue;
+      if (typeof patch.roomType === "string" && patch.roomType.trim()) room.roomType = patch.roomType.trim().slice(0, 40);
+      if (typeof patch.pricePerNight === "number" && Number.isFinite(patch.pricePerNight) && patch.pricePerNight >= 0) room.pricePerNight = patch.pricePerNight;
+      room.updatedAt = new Date().toISOString();
+      changed += 1;
+    }
+    if (changed) await writeAll(data);
+    return changed;
   });
 }
 
@@ -305,6 +339,7 @@ export async function saveSettings(settings: Partial<HotelSettings>): Promise<Ho
     data.settings = {
       allowLinksWithoutToken: settings.allowLinksWithoutToken !== undefined ? Boolean(settings.allowLinksWithoutToken) : data.settings.allowLinksWithoutToken,
       autoApproveCleaning: settings.autoApproveCleaning !== undefined ? Boolean(settings.autoApproveCleaning) : data.settings.autoApproveCleaning,
+      currency: typeof settings.currency === "string" && /^[A-Za-z]{3}$/.test(settings.currency) ? settings.currency.toUpperCase() : data.settings.currency,
     };
     await writeAll(data);
     return data.settings;

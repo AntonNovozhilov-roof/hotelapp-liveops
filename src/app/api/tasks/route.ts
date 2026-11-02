@@ -10,6 +10,7 @@ import { appendHistory, clearHistory } from "@/lib/history";
 import { clearHotelData } from "@/lib/hotel-data";
 import { clearReports } from "@/lib/reports-store";
 import { isDemoResetAllowed } from "@/lib/security";
+import { clearBookings } from "@/lib/bookings";
 import { foreignOriginResponse } from "@/lib/security";
 
 /**
@@ -126,6 +127,7 @@ export async function DELETE(request: Request) {
   }
   // Full demo reset (H1): tasks + photos, rooms + hotel info, history, reports.
   const cleared = await clearStoredTasks();
+  await clearBookings();
   await clearHotelData();
   await clearHistory();
   await clearReports();

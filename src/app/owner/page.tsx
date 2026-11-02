@@ -10,6 +10,7 @@ import LoadDemoHotel from "@/components/LoadDemoHotel";
 import { getCurrentUser } from "@/lib/auth";
 import { getHotelData } from "@/lib/hotel-data";
 import { listStoredTasks } from "@/lib/store";
+import { ensureAutoCheckoutTasks, listBookings, todayStr, addDaysStr } from "@/lib/bookings";
 import { loadDemoHotel } from "@/lib/demo-hotel";
 import { isDemoMode, isDemoResetAllowed } from "@/lib/security";
 
@@ -29,7 +30,9 @@ export default async function OwnerPage() {
     hotel = await getHotelData();
   }
   const resetAllowed = isDemoResetAllowed();
+  await ensureAutoCheckoutTasks();
   const tasks = await listStoredTasks();
+  const bookings = await listBookings();
   const open = tasks.filter((task) => task.status !== "done").length;
   const inReview = tasks.filter((task) => task.status === "review").length;
   const done = tasks.filter((task) => task.status === "done").length;
@@ -50,12 +53,12 @@ export default async function OwnerPage() {
           <div className="mt-3"><LoadDemoHotel /></div>
         </Card>
       )}
-      <TodayGlance tasks={tasks} />
+      <TodayGlance tasks={tasks} bookings={bookings} currency={hotel.settings.currency} roomsTotal={hotel.rooms.length} />
       <p className="mt-3 text-[13px] text-ink-3">{open} open tasks in total · {inReview} in review · {done} done altogether. The glance above is today only.</p>
 
       <nav className="mt-4 grid grid-cols-1 min-[420px]:grid-cols-2 gap-3" aria-label="Owner pages">
         <Link href="/supervisor"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Review</p><p className="mt-1 text-[12.5px] text-ink-3">Approve cleaning work</p></Card></Link>
-        <Link href="/owner/rooms"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Rooms &amp; QR</p><p className="mt-1 text-[12.5px] text-ink-3">Room QR codes to print</p></Card></Link>
+        <Link href="/owner/rooms"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Rooms</p><p className="mt-1 text-[12.5px] text-ink-3">Prices, bookings and QR codes</p></Card></Link>
         <Link href="/owner/hotel-info"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Hotel info</p><p className="mt-1 text-[12.5px] text-ink-3">Info the AI can tell guests</p></Card></Link>
         <Link href="/history"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">History</p><p className="mt-1 text-[12.5px] text-ink-3">Who did what, and when</p></Card></Link>
         <Link href="/reports"><Card className="p-4 h-full"><p className="text-[15px] font-semibold">Reports</p><p className="mt-1 text-[12.5px] text-ink-3">Daily and weekly AI reports</p></Card></Link>

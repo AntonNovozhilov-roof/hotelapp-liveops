@@ -264,6 +264,11 @@ created when you press Send.
 - This is a local test build, not the online version: do not put real
   guest names, phones, passports or payments into it.
 
+## Team, rooms and bookings (E1 + R2)
+
+- **Team (`/team`)**: Owner or Supervisor adds employees (name, role, login like `anna.k`). The app makes a strong password and shows it **once** with a printable login card — it cannot be shown again. Reset password, edit, deactivate (signs them out, history kept) and reactivate there. Passwords are scrypt hashes. Everyone changes their own password from the menu under their name (top right). Demo accounts work only with `DEMO_MODE=true`.
+- **Rooms (`/owner/rooms`)**: tabs **Rooms & prices** (types, prices, today's Free/Occupied/Arriving/Leaving status, bulk edit), **Bookings** (14-day calendar on desktop, per-day list on phone; overlap is blocked; “Checked out” makes a cleaning task once — and it also appears automatically after 11:00 on check-out day) and **QR codes**. Currency is set in **Hotel info** (default USD). Reports include occupancy and room revenue, and sample-week loading also creates sample bookings.
+
 ## Checks
 
 ```bash

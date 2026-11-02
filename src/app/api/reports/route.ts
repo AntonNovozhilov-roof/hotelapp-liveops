@@ -17,8 +17,8 @@ import { foreignOriginResponse } from "@/lib/security";
 const MODEL_BASE_URL = "https://api.meta.ai/v1";
 const REPORT_MODEL = "muse-wonder-1.0";
 
-const DAILY_SECTIONS = ["What needs attention today", "Key numbers", "Cleaning and repairs", "Guest questions"];
-const WEEKLY_SECTIONS = ["What went well", "What went wrong", "Patterns", "Staff workload", "Suggestions", "Guest questions"];
+const DAILY_SECTIONS = ["What needs attention today", "Key numbers", "Rooms and bookings", "Cleaning and repairs", "Guest questions"];
+const WEEKLY_SECTIONS = ["What went well", "What went wrong", "Patterns", "Staff workload", "Rooms and bookings", "Suggestions", "Guest questions"];
 
 async function guard() {
   const user = await getCurrentUser();
@@ -43,7 +43,7 @@ function cleanPoints(raw: unknown, kind: ReportKind, validIds: Set<string>): Rep
     const section = typeof r.section === "string" && allowed.includes(r.section) ? r.section : allowed[0];
     const taskIds = Array.isArray(r.taskIds) ? r.taskIds.filter((id): id is string => typeof id === "string" && validIds.has(id)).slice(0, 10) : [];
     return [{ section, text, taskIds }];
-  }).slice(0, kind === "daily" ? 5 : 10);
+  }).slice(0, kind === "daily" ? 6 : 12);
 }
 
 async function askWonder(kind: ReportKind, factsJson: string, badNumbers: number[] | null): Promise<ReportPoint[]> {
@@ -81,8 +81,9 @@ export async function POST(request: Request) {
   try { body = (await request.json()) as Record<string, unknown>; } catch { /* default daily */ }
   const kind: ReportKind = body.kind === "weekly" ? "weekly" : "daily";
 
-  const [tasks, history, hotel] = await Promise.all([listStoredTasks(), listHistory({ range: "all", limit: 5000 }), getHotelData()]);
-  const facts = computeReportFacts(kind, tasks, history, hotel.rooms);
+  const { listBookings } = await import("@/lib/bookings");
+  const [tasks, history, hotel, bookings] = await Promise.all([listStoredTasks(), listHistory({ range: "all", limit: 5000 }), getHotelData(), listBookings()]);
+  const facts = computeReportFacts(kind, tasks, history, hotel.rooms, new Date(), bookings, hotel.settings.currency);
   const validIds = new Set(facts.taskIds);
   const plain = buildPlainReport(facts);
   const breakNumbers = process.env.REPORT_TEST_BREAK_NUMBERS === "1"; // test-only hook: proves the fallback works
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
         // Completeness: weekly must cover workload + exactly 3 suggestions; fill any gap from the plain facts report.
         if (kind === "weekly") {
           const have = new Set(points.map((p) => p.section));
-          for (const section of ["What went well", "What went wrong", "Patterns", "Staff workload"]) {
+          for (const section of ["What went well", "What went wrong", "Patterns", "Staff workload", "Rooms and bookings"]) {
             if (!have.has(section)) points.push(...plain.filter((p) => p.section === section));
           }
           const sugg = points.filter((p) => p.section === "Suggestions");

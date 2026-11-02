@@ -3,6 +3,7 @@ import StaffBoard from "./StaffBoard";
 import SessionBar from "@/components/SessionBar";
 import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureAutoCheckoutTasks } from "@/lib/bookings";
 
 /**
  * Staff role screens (D2 / ANT-38): the signed-in person decides which
@@ -13,6 +14,7 @@ export default async function StaffPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.department) redirect(user.home);
+  await ensureAutoCheckoutTasks();
 
   return (
     <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8">

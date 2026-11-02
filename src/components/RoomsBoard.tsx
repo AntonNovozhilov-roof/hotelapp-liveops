@@ -12,7 +12,7 @@ function linkFor(room: Room) {
 
 type RefRoom = Room & { reference?: unknown; pendingReference?: unknown; referenceHistory?: unknown[] };
 
-function ReferenceSection({ room, onChanged }: { room: Room; onChanged: () => Promise<void> }) {
+export function ReferenceSection({ room, onChanged }: { room: Room; onChanged: () => Promise<void> }) {
   const r = room as RefRoom;
   const active = r.reference as { photos: { name: string; url: string; label: string }[]; uploadedBy: string; uploadedAt: string; reason: string | null } | null;
   const pending = r.pendingReference as { photos: { name: string; url: string; label: string }[]; checked?: boolean } | null;

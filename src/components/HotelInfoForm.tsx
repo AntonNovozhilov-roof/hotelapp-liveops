@@ -15,8 +15,11 @@ const TEXT_FIELDS: Array<{ key: keyof HotelInfo; label: string; hint?: string }>
   { key: "breakfastHours", label: "Breakfast hours", hint: "For example 07:00–10:30" },
 ];
 
-export default function HotelInfoForm({ initial }: { initial: HotelInfo }) {
+const CURRENCIES = ["USD", "EUR", "GBP", "KZT", "AED", "TRY", "RUB", "CNY"];
+
+export default function HotelInfoForm({ initial, initialCurrency = "USD" }: { initial: HotelInfo; initialCurrency?: string }) {
   const [info, setInfo] = useState<HotelInfo>(initial);
+  const [currency, setCurrency] = useState(initialCurrency);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,10 +30,10 @@ export default function HotelInfoForm({ initial }: { initial: HotelInfo }) {
   async function save(next: HotelInfo = info) {
     setBusy(true); setError(null);
     try {
-      const res = await fetch("/api/hotel-info", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
-      const data = await res.json().catch(() => ({})) as { error?: string; hotelInfo?: HotelInfo };
+      const res = await fetch("/api/hotel-info", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...next, currency }) });
+      const data = await res.json().catch(() => ({})) as { error?: string; hotelInfo?: HotelInfo; currency?: string };
       if (!res.ok || !data.hotelInfo) throw new Error(data.error || "Could not save. Please try again.");
-      setInfo(data.hotelInfo); setSaved(true);
+      setInfo(data.hotelInfo); if (data.currency) setCurrency(data.currency); setSaved(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save."); }
     finally { setBusy(false); }
   }
@@ -50,6 +53,9 @@ export default function HotelInfoForm({ initial }: { initial: HotelInfo }) {
           {TEXT_FIELDS.map((f) => (
             <Field key={f.key} label={f.label} hint={f.hint}><Input value={String(info[f.key])} onChange={(e) => set(f.key, e.target.value)} /></Field>
           ))}
+        </div>
+        <div className="mt-3 max-w-xs">
+          <Field label="Currency" hint="Used for room prices, bookings and reports everywhere."><select className="h-11 w-full rounded-lg border border-line bg-white px-3 text-sm sm:h-10" value={currency} onChange={(e) => { setCurrency(e.target.value); setSaved(false); }} aria-label="Currency">{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
         </div>
         <Field label="House rules" className="mt-3"><Textarea value={info.houseRules} onChange={(e) => set("houseRules", e.target.value)} rows={3} /></Field>
         <Button className="mt-4" size="lg" loading={busy} onClick={() => void save()}>Save hotel info</Button>

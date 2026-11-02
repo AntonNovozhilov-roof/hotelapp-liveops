@@ -6,6 +6,7 @@ import SessionBar from "@/components/SessionBar";
 import TodayGlance from "@/components/TodayGlance";
 import { Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureAutoCheckoutTasks } from "@/lib/bookings";
 import { listStoredTasks } from "@/lib/store";
 import { sortReviewTasks } from "@/lib/tasks";
 import { getHotelData } from "@/lib/hotel-data";
@@ -23,6 +24,7 @@ export default async function SupervisorPage() {
     redirect(user.home);
   }
 
+  await ensureAutoCheckoutTasks();
   const tasks = await listStoredTasks();
   const hotel = await getHotelData();
   const references: Record<string, { photos: { name: string; url: string; label: string }[] } | null> = {};

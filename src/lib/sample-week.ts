@@ -62,3 +62,33 @@ export async function buildSampleWeek(now = new Date()): Promise<StoredTask[]> {
   }
   return tasks;
 }
+
+import type { Booking } from "./bookings";
+
+/**
+ * Sample bookings (R2): clearly sample:true bookings over the past week so
+ * reports show occupancy/revenue. Guest names are fake labels only and are
+ * never used in reports/AI (aggregates only).
+ */
+export function buildSampleBookings(rooms: { id: string; number: string; pricePerNight: number }[], now = new Date()): Booking[] {
+  if (!rooms.length) return [];
+  const dstr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const day = (offset: number) => { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset); return dstr(d); };
+  const picks: Array<[number, number, number, string]> = [
+    [0, -6, 3, "Direct"], [1, -5, 4, "Booking.com"], [2, -3, 2, "Airbnb"], [0, -1, 3, "Direct"], [3, 0, 2, "Other"], [1, -2, 1, "Booking.com"],
+  ];
+  const out: Booking[] = [];
+  for (const [idx, startOff, nights, source] of picks) {
+    const room = rooms[idx % rooms.length];
+    const price = room.pricePerNight > 0 ? room.pricePerNight : 80 + (idx % 3) * 20;
+    const checkIn = day(startOff); const checkOut = day(startOff + nights);
+    out.push({
+      id: `sample-booking-${randomUUID()}`, roomId: room.id, roomNumber: room.number, checkIn, checkOut,
+      guests: 2, pricePerNight: price, total: price * nights, source: source as Booking["source"],
+      guestName: "Sample guest", reference: "SAMPLE", status: "active", checkoutTaskId: null, checkedOutAt: null,
+      sample: true, createdBy: "Sample week", createdAt: now.toISOString(), updatedAt: now.toISOString(),
+    });
+  }
+  // Drop any that overlap for the same room (keep first).
+  return out.filter((b, i) => !out.slice(0, i).some((o) => o.roomNumber === b.roomNumber && b.checkIn < o.checkOut && o.checkIn < b.checkOut));
+}

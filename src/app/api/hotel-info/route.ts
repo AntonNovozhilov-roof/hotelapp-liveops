@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getHotelData, getRoomByNumber, guestLinkAllowed, guestSafeHotelInfo, saveHotelInfo, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
+import { getHotelData, getRoomByNumber, guestLinkAllowed, guestSafeHotelInfo, saveHotelInfo, saveSettings, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
 import { randomUUID } from "crypto";
 import { appendHistory } from "@/lib/history";
 import { foreignOriginResponse } from "@/lib/security";
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   const data = await getHotelData();
   if (user?.role === "owner") {
-    return NextResponse.json({ hotelInfo: data.hotelInfo });
+    return NextResponse.json({ hotelInfo: data.hotelInfo, currency: data.settings.currency });
   }
   const sp = new URL(request.url).searchParams;
   const roomNumber = sp.get("room");
@@ -60,6 +60,10 @@ export async function PUT(request: Request) {
     info.faqs = faqs;
   }
   const saved = await saveHotelInfo(info);
+  let currency = (await getHotelData()).settings.currency;
+  if (typeof r.currency === "string" && /^[A-Za-z]{3}$/.test(r.currency.trim())) {
+    currency = (await saveSettings({ currency: r.currency.trim() })).currency;
+  }
   await appendHistory({ actorName: user.name, actorRole: user.roleLabel, room: null, taskId: null, taskTitle: null, taskType: null, action: "Hotel info saved", details: `Hotel info saved by ${user.name}.` });
-  return NextResponse.json({ hotelInfo: saved, saved: true });
+  return NextResponse.json({ hotelInfo: saved, currency, saved: true });
 }

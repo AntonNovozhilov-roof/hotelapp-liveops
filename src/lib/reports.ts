@@ -1,6 +1,7 @@
 import { DEPARTMENT_LABELS, STAFF, type StoredTask } from "./tasks";
 import type { HistoryEvent } from "./history";
 import type { Room } from "./hotel-data";
+import type { Booking } from "./bookings";
 
 /**
  * AI reports (M10 / ANT-26 + S6 / ANT-34).
@@ -23,7 +24,14 @@ export interface TeamFact {
 export interface PatternFact { room: string; problem: string; count: number; taskIds: string[] }
 export interface WorkloadFact { name: string; department: string; done: number; open: number; taskIds: string[] }
 
+export interface BookingDayFact { date: string; label: string; occupancyPct: number; revenue: number; arrivals: number; departures: number; occupiedNights: number }
+export interface BookingTypeFact { roomType: string; revenue: number; nights: number }
+
 export interface ReportFacts {
+  // R2 booking facts (aggregates only — never guest names/references)
+  occupancyPct: number; roomRevenue: number; avgNightPrice: number; arrivals: number; departures: number;
+  occupiedNights: number; availableNights: number; currency: string;
+  perDay: BookingDayFact[]; bestDay: BookingDayFact | null; worstDay: BookingDayFact | null; revenueByType: BookingTypeFact[];
   kind: ReportKind;
   periodStart: string; periodEnd: string; periodLabel: string;
   created: number; done: number; open: number; urgentOpen: number; inReview: number;
@@ -64,7 +72,7 @@ export function problemKey(title: string): string {
 
 function avg(nums: number[]): number | null { return nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10 : null; }
 
-export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], history: HistoryEvent[], rooms: Room[], now = new Date()): ReportFacts {
+export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], history: HistoryEvent[], rooms: Room[], now = new Date(), bookings: Booking[] = [], currency = "USD"): ReportFacts {
   const { start, end, label } = periodFor(kind, now);
   const inPeriod = (iso: string) => { const t = new Date(iso).getTime(); return t >= start.getTime() && t <= end.getTime(); };
   const periodTasks = tasks.filter((t) => inPeriod(t.createdAt));
@@ -115,13 +123,67 @@ export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], histor
     const openTeam = openTasks.filter((t) => t.department === s.department);
     return { name: s.name, department: s.department, done: doneBy.size, open: openTeam.length, taskIds: [...doneBy, ...openTeam.map((t) => t.id)] };
   });
+  // E1: real employees appear by their real name too.
+  for (const e of doneEvents) {
+    if (!e.actorName || ["Guest", "AI"].includes(e.actorName) || workload.some((w) => w.name === e.actorName)) continue;
+    const doneBy = new Set(doneEvents.filter((x) => x.actorName === e.actorName).map((x) => x.taskId as string));
+    workload.push({ name: e.actorName, department: "", done: doneBy.size, open: 0, taskIds: [...doneBy] });
+  }
 
   const unanswered = periodTasks.filter((t) => t.department === "front_desk" && /guest question/i.test(t.title))
     .map((t) => ({ question: t.title.replace(/^.*guest question:\s*/i, "").slice(0, 120), taskId: t.id, room: t.room }));
   const roomsWithoutPerfect = rooms.filter((r) => !r.reference).map((r) => r.number);
   const includesSample = tasks.some((t) => t.sample && periodIds.has(t.id));
 
+  // ---- R2 booking facts (aggregates only) ----
+  const dstr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dayCount = kind === "daily" ? 2 : 7;
+  const dates: string[] = [];
+  for (let i = dayCount - 1; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i); dates.push(dstr(d)); }
+  const dateSet = new Set(dates);
+  const activeBookings = bookings.filter((b) => b.status === "active");
+  const roomTypeByNumber = new Map(rooms.map((r) => [r.number, r.roomType || "Standard"]));
+  const MONTHS_S = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  let occupiedNights = 0; let roomRevenue = 0;
+  const byTypeMap = new Map<string, BookingTypeFact>();
+  const perDay: BookingDayFact[] = dates.map((date) => {
+    let occ = 0; let rev = 0;
+    for (const b of activeBookings) {
+      if (b.checkIn <= date && date < b.checkOut) {
+        occ += 1; rev += b.pricePerNight;
+        const type = roomTypeByNumber.get(b.roomNumber) ?? "Standard";
+        const row = byTypeMap.get(type) ?? { roomType: type, revenue: 0, nights: 0 };
+        // per-type totals are accumulated once below, not per day loop duplication guard: handled after
+        void row;
+      }
+    }
+    occupiedNights += occ; roomRevenue += rev;
+    const d = new Date(`${date}T12:00:00`);
+    return { date, label: `${d.getDate()} ${MONTHS_S[d.getMonth()]}`, occupancyPct: rooms.length ? Math.round((occ / rooms.length) * 100) : 0, revenue: rev, arrivals: activeBookings.filter((b) => b.checkIn === date).length, departures: activeBookings.filter((b) => b.checkOut === date).length, occupiedNights: occ };
+  });
+  // revenue by type over the whole period (count each occupied night once)
+  for (const b of activeBookings) {
+    for (const date of dates) {
+      if (b.checkIn <= date && date < b.checkOut) {
+        const type = roomTypeByNumber.get(b.roomNumber) ?? "Standard";
+        const row = byTypeMap.get(type) ?? { roomType: type, revenue: 0, nights: 0 };
+        row.revenue += b.pricePerNight; row.nights += 1; byTypeMap.set(type, row);
+      }
+    }
+  }
+  const revenueByType = [...byTypeMap.values()].sort((a, b) => b.revenue - a.revenue);
+  const availableNights = rooms.length * dates.length;
+  const occupancyPct = availableNights ? Math.round((occupiedNights / availableNights) * 100) : 0;
+  const avgNightPrice = occupiedNights ? Math.round((roomRevenue / occupiedNights) * 100) / 100 : 0;
+  const arrivals = activeBookings.filter((b) => dateSet.has(b.checkIn)).length;
+  const departures = activeBookings.filter((b) => dateSet.has(b.checkOut)).length;
+  const sortedDays = [...perDay].sort((a, b) => b.revenue - a.revenue || b.occupancyPct - a.occupancyPct);
+  const bestDay = perDay.length ? sortedDays[0] : null;
+  const worstDay = perDay.length ? sortedDays[sortedDays.length - 1] : null;
+
   const facts: ReportFacts = {
+    occupancyPct, roomRevenue: Math.round(roomRevenue * 100) / 100, avgNightPrice, arrivals, departures,
+    occupiedNights, availableNights, currency, perDay, bestDay, worstDay, revenueByType,
     kind, periodStart: start.toISOString(), periodEnd: end.toISOString(), periodLabel: label,
     created: periodTasks.length, done: doneTasks.length, open: openTasks.length,
     urgentOpen: urgentOpenTasks.length, inReview: openTasks.filter((t) => t.status === "review").length,
@@ -140,6 +202,17 @@ export function computeReportFacts(kind: ReportKind, tasks: StoredTask[], histor
 }
 
 function collectAllowedNumbers(f: ReportFacts, tasks: StoredTask[], rooms: Room[]): number[] {
+  // R2 booking numbers are added after facts creation via collectBookingNumbers below.
+  void f; void tasks; void rooms;
+  return collectAllowedNumbersInner(f, tasks, rooms);
+}
+function collectBookingNumbersInto(s: Set<number>, f: ReportFacts) {
+  const add = (n: number | null | undefined) => { if (n === null || n === undefined || Number.isNaN(n)) return; s.add(n); s.add(Math.round(n)); s.add(Math.round(n * 10) / 10); s.add(Math.round(n * 100) / 100); };
+  [f.occupancyPct, f.roomRevenue, f.avgNightPrice, f.arrivals, f.departures, f.occupiedNights, f.availableNights].forEach(add);
+  for (const d of f.perDay) { [d.occupancyPct, d.revenue, d.arrivals, d.departures, d.occupiedNights].forEach(add); const dayNum = Number(d.date.slice(8, 10)); add(dayNum); }
+  for (const r of f.revenueByType) { add(r.revenue); add(r.nights); }
+}
+function collectAllowedNumbersInner(f: ReportFacts, tasks: StoredTask[], rooms: Room[]): number[] {
   const s = new Set<number>();
   const add = (n: number | null | undefined) => { if (n === null || n === undefined || Number.isNaN(n)) return; s.add(n); s.add(Math.round(n)); s.add(Math.round(n * 10) / 10); };
   [f.created, f.done, f.open, f.urgentOpen, f.inReview, f.waitingLong, f.sentBack, f.reopenedRepairs, f.cleaningPassed, f.cleaningFailed, f.cleaningUnsure, f.cleaningFailedTwice, f.roomsWithoutPerfect.length, f.unanswered.length, f.sampleCount, f.patterns.length, f.perTeam.length].forEach(add);
@@ -151,6 +224,7 @@ function collectAllowedNumbers(f: ReportFacts, tasks: StoredTask[], rooms: Room[
   for (const t of tasks) { const n = parseInt(t.room, 10); if (!Number.isNaN(n)) s.add(n); }
   for (const r of rooms) { const n = parseInt(r.number, 10); if (!Number.isNaN(n)) s.add(n); }
   [0, 1, 2, 3, 7, 24, 120].forEach(add); // period days, suggestion count, waiting threshold (2h = 120 min)
+  collectBookingNumbersInto(s, f);
   return [...s];
 }
 
@@ -173,6 +247,19 @@ function topPatternText(f: ReportFacts): string {
 }
 
 /** Plain report built straight from the facts — always number-safe. */
+function moneyPlain(amount: number, currency: string): string {
+  const r = Math.round(amount * 100) / 100;
+  return `${currency} ${Number.isInteger(r) ? String(r) : r.toFixed(2)}`;
+}
+function bookingPoint(f: ReportFacts): ReportPoint {
+  if (f.kind === "daily") {
+    return { section: "Rooms and bookings", text: `Occupancy ${f.occupancyPct}% (${f.occupiedNights} of ${f.availableNights} room nights), room revenue ${moneyPlain(f.roomRevenue, f.currency)}, average ${moneyPlain(f.avgNightPrice, f.currency)} per occupied night, ${f.arrivals} arrivals and ${f.departures} departures.`, taskIds: [] };
+  }
+  const trend = f.perDay.map((d) => `${d.label}: ${d.occupancyPct}% (${moneyPlain(d.revenue, f.currency)})`).join(", ");
+  const byType = f.revenueByType.length ? f.revenueByType.map((r) => `${r.roomType} ${moneyPlain(r.revenue, f.currency)} (${r.nights} nights)`).join(", ") : "no occupied nights";
+  return { section: "Rooms and bookings", text: `Occupancy ${f.occupancyPct}%, room revenue ${moneyPlain(f.roomRevenue, f.currency)}, average ${moneyPlain(f.avgNightPrice, f.currency)} per occupied night, ${f.arrivals} arrivals and ${f.departures} departures. Per day: ${trend}. Best day: ${f.bestDay ? `${f.bestDay.label} at ${f.bestDay.occupancyPct}% (${moneyPlain(f.bestDay.revenue, f.currency)})` : "none"}. Worst day: ${f.worstDay ? `${f.worstDay.label} at ${f.worstDay.occupancyPct}% (${moneyPlain(f.worstDay.revenue, f.currency)})` : "none"}. Revenue by room type: ${byType}.`, taskIds: [] };
+}
+
 export function buildPlainReport(f: ReportFacts): ReportPoint[] {
   const teamLine = f.perTeam.filter((t) => t.created || t.open).map((t) => `${t.label}: ${t.created} new, ${t.done} done, ${t.open} open`).join(". ");
   const allOpenIds = f.perTeam.flatMap((t) => t.taskIds);
@@ -181,6 +268,7 @@ export function buildPlainReport(f: ReportFacts): ReportPoint[] {
     return [
       { section: "What needs attention today", text: f.urgentOpen || f.waitingLong ? `${f.urgentOpen} urgent tasks are still open and ${f.waitingLong} tasks have been waiting more than 2 hours. Start with those.` : "No urgent tasks are open and nothing has been waiting too long. A calm start to the day.", taskIds: [...new Set([...f.waitingLongIds, ...urgentIds])].slice(0, 10) },
       { section: "Key numbers", text: `${f.created} tasks came in, ${f.done} are done and ${f.open} are still open (${f.inReview} in review). ${teamLine}.`, taskIds: allOpenIds.slice(0, 10) },
+      bookingPoint(f),
       { section: "Cleaning and repairs", text: `Cleaning AI checks: ${f.cleaningPassed} passed, ${f.cleaningFailed} did not pass, ${f.cleaningFailedTwice} failed twice and went to a supervisor. ${f.sentBack} tasks were sent back and ${f.reopenedRepairs} repairs were reopened.`, taskIds: [] },
       f.unanswered.length
         ? { section: "Guest questions", text: `The assistant could not answer ${f.unanswered.length} guest questions (${f.unanswered.map((u) => `"${u.question}"`).join(", ")}). Add the answers to the hotel info sheet so it can answer next time.`, taskIds: f.unanswered.map((u) => u.taskId) }
@@ -204,6 +292,7 @@ export function buildPlainReport(f: ReportFacts): ReportPoint[] {
     { section: "What went wrong", text: `${f.open} tasks are still open, ${f.urgentOpen} of them urgent, and ${f.waitingLong} waited more than 2 hours. ${f.sentBack} tasks were sent back, ${f.cleaningFailedTwice} cleanings failed the AI check twice, and ${f.reopenedRepairs} repairs were reopened.`, taskIds: f.waitingLongIds.slice(0, 10) },
     { section: "Patterns", text: topPatternText(f), taskIds: f.patterns[0]?.taskIds ?? [] },
     { section: "Staff workload", text: f.workload.map((w) => `${w.name}: ${w.done} done, ${w.open} open`).join(". ") + ".", taskIds: [] },
+    bookingPoint(f),
     ...suggestions,
   ];
 }
@@ -217,5 +306,6 @@ export function factsForPrompt(f: ReportFacts): string {
     perTeam: f.perTeam.map((t) => ({ team: t.label, created: t.created, done: t.done, open: t.open, urgentOpen: t.urgentOpen, avgMinutesToAccept: t.avgAcceptMin, avgMinutesToFinish: t.avgFinishMin, taskIds: t.taskIds })),
     repeatPatterns: f.patterns, workload: f.workload, unansweredGuestQuestions: f.unanswered,
     waitingLongTaskIds: f.waitingLongIds, allowedNumbers: f.allowedNumbers,
+    bookings: { currency: f.currency, occupancyPct: f.occupancyPct, roomRevenue: f.roomRevenue, avgNightPrice: f.avgNightPrice, arrivals: f.arrivals, departures: f.departures, occupiedNights: f.occupiedNights, availableNights: f.availableNights, perDay: f.perDay, bestDay: f.bestDay, worstDay: f.worstDay, revenueByType: f.revenueByType },
   }, null, 1);
 }

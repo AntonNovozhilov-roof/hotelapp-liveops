@@ -83,10 +83,10 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
     setBusy(true); setError(null);
     try {
       const res = await fetch("/api/reports/sample", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
-      const d = (await res.json()) as { created?: number; removed?: number; error?: string };
+      const d = (await res.json()) as { created?: number; removed?: number; createdBookings?: number; error?: string };
       if (!res.ok) throw new Error(d.error ?? "Sample data change failed.");
       setSampleCount(action === "load" ? (d.created ?? 0) : 0);
-      setMsg(action === "load" ? `Sample week loaded (${d.created} sample tasks). Now make a Weekly report to see it.` : `Sample data removed (${d.removed} tasks). Your other tasks were not touched.`);
+      setMsg(action === "load" ? `Sample week loaded (${d.created} sample tasks${d.createdBookings ? ` and ${d.createdBookings} sample bookings` : ""}). Now make a Weekly report to see it.` : `Sample data removed (${d.removed} tasks). Your other tasks were not touched.`);
     } catch (e) { setError(e instanceof Error ? e.message : "Sample data change failed."); } finally { setBusy(false); }
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, checkDemoCredentials, createDemoSession } from "@/lib/auth";
+import { sessionCookieOptions } from "@/lib/security";
 import { toPublicUser } from "@/lib/users";
 
 export async function POST(request: Request) {
@@ -34,11 +35,6 @@ export async function POST(request: Request) {
 
   const token = createDemoSession(user);
   const response = NextResponse.json({ user: toPublicUser(user) });
-  response.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
   return response;
 }

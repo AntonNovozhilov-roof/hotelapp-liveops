@@ -217,6 +217,17 @@ MODEL_API_KEY=your_key_here
 > chat, or a screenshot. The key is read only on the server. The server
 > calls the Meta Model API (`https://api.meta.ai/v1`).
 
+**Sign-in secret (`SESSION_SECRET`, SEC1):** sign-ins are signed cookies
+(HMAC with `SESSION_SECRET`, 12 hours, httpOnly), not a list on the server,
+so **you stay signed in when the app restarts**. Put a long random value in
+`.env.local` (and later in Vercel env settings), for example 32+ random
+characters from a password manager. If it is empty, local testing still
+works with a clearly marked development fallback — always set a real value
+online. Demo behaviour is controlled by `DEMO_MODE=true` (demo accounts
+shown on /login, demo hotel auto-loads, room links without QR token) and
+`ALLOW_DEMO_RESET=true` (Owner reset button; default off). `AI_DAILY_LIMIT`
+caps real AI calls per day (default 500; then marked MOCK answers).
+
 ### 6. Try it on a phone on the same Wi-Fi
 
 1. Connect the phone to the **same Wi-Fi** as the computer running the app.
@@ -244,8 +255,9 @@ created when you press Send.
 - **Data is stored only on that computer**, in the `.data` folder next to
   the code. It is not shared, not backed up, and another computer that
   clones the repo starts empty.
-- **Sign-in resets when the app restarts:** sessions live in server memory,
-  so restarting `npm run dev` signs everyone out. Sign in again.
+- **Sign-in survives an app restart** (SEC1): sign-in is a signed cookie
+  that lasts 12 hours. It only ends early if you sign out or the cookie
+  expires.
 - Demo accounts and the `demo1234` password are for local testing only.
 - The microphone needs HTTPS or `localhost` (see above), and voice
   transcription also needs a real `MODEL_API_KEY`.

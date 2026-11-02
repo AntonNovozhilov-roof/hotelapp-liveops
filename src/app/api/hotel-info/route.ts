@@ -1,12 +1,33 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getHotelData, saveHotelInfo, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
+import { getHotelData, getRoomByNumber, guestLinkAllowed, guestSafeHotelInfo, saveHotelInfo, type FaqItem, type HotelInfo } from "@/lib/hotel-data";
 import { randomUUID } from "crypto";
 import { appendHistory } from "@/lib/history";
 
-export async function GET() {
+/**
+ * Hotel info reads (SEC1): the Owner gets the full sheet (for editing).
+ * Everyone else — guests — only gets guest-safe fields, and only with a
+ * valid room link (?room=<number>&t=<QR token>, or DEMO_MODE without token).
+ */
+export async function GET(request: Request) {
+  const user = await getCurrentUser();
   const data = await getHotelData();
-  return NextResponse.json({ hotelInfo: data.hotelInfo });
+  if (user?.role === "owner") {
+    return NextResponse.json({ hotelInfo: data.hotelInfo });
+  }
+  const sp = new URL(request.url).searchParams;
+  const roomNumber = sp.get("room");
+  if (!roomNumber) {
+    return NextResponse.json(
+      { error: user ? "Only the Owner can see the full hotel info." : "Please sign in, or open your room link from the QR code." },
+      { status: user ? 403 : 401 },
+    );
+  }
+  const { room } = await getRoomByNumber(roomNumber);
+  if (!guestLinkAllowed(room, sp.get("t"), data.settings, data.rooms.length > 0)) {
+    return NextResponse.json({ error: "This room link is not valid. Please scan the QR code in your room." }, { status: 403 });
+  }
+  return NextResponse.json({ hotelInfo: guestSafeHotelInfo(data.hotelInfo) });
 }
 
 const FIELDS = ["hotelName", "address", "receptionPhone", "emergencyNumber", "wifiName", "wifiPassword", "checkIn", "checkOut", "breakfastHours", "houseRules"] as const;

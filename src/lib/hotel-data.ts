@@ -377,6 +377,35 @@ export async function clearHotelData(): Promise<void> {
   await withLock(async () => writeAll(defaults()));
 }
 
+/** Guest-safe hotel info (SEC1): what a guest with a valid room link may see. */
+export interface GuestHotelInfo {
+  hotelName: string;
+  receptionPhone: string;
+  emergencyNumber: string;
+  wifiName: string;
+  wifiPassword: string;
+  checkIn: string;
+  checkOut: string;
+  breakfastHours: string;
+  houseRules: string;
+  faqs: FaqItem[];
+}
+
+export function guestSafeHotelInfo(info: HotelInfo): GuestHotelInfo {
+  return {
+    hotelName: info.hotelName,
+    receptionPhone: info.receptionPhone,
+    emergencyNumber: info.emergencyNumber,
+    wifiName: info.wifiName,
+    wifiPassword: info.wifiPassword,
+    checkIn: info.checkIn,
+    checkOut: info.checkOut,
+    breakfastHours: info.breakfastHours,
+    houseRules: info.houseRules,
+    faqs: info.faqs,
+  };
+}
+
 export async function saveHotelInfo(info: HotelInfo): Promise<HotelInfo> {
   return withLock(async () => {
     const data = await readAll();

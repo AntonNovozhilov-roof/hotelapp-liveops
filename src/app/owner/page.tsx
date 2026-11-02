@@ -41,7 +41,7 @@ export default async function OwnerPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="app-main mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title={user.screenTitle} sub={user.screenSub} />
       {hotel.rooms.length === 0 && (

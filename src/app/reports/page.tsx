@@ -13,7 +13,7 @@ export default async function ReportsPage() {
   if (user.role !== "owner" && user.role !== "supervisor") redirect(user.home);
   const [reports, sampleCount] = await Promise.all([listReports(), countSampleTasks()]);
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="app-main mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="Reports" sub="What needs your attention, written from the real task facts. Tap any point to see the tasks behind it. Every number is checked against the facts before you see it." />
       <div className="mt-5">

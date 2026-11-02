@@ -366,9 +366,15 @@ export default function StaffBoard({ user }: { user: PublicUser }) {
                 </p>
               )}
 
-              {columnTasks.length === 0 ? (
+              {loading && columnTasks.length === 0 ? (
+                <div className="mt-3 space-y-2" role="status" aria-label="Loading your tasks">
+                  <div className="h-24 animate-pulse rounded-xl bg-white/80" />
+                  <div className="h-24 animate-pulse rounded-xl bg-white/60" />
+                  <span className="sr-only">Loading your tasks…</span>
+                </div>
+              ) : columnTasks.length === 0 ? (
                 <p className="mt-3 rounded-xl bg-white/70 p-3 text-[13px] text-ink-4">
-                  {loading ? "Loading your tasks…" : status === "new" ? "No new tasks — you're all caught up. New guest requests appear here." : status === "done" ? "Nothing finished yet. Finished work lands here." : `No tasks ${STATUS_LABELS[status].toLowerCase()} right now.`}
+                  {status === "new" ? "No new tasks — you're all caught up. New guest requests appear here." : status === "done" ? "Nothing finished yet. Finished work lands here." : `No tasks ${STATUS_LABELS[status].toLowerCase()} right now.`}
                 </p>
               ) : (
                 <ul className="mt-3 space-y-3">

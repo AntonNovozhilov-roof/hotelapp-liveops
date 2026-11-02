@@ -75,8 +75,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-[1fr_minmax(420px,0.9fr)] bg-white">
       <div className="flex flex-col px-6 sm:px-12 py-8">
-        <div className="self-start">
+        <div className="flex items-center justify-between gap-3">
           <Logo markOnly />
+          <Link href="/" className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-brand-700 hover:underline">← Back to home</Link>
         </div>
         <div className="flex-1 flex items-center justify-center py-10">
           <div className="w-full max-w-[400px]">
@@ -182,31 +183,19 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="hidden lg:flex relative overflow-hidden bg-brand-950 text-white p-12 flex-col justify-between">
+      <div className="relative hidden flex-col justify-center overflow-hidden bg-brand-950 p-10 text-white lg:flex xl:p-12">
         <div className="absolute inset-0 bg-[radial-gradient(70%_50%_at_80%_0%,rgba(46,154,168,.35),transparent_70%)]" />
-        <div className="relative">
-          <p className="font-display text-[34px] leading-[1.08] font-semibold tracking-[-0.02em] max-w-md">
-            “We stopped running the hotel from a WhatsApp group.”
-          </p>
-          <p className="text-brand-100/70 mt-4 text-[15px]">
-            Head of housekeeping, 40-room hotel (pilot)
-          </p>
-        </div>
-        <div className="relative grid grid-cols-2 gap-3 max-w-md">
-          {[
-            ["−38 min", "morning planning per day"],
-            ["2×", "faster room turnover"],
-            ["0", "lost repair requests"],
-            ["9.1", "cleanliness score"],
-          ].map(([value, label]) => (
-            <div key={label} className="rounded-xl bg-white/[.06] ring-1 ring-white/10 p-4">
-              <p className="font-display text-[26px] font-semibold text-occ">{value}</p>
-              <p className="text-[13px] text-brand-100/75">{label}</p>
-            </div>
-          ))}
-          <p className="col-span-2 text-[11.5px] text-brand-100/50">
-            Illustrative figures for the prototype.
-          </p>
+        <div className="relative mx-auto w-full max-w-lg">
+          <div className="rounded-[20px] bg-white p-2 shadow-pop">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/screenshots/hero-owner.jpg" alt="Owner screen in Readybell" width={900} height={563} className="w-full rounded-2xl" />
+          </div>
+          <p className="mt-2 text-[12px] font-semibold text-brand-100/70">The owner screen, from this demo. No made-up results.</p>
+          <ul className="mt-6 space-y-3 text-[15px] leading-relaxed text-brand-50">
+            <li className="flex gap-2.5"><span aria-hidden className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-brand-500 text-[11px] font-bold">✓</span>Guests message in their own language — the AI answers and routes each request to the right team.</li>
+            <li className="flex gap-2.5"><span aria-hidden className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-brand-500 text-[11px] font-bold">✓</span>Staff prove cleaning with photos; the AI checks them and a person approves.</li>
+            <li className="flex gap-2.5"><span aria-hidden className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-brand-500 text-[11px] font-bold">✓</span>The owner sees checked daily and weekly reports, and a full history of who did what.</li>
+          </ul>
         </div>
       </div>
     </div>

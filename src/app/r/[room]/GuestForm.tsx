@@ -295,7 +295,7 @@ export default function GuestForm({ room }: { room: string }) {
 
   return (
     <div>
-      <Card className="p-4 sm:p-5">
+      <Card className="rounded-[24px] p-4 shadow-pop sm:p-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[15px] font-semibold text-ink">Chat with us</h2>
           {lastMode === "MOCK" && <Badge tone="occ">MOCK</Badge>}
@@ -306,9 +306,9 @@ export default function GuestForm({ room }: { room: string }) {
           {entries.map((entry) => entry.kind === "status" ? (
             <p key={entry.id} className="text-center text-[12.5px] font-semibold text-brand-700 py-1">{entry.text}</p>
           ) : entry.kind === "guest" ? (
-            <div key={entry.id} className="flex justify-end"><p className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-700 text-white px-3.5 py-2.5 text-[14px]">{entry.text}</p></div>
+            <div key={entry.id} className="flex justify-end"><p className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-700 text-white shadow-card px-3.5 py-2.5 text-[14px]">{entry.text}</p></div>
           ) : (
-            <div key={entry.id} className="flex justify-start"><div className="max-w-[85%]">{entry.name && <p className="mb-1 text-[12px] font-semibold text-brand-700">{entry.name} from the front desk</p>}<p className="rounded-2xl rounded-bl-md bg-canvas ring-1 ring-line px-3.5 py-2.5 text-[14px] text-ink">{entry.text}</p>{entry.mode === "MOCK" && <span className="mt-1 inline-block"><Badge tone="occ">MOCK reply</Badge></span>}</div></div>
+            <div key={entry.id} className="flex justify-start"><div className="max-w-[85%]">{entry.name && <p className="mb-1 text-[12px] font-semibold text-brand-700">{entry.name} from the front desk</p>}<p className="rounded-2xl rounded-bl-md bg-white ring-1 ring-line px-3.5 py-2.5 shadow-card text-[14px] text-ink">{entry.text}</p>{entry.mode === "MOCK" && <span className="mt-1 inline-block"><Badge tone="occ">MOCK reply</Badge></span>}</div></div>
           ))}
           {isSending && <p className="text-[12.5px] text-ink-3">One moment…</p>}
           <div ref={bottomRef} />

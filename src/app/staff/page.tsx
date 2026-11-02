@@ -17,7 +17,7 @@ export default async function StaffPage() {
   await ensureAutoCheckoutTasks();
 
   return (
-    <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8">
+    <main className="app-main mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title={user.screenTitle} sub={<>{user.screenSub} Move each task forward by its type: requests finish with Done (no photo), repairs need a proof photo, cleaning needs a photo and an AI check before a supervisor review.</>} />
 

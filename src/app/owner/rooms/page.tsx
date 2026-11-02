@@ -28,7 +28,7 @@ export default async function RoomsPage({ searchParams }: { searchParams: Promis
   const bookings = tab === "qr" ? [] : await listBookings();
   const canEdit = user.role === "owner";
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="app-main mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="Rooms" sub="Room types and prices, manual bookings, and the QR code for each room." />
       <nav className="mt-4 flex flex-wrap gap-1.5" aria-label="Rooms sections" role="tablist">

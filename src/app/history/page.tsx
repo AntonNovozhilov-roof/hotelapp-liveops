@@ -20,7 +20,7 @@ export default async function HistoryPage({
   const { task } = await searchParams;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="app-main mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="History" sub="Who did what, and when — for every task, room and photo. The guest chat itself is never saved, only the request." />
       <div className="mt-5">

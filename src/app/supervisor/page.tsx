@@ -45,7 +45,7 @@ export default async function SupervisorPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="app-main mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <SessionBar user={user} />
       <PageHeader title="Supervisor review" sub={<>Cleaning work waiting for your check. Approve it, or send it back with a short note. AI problems come first, then the oldest task.{user.role === "owner" ? " You are signed in as the Owner — you can review here too." : ""}</>} />
       <TodayGlance tasks={tasks} />

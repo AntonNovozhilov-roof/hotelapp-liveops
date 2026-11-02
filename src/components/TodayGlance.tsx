@@ -29,7 +29,7 @@ export default function TodayGlance({ tasks, bookings, currency, roomsTotal }: {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 min-[640px]:grid-cols-4">
         {Object.entries(DEPARTMENT_LABELS).map(([dept, label]) => (
-          <div key={dept} className="rounded-xl bg-canvas px-3 py-2.5">
+          <div key={dept} className="rounded-xl bg-canvas px-3.5 py-3 ring-1 ring-line-2">
             <p className="text-[12px] font-medium text-ink-3">{label}</p>
             <p className="font-display text-[20px] font-semibold tabular-nums">{open.filter((t) => t.department === dept).length} <span className="text-[12px] font-normal text-ink-3">open</span></p>
           </div>

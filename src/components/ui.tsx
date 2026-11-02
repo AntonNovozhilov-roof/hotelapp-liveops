@@ -252,6 +252,21 @@ export function Avatar({
   );
 }
 
+/** Loading placeholder (U2): same card shape, no layout jump. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden className={cx("animate-pulse rounded-xl bg-line-2", className)} />;
+}
+
+export function StatTile({ label, value, sub, className }: { label: string; value: React.ReactNode; sub?: string; className?: string }) {
+  return (
+    <div className={cx("rounded-xl bg-white px-4 py-3.5 ring-1 ring-line", className)}>
+      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-ink-3">{label}</p>
+      <p className="mt-1 font-display text-[24px] font-semibold leading-none tabular-nums text-ink">{value}</p>
+      {sub && <p className="mt-1.5 text-[12.5px] text-ink-3">{sub}</p>}
+    </div>
+  );
+}
+
 export function Empty({
   title,
   text,
@@ -275,7 +290,7 @@ export function PageHeader({ title, sub, actions }: { title: React.ReactNode; su
   return (
     <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight">{title}</h1>
+        <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em] leading-tight sm:text-[30px]">{title}</h1>
         {sub && <p className="mt-1 text-[13.5px] text-ink-3">{sub}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

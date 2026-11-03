@@ -1,3 +1,16 @@
+## Meta1 — 2026-11-04 — README for judges (ANT-70)
+
+What was built: rewrote `README.md` as a 2-minute judge guide — tagline and one-sentence description, big links (live demo https://readybell.vercel.app, demo-video placeholder, demo accounts all `demo1234`: owner, supervisor, aigerim, ruslan, daniyar, madina), "Try it in 2 minutes" (room 204 towels request → sign in as aigerim, room 205, Use a sample photo → AI photo check → sign in as owner → Reports), 6 "What it does" bullets, a Meta AI table (`muse-spark-1.3`, `muse-voice-transcribe-1.0`, `sam-3.1`, `muse-wonder-1.0` with exactly what each does), Human in control, one architecture diagram (Next.js on Vercel → Meta Model API, Supabase Postgres + private Storage), Security and privacy, honest Known limits, and Provenance (built during the event; UI ported from our earlier v1.2 prototype). The old "Run it on your computer" guide moved unchanged to `docs/LOCAL_SETUP.md` (plus the demo-photo credits) and is linked at the bottom of the README.
+
+Files changed: `README.md`, `docs/LOCAL_SETUP.md` (new), `DEVLOG.md`. Docs only — no code changes.
+
+How it was checked: script compared the moved guide word-for-word against the old README (fully preserved) and checked the new README contains every required item (all 6 demo accounts, all 4 model names, live link, video placeholder, 6 bullets). Model roles, signed sessions, guest QR token, rate limits, daily AI cap and private photo storage were verified against the source (`src/lib/photo-check.ts`, `src/app/api/guest/message/route.ts`, `src/app/api/guest/transcribe/route.ts`, `src/app/api/reports/route.ts`, `src/lib/security.ts`, `src/lib/photos.ts`). No Meta AI calls were made and `.env.local` was never read.
+
+NOT working / NOT checked: the demo-video link is an intentional placeholder for the owner to add; the live site itself was not re-tested in this task.
+
+AI model that helped: Muse via opencode (Meta1)
+Linear: ANT-70, sub-issue of ANT-5
+
 ## Meta1 — 2026-11-02 — U3: UX polish and demo data quality (ANT-76) + towels bug (ANT-77)
 
 What was built (one commit per numbered part, not pushed):

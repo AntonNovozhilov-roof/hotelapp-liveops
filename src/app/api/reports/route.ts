@@ -54,6 +54,7 @@ async function askWonder(kind: ReportKind, factsJson: string, badNumbers: number
   if (!apiKey) throw new Error("MODEL_API_KEY is not set");
   const daily = kind === "daily";
   const res = await fetch(`${MODEL_BASE_URL}/chat/completions`, {
+    signal: AbortSignal.timeout(25000),
     method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model: REPORT_MODEL, temperature: 0.2, messages: [
       { role: "system", content: "You write short, plain hotel reports for the owner. Return ONLY JSON, no markdown." },
@@ -77,6 +78,7 @@ ${factsJson}` },
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const foreignOrigin = foreignOriginResponse(request);
   if (foreignOrigin) return foreignOrigin;
   const g = await guard(); if ("error" in g) return g.error;
@@ -99,6 +101,7 @@ export async function POST(request: Request) {
     try {
       let bad: number[] | null = null; let ok = false; points = plain;
       for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+        if (attempt > 0 && Date.now() - startedAt >= 30000) break;
         let raw = await askWonder(kind, factsForPrompt(facts), bad);
         if (breakNumbers && raw.length) raw = raw.map((p, i) => (i === 0 ? { ...p, text: `${p.text} There are 9999 open tasks.` } : p));
         const cleaned = cleanPoints(raw, kind, validIds);
@@ -122,7 +125,8 @@ export async function POST(request: Request) {
       } else { points = plain; source = "fallback"; }
     } catch (error) {
       console.error("Report model call failed:", error instanceof Error ? error.message : "unknown error");
-      points = plain; source = "mock";
+      const isTimeout = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError" || /timeout|aborted/i.test(error.message));
+      points = plain; source = isTimeout ? "fallback" : "mock";
     }
   }
   const checked = verifyReportText(points.map((p) => p.text), facts).ok;

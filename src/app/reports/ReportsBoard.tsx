@@ -25,7 +25,8 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
     setBusy(true); setError(null); if (!quiet) setMsg(null);
     try {
       const res = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: k }) });
-      const data = (await res.json()) as { report?: SavedReport; error?: string };
+      let data: { report?: SavedReport; error?: string };
+      try { data = (await res.json()) as { report?: SavedReport; error?: string }; } catch { throw new Error("The report took too long. Please try again."); }
       if (!res.ok || !data.report) throw new Error(data.error ?? "Could not make the report. Please try again.");
       setReports((prev) => [data.report as SavedReport, ...prev]); setSelectedId(data.report.id); setOpenPoint(null);
       setMsg(k === "daily" ? "Daily report ready." : "Weekly report ready.");
@@ -100,7 +101,7 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
       {busy && !selected ? <Card className="mt-4"><Empty title="Writing your report…" text="Checking the task facts first, then writing. This can take a few seconds." /></Card>
         : !selected ? (
           <Card className="mt-4"><Empty title={kind === "daily" ? "No daily report yet" : "No weekly report yet"}
-            text={kind === "weekly" && sampleCount === 0 && isOwner ? "A weekly report needs a week of tasks. Load the example week below, then make the report — or wait for real tasks to build up." : "Tap Regenerate and we will build one from the real task facts right now."}
+            text={kind === "weekly" && sampleCount === 0 && isOwner ? "A weekly report needs a week of tasks. Load the example week below, then make the report — or wait for real tasks to build up." : "Tap Make new report and we will build one from the real task facts right now."}
             action={<Button loading={busy} onClick={() => void generate(kind)}>Make my {kind} report</Button>} /></Card>
         ) : (
           <Card className="mt-4 p-5">

@@ -9,7 +9,7 @@ import { consumeAiCall } from "@/lib/security";
 import { foreignOriginResponse } from "@/lib/security";
 
 // Report writing (up to two model tries) can take tens of seconds.
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /**
  * Reports API (M10/S6). Owner + Supervisor only — staff get 403.
@@ -54,7 +54,7 @@ async function askWonder(kind: ReportKind, factsJson: string, badNumbers: number
   if (!apiKey) throw new Error("MODEL_API_KEY is not set");
   const daily = kind === "daily";
   const res = await fetch(`${MODEL_BASE_URL}/chat/completions`, {
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(80000),
     method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model: REPORT_MODEL, temperature: 0.2, messages: [
       { role: "system", content: "You write short, plain hotel reports for the owner. Return ONLY JSON, no markdown." },
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     try {
       let bad: number[] | null = null; let ok = false; points = plain;
       for (let attempt = 0; attempt < 2 && !ok; attempt++) {
-        if (attempt > 0 && Date.now() - startedAt >= 30000) break;
+        if (attempt > 0 && Date.now() - startedAt >= 90000) break;
         let raw = await askWonder(kind, factsForPrompt(facts), bad);
         if (breakNumbers && raw.length) raw = raw.map((p, i) => (i === 0 ? { ...p, text: `${p.text} There are 9999 open tasks.` } : p));
         const cleaned = cleanPoints(raw, kind, validIds);

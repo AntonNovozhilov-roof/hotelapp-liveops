@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Badge, Button, Card, Empty } from "@/components/ui";
 import type { SavedReport } from "@/lib/reports-store";
 import type { StoredTask } from "@/lib/tasks";
@@ -18,7 +18,6 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
   const [openPoint, setOpenPoint] = useState<number | null>(null);
   const [pointTasks, setPointTasks] = useState<Record<number, StoredTask[]>>({});
   const [sampleCount, setSampleCount] = useState(initialSampleCount);
-  const autoTried = useRef(false);
 
   const selected = reports.find((r) => r.id === selectedId && r.kind === kind) ?? reports.find((r) => r.kind === kind) ?? null;
 
@@ -33,14 +32,6 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
     } catch (e) { setError(e instanceof Error ? e.message : "Could not make the report. Please try again."); }
     finally { setBusy(false); }
   }, []);
-
-  // Daily auto-creates on first open after 07:00 that day.
-  useEffect(() => {
-    if (autoTried.current) return; autoTried.current = true;
-    const now = new Date();
-    const hasToday = initialReports.some((r) => r.kind === "daily" && new Date(r.createdAt).toDateString() === now.toDateString());
-    if (now.getHours() >= 7 && !hasToday) void generate("daily", true);
-  }, [generate, initialReports]);
 
   async function togglePoint(i: number, taskIds: string[]) {
     if (openPoint === i) { setOpenPoint(null); return; }
@@ -99,9 +90,9 @@ export default function ReportsBoard({ initialReports, isOwner, initialSampleCou
             {k === "daily" ? "Daily" : "Weekly"}
           </Button>
         ))}
-        <Button variant="secondary" loading={busy} onClick={() => void generate(kind)} className="min-h-11">Regenerate</Button>
+        <Button variant="secondary" loading={busy} onClick={() => void generate(kind)} className="min-h-11">Make new report</Button>
       </div>
-      <p className="mt-2 text-[12.5px] text-ink-3">{kind === "daily" ? "Yesterday plus today so far. Made automatically on your first visit after 07:00." : "The last 7 days: what went well, what went wrong, patterns, workload and 3 suggestions."}</p>
+      <p className="mt-2 text-[12.5px] text-ink-3">{kind === "daily" ? "Yesterday plus today so far. Tap Make new report to write one from the latest facts." : "The last 7 days: what went well, what went wrong, patterns, workload and 3 suggestions."}</p>
 
       {msg && <p className="mt-3 rounded-lg bg-ready-soft px-3 py-2 text-[13.5px] text-ready-deep" role="status">{msg}</p>}
       {error && <p className="mt-3 rounded-lg bg-dirty-soft px-3 py-2 text-[13.5px] text-dirty-deep" role="alert">{error}</p>}
